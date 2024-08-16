@@ -35,8 +35,18 @@
 #include "graphics/screen.h"
 
 #include "mediastation/detection.h"
+#include "mediastation/datafile.h"
 
 namespace MediaStation {
+
+enum DebugChannels {
+	kDebugGraphics = 1,
+	kDebugPath,
+	kDebugScan,
+	kDebugScript,
+	kDebugEvents,
+	kDebugLoading
+};
 
 struct MediaStationGameDescription;
 

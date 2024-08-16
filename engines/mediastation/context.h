@@ -19,43 +19,26 @@
  *
  */
 
-#ifndef MEDIASTATION_DETECTION_H
-#define MEDIASTATION_DETECTION_H
+#include "mediastation/datafile.h"
 
-#include "engines/advancedDetector.h"
+#ifndef MEDIASTATION_CONTEXT_H
+#define MEDIASTATION_CONTEXT_H
 
 namespace MediaStation {
 
-extern const PlainGameDescriptor mediastationGames[];
+class Context : Datafile {
+    public:
+        Context(const Common::Path &path);
+        ~Context();
 
-extern const ADGameDescription gameDescriptions[];
+        bool readPreamble();
 
-#define GAMEOPTION_ORIGINAL_SAVELOAD GUIO_GAMEOPTIONS1
+    private:    
+        uint32 unk1;
+        uint32 subfile_count;
+        uint32 file_size;
+};
 
 } // End of namespace MediaStation
 
-class MediaStationMetaEngineDetection : public AdvancedMetaEngineDetection<ADGameDescription> {
-	static const DebugChannelDef debugFlagList[];
-
-public:
-	MediaStationMetaEngineDetection();
-	~MediaStationMetaEngineDetection() override {}
-
-	const char *getName() const override {
-		return "mediastation";
-	}
-
-	const char *getEngineName() const override {
-		return "Media Station";
-	}
-
-	const char *getOriginalCopyright() const override {
-		return "(C) 1994 - 1999 Media Station, Inc.";
-	}
-
-	const DebugChannelDef *getDebugChannels() const override {
-		return debugFlagList;
-	}
-};
-
-#endif // MEDIASTATION_DETECTION_H
+#endif

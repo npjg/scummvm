@@ -19,9 +19,7 @@
  *
  */
 
-#include "mediastation/mediastation.h"
 #include "graphics/framelimiter.h"
-#include "mediastation/detection.h"
 #include "common/scummsys.h"
 #include "common/config-manager.h"
 #include "common/debug-channels.h"
@@ -29,6 +27,10 @@
 #include "common/system.h"
 #include "engines/util.h"
 #include "graphics/paletteman.h"
+
+#include "mediastation/mediastation.h"
+#include "mediastation/detection.h"
+#include "mediastation/boot.h"
 
 namespace MediaStation {
 
@@ -52,6 +54,10 @@ Common::String MediaStationEngine::getGameId() const {
 }
 
 Common::Error MediaStationEngine::run() {
+	// ATTEMPT TO LOAD BOOT.STM.
+	Common::Path boot_stm_path = Common::Path("BOOT.STM");
+	Boot *boot_stm = new Boot(boot_stm_path);
+
 	initGraphics(640, 480);
 	_screen = new Graphics::Screen();
 
@@ -81,7 +87,7 @@ Common::Error MediaStationEngine::run() {
 		// Delay for a bit. All events loops should have a delay
 		// to prevent the system being unduly loaded
 		limiter.delayBeforeSwap();
-		_screen->update();
+		// _screen->update();
 		limiter.startFrame();
 	}
 

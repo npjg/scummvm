@@ -2,6 +2,11 @@ MODULE := engines/mediastation
 
 MODULE_OBJS = \
 	mediastation.o \
+	chunk.o \
+	subfile.o \
+	boot.o \
+	datum.o \
+	datafile.o \
 	metaengine.o
 
 # This module can be built as a plugin

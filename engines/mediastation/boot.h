@@ -19,43 +19,51 @@
  *
  */
 
-#ifndef MEDIASTATION_DETECTION_H
-#define MEDIASTATION_DETECTION_H
+#include "mediastation/datafile.h"
+#include "mediastation/subfile.h"
 
-#include "engines/advancedDetector.h"
+#ifndef MEDIASTATION_BOOT_H
+#define MEDIASTATION_BOOT_H
 
 namespace MediaStation {
 
-extern const PlainGameDescriptor mediastationGames[];
+class VersionInfo {
+public:
+    VersionInfo();
+    ~VersionInfo();
 
-extern const ADGameDescription gameDescriptions[];
+    uint32 majorVersion;
+    uint32 minorVersion;
+    uint32 revision;
+    Common::String string;
+};
 
-#define GAMEOPTION_ORIGINAL_SAVELOAD GUIO_GAMEOPTIONS1
+class Boot : Datafile {
+private:
+    Subfile subfile;
+
+private:
+    enum class SectionType {
+        EMPTY = 0x0000,
+        CONTEXT_DECLARATION = 0x0002,
+        VERSION_INFORMATION = 0x0190,
+        ENGINE_RESOURCE_NAME = 0x0bba,
+        ENGINE_RESOURCE_ID = 0x0bbb,
+        UNKNOWN_DECLARATION = 0x0007,
+        FILE_DECLARATION = 0x000a,
+        RIFF_DECLARATION = 0x000b,
+        CURSOR_DECLARATION = 0x0015
+    };
+
+public:
+    Boot(const Common::Path &path);
+
+    Common::String game_title;
+
+};
+
+
 
 } // End of namespace MediaStation
 
-class MediaStationMetaEngineDetection : public AdvancedMetaEngineDetection<ADGameDescription> {
-	static const DebugChannelDef debugFlagList[];
-
-public:
-	MediaStationMetaEngineDetection();
-	~MediaStationMetaEngineDetection() override {}
-
-	const char *getName() const override {
-		return "mediastation";
-	}
-
-	const char *getEngineName() const override {
-		return "Media Station";
-	}
-
-	const char *getOriginalCopyright() const override {
-		return "(C) 1994 - 1999 Media Station, Inc.";
-	}
-
-	const DebugChannelDef *getDebugChannels() const override {
-		return debugFlagList;
-	}
-};
-
-#endif // MEDIASTATION_DETECTION_H
+#endif
