@@ -37,7 +37,9 @@ namespace MediaStation {
 MediaStationEngine *g_engine;
 
 MediaStationEngine::MediaStationEngine(OSystem *syst, const ADGameDescription *gameDesc) : Engine(syst),
-	_gameDescription(gameDesc), _randomSource("MediaStation") {
+	_gameDescription(gameDesc), 
+	_randomSource("MediaStation"),
+	_boot(nullptr) {
 	g_engine = this;
 }
 
@@ -56,7 +58,7 @@ Common::String MediaStationEngine::getGameId() const {
 Common::Error MediaStationEngine::run() {
 	// ATTEMPT TO LOAD BOOT.STM.
 	Common::Path boot_stm_path = Common::Path("BOOT.STM");
-	Boot *boot_stm = new Boot(boot_stm_path);
+	_boot = new Boot(boot_stm_path);
 
 	initGraphics(640, 480);
 	_screen = new Graphics::Screen();

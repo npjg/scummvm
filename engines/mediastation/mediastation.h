@@ -36,6 +36,7 @@
 
 #include "mediastation/detection.h"
 #include "mediastation/datafile.h"
+#include "mediastation/boot.h"
 
 namespace MediaStation {
 
@@ -54,6 +55,8 @@ class MediaStationEngine : public Engine {
 private:
 	const ADGameDescription *_gameDescription;
 	Common::RandomSource _randomSource;
+	Boot *_boot;
+	// map the list of contexts here.
 
 protected:
 	// Engine APIs
@@ -68,14 +71,8 @@ public:
 
 	uint32 getFeatures() const;
 
-	/**
-	 * Returns the game Id
-	 */
 	Common::String getGameId() const;
 
-	/**
-	 * Gets a random number
-	 */
 	uint32 getRandomNumber(uint maxNum) {
 		return _randomSource.getRandomNumber(maxNum);
 	}
@@ -84,6 +81,14 @@ public:
 		return
 		    (f == kSupportsReturnToLauncher);
 	};
+
+	bool isFirstGenerationEngine() {
+		if (_boot == nullptr) {
+			error("Attempted to get engine version before BOOT.STM was read");
+		} else { 
+			return (_boot->_versionInfo != nullptr);
+		}
+	}
 };
 
 extern MediaStationEngine *g_engine;

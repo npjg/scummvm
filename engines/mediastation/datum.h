@@ -56,6 +56,9 @@ class BoundingBox;
 class Polygon;
 class Reference;
 
+// It is the caller's responsibility to delete any heap items
+// that are created as part of a datum. The datum is really 
+// just a container.
 class Datum {
 public:
     DatumType t;
@@ -71,12 +74,11 @@ public:
     } u;
 
     Datum();
-    Datum(Chunk& chunk);
-    Datum(Chunk& chunk, DatumType expectedType);
-    ~Datum();
+    Datum(Chunk &chunk);
+    Datum(Chunk &chunk, DatumType expectedType);
 
 private:
-    void readWithType(Chunk& chunk);
+    void readWithType(Chunk &chunk);
 };
 
 class Point {
@@ -85,7 +87,7 @@ public:
     int y;
 
     Point();
-    Point(Chunk& chunk);
+    Point(Chunk &chunk);
 };
 
 class BoundingBox {
@@ -94,7 +96,7 @@ public:
     Datum dimensions;
 
     BoundingBox();
-    BoundingBox(Chunk& chunk);
+    BoundingBox(Chunk &chunk);
 };
 
 class Polygon {
@@ -102,7 +104,7 @@ public:
     Common::Array<Datum> points;
 
     Polygon();
-    Polygon(Chunk& chunk);
+    Polygon(Chunk &chunk);
 };
 
 class Reference {
@@ -110,7 +112,7 @@ public:
     uint32 chunk_id;
 
     Reference();
-    Reference(Chunk& chunk);
+    Reference(Chunk &chunk);
 };
 
 } // End of namespace MediaStation

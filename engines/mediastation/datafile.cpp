@@ -37,7 +37,6 @@ Datafile::~Datafile() {
 
 bool Datafile::openFile(const Common::Path &path) {
 	Common::File *file = new Common::File();
-
 	if (path.empty() || !file->open(path)) {
 		error("Datafile::openFile(): Error opening file %s", path.toString(Common::Path::kNativeSeparator).c_str());
 		delete file;
@@ -50,10 +49,10 @@ bool Datafile::openFile(const Common::Path &path) {
 }
 
 void Datafile::close() {
-	if (_stream)
+	if (_stream) {
 		delete _stream;
-
-	_stream = nullptr;
+	    _stream = nullptr;
+    }
 }
 
 } // End of namespace MediaStation

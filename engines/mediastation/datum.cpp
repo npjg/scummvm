@@ -26,17 +26,17 @@
 namespace MediaStation {
 
 Point::Point() : x(0), y(0) {}
-Point::Point(Chunk& chunk) {
+Point::Point(Chunk &chunk) {
     x = Datum(chunk, DatumType::UINT16_1).u.i;
     y = Datum(chunk, DatumType::UINT16_1).u.i;
 }
 
-BoundingBox::BoundingBox(Chunk& chunk) {
+BoundingBox::BoundingBox(Chunk &chunk) {
     left_top_point = Datum(chunk, DatumType::POINT_1);
     dimensions = Datum(chunk, DatumType::POINT_1); 
 }
 
-Polygon::Polygon(Chunk& chunk) {
+Polygon::Polygon(Chunk &chunk) {
     int total_points = Datum(chunk, DatumType::UINT16_1).u.i;
     for (int i = 0; i < total_points; i++) {
         Datum point = Datum(chunk, DatumType::POINT_1);
@@ -45,7 +45,7 @@ Polygon::Polygon(Chunk& chunk) {
 }
 
 Reference::Reference() : chunk_id(0) {}
-Reference::Reference(Chunk& chunk) {
+Reference::Reference(Chunk &chunk) {
     chunk_id = chunk.readUint32LE();
 }
 
@@ -53,12 +53,12 @@ Datum::Datum() {
     u.i = 0;
 }
 
-Datum::Datum(Chunk& chunk) {
+Datum::Datum(Chunk &chunk) {
     t = static_cast<DatumType>(chunk.readUint16LE());
     readWithType(chunk);
 }
 
-Datum::Datum(Chunk& chunk, DatumType expectedType) {
+Datum::Datum(Chunk &chunk, DatumType expectedType) {
     t = static_cast<DatumType>(chunk.readUint16LE());
     if (t != expectedType) {
         error("Datum::Datum(): Expected datum type %d, got %d", expectedType, t);
@@ -66,23 +66,7 @@ Datum::Datum(Chunk& chunk, DatumType expectedType) {
     readWithType(chunk);
 }
 
-Datum::~Datum() {
-    if (DatumType::STRING == t || DatumType::FILENAME == t) {
-        delete u.string;
-    } else if (DatumType::POINT_1 == t || DatumType::POINT_2 == t) {
-        delete u.point;
-    } else if (DatumType::BOUNDING_BOX == t) {
-        delete u.bbox;
-    } else if (DatumType::POLYGON == t) {
-        delete u.polygon;
-    } else if (DatumType::PALETTE == t) {
-        delete[] u.palette;
-    } else if (DatumType::REFERENCE == t) {
-        delete u.ref;
-    }
-}
-
-void Datum::readWithType(Chunk& chunk) {
+void Datum::readWithType(Chunk &chunk) {
     if (DatumType::UINT8 == t) {
         u.i = chunk.readByte();
     } else if (DatumType::UINT16_1 == t || DatumType::UINT16_2 == t) {
@@ -95,7 +79,7 @@ void Datum::readWithType(Chunk& chunk) {
         u.f = chunk.readDoubleLE();
     } else if (DatumType::STRING == t || DatumType::FILENAME == t) {
         // TODO: This copies the string, and is thus inefficient!
-        int size = Datum(chunk, DatumType::UINT16_1).u.i;
+        int size = Datum(chunk, DatumType::UINT32_1).u.i;
         char* buffer = new char[size + 1];
         chunk.read(buffer, size);
         buffer[size] = '\0';

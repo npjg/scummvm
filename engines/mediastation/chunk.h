@@ -26,38 +26,42 @@
 
 namespace MediaStation {
 
-class Chunk : public Common::ReadStream {
+class Chunk : public Common::SeekableReadStream {
 private:
     Common::SeekableReadStream *_input;
-	uint32 _bytesRead;
+    uint32 _dataStartOffset;
+    uint32 _dataEndOffset;
 
 public:
     uint32 id;
-    uint32 size;
+    uint32 length;
 
     Chunk();
     Chunk(Common::SeekableReadStream *stream);
 
-    bool hasReadAll() const {
-        return (size - _bytesRead) == 0;
-    }
-
-    void incBytesRead(uint32 inc) {
-        _bytesRead += inc;
-        if (_bytesRead > size) {
-            error("Chunk overread");
-        }
-    }
+    uint32 bytesRemaining() { return _dataEndOffset - pos(); }
 
     // ReadStream implementation
     bool eos() const { return _input->eos(); }
     bool err() const { return _input->err(); }
     void clearErr() { _input->clearErr(); }
     uint32 read(void *dataPtr, uint32 dataSize) {
-        incBytesRead(dataSize);
+        if (pos() > _dataEndOffset) {
+            error("Attempted to read past end of chunk");
+        }
         return _input->read(dataPtr, dataSize);
     }
-
+    int64 pos() const { return _input->pos(); }
+    int64 size() const { return _input->size(); }
+    bool seek(int64 offset, int whence = SEEK_SET) {
+        if (offset < _dataStartOffset) {
+            error("Attempted to seek past start of chunk");
+        } else if (offset > _dataEndOffset) {
+            error("Attempted to seek past end of chunk");
+        } else {
+            return _input->seek(offset, whence);
+        }
+    }
 };
 
 } // End of namespace MediaStation
