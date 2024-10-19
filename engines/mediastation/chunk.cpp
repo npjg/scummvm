@@ -32,7 +32,7 @@ Chunk::Chunk(Common::SeekableReadStream *stream) : _input(stream), _dataStartOff
     length = _input->readUint32LE();
     _dataStartOffset = pos();
     _dataEndOffset = _dataStartOffset + length;
-    debugC(9, kDebugLoading, "Chunk::Chunk(): Got chunk with ID \"%s\" and size 0x%lx", tag2str(id), length);
+    debugC(9, kDebugLoading, "Chunk::Chunk(): Got chunk with ID \"%s\" and size 0x%x", tag2str(id), length);
     if (length == 0) {
         error("Encountered a zero-length chunk. This usually indicates corrupted data - maybe a CD-ROM read error.");
     }
