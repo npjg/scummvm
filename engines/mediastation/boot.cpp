@@ -323,7 +323,7 @@ Boot::Boot(const Common::Path &path) : Datafile(path) {
                 if (sectionType == Boot::SectionType::ENGINE_RESOURCE_ID) {
                     int resourceId = Datum(chunk).u.i;
                     EngineResourceDeclaration *resourceDeclaration = new EngineResourceDeclaration(resourceName, resourceId);
-                    _engineResourceDeclarations.push_back(resourceDeclaration);
+                    _engineResourceDeclarations.setVal(resourceId, resourceDeclaration);
                 } else {
                     error("Boot::Boot(): Got section type 0x%x when expecting ENGINE_RESOURCE_ID", sectionType);
                 }
@@ -333,7 +333,7 @@ Boot::Boot(const Common::Path &path) : Datafile(path) {
             case Boot::SectionType::CONTEXT_DECLARATION: {
                 ContextDeclaration *contextDeclaration = new ContextDeclaration(chunk);
                 while (!contextDeclaration->isLast) {
-                    _contextDeclarations.push_back(contextDeclaration);
+                    _contextDeclarations.setVal(contextDeclaration->fileNumber, contextDeclaration);
                     contextDeclaration = new ContextDeclaration(chunk);
                 }
                 break;
@@ -351,7 +351,7 @@ Boot::Boot(const Common::Path &path) : Datafile(path) {
             case Boot::SectionType::FILE_DECLARATION: {
                 FileDeclaration *fileDeclaration = new FileDeclaration(chunk);
                 while (!fileDeclaration->_isLast) {
-                    _fileDeclarations.push_back(fileDeclaration);
+                    _fileDeclarations.setVal(fileDeclaration->_id, fileDeclaration);
                     fileDeclaration = new FileDeclaration(chunk);
                 }
                 break;
@@ -360,7 +360,7 @@ Boot::Boot(const Common::Path &path) : Datafile(path) {
             case Boot::SectionType::SUBFILE_DECLARATION: {
                 SubfileDeclaration *subfileDeclaration = new SubfileDeclaration(chunk);
                 while (!subfileDeclaration->_isLast) {
-                    _subfileDeclarations.push_back(subfileDeclaration);
+                    _subfileDeclarations.setVal(subfileDeclaration->_assetId, subfileDeclaration);
                     subfileDeclaration = new SubfileDeclaration(chunk);
                 }
                 break;
@@ -368,7 +368,7 @@ Boot::Boot(const Common::Path &path) : Datafile(path) {
 
             case Boot::SectionType::CURSOR_DECLARATION: {
                 CursorDeclaration *cursorDeclaration = new CursorDeclaration(chunk);
-                _cursorDeclarations.push_back(cursorDeclaration);
+                _cursorDeclarations.setVal(cursorDeclaration->_id, cursorDeclaration);
                 break;
             }
 
@@ -427,25 +427,11 @@ Boot::~Boot() {
     }
 
     // CLEAN UP ALL THE ARRAYS.
-    for (auto &declaration : _contextDeclarations) {
-        // TODO: Maybe we can just delete them from the array
-        // rather than making them nullptr?
-        delete declaration;
-        declaration = nullptr;
-    }
-    for (auto &declaration : _fileDeclarations) {
-        delete declaration;
-        declaration = nullptr;
-    }
-    for (auto &declaration : _subfileDeclarations) {
-        delete declaration;
-        declaration = nullptr;
-    }
-    for (auto &declaration : _cursorDeclarations) {
-        delete declaration;
-        declaration = nullptr;
-    }
-    for (auto &declaration : _engineResourceDeclarations) {
+    _contextDeclarations.clear();
+    _subfileDeclarations.clear();
+    _cursorDeclarations.clear();
+    _engineResourceDeclarations.clear();
+    for (auto &declaration : _unknownDeclarations) {
         delete declaration;
         declaration = nullptr;
     }

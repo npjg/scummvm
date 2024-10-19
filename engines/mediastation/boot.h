@@ -85,7 +85,6 @@ public:
     bool _isLast;
 
     UnknownDeclaration(Chunk &chunk);
-    ~UnknownDeclaration();
 
 private:
     UnknownDeclaration::SectionType getSectionType(Chunk& chunk);
@@ -196,12 +195,12 @@ public:
     Common::String *_gameTitle;
     VersionInfo *_versionInfo;
     Common::String *_sourceString;
-    Common::Array<ContextDeclaration *> _contextDeclarations;
+    Common::HashMap<uint32, ContextDeclaration *> _contextDeclarations;
     Common::Array<UnknownDeclaration *> _unknownDeclarations;
-    Common::Array<FileDeclaration *> _fileDeclarations;
-    Common::Array<SubfileDeclaration *> _subfileDeclarations;
-    Common::Array<CursorDeclaration *> _cursorDeclarations;
-    Common::Array<EngineResourceDeclaration *> _engineResourceDeclarations;
+    Common::HashMap<uint32, FileDeclaration *> _fileDeclarations;
+    Common::HashMap<uint32, SubfileDeclaration *> _subfileDeclarations;
+    Common::HashMap<uint32, CursorDeclaration *> _cursorDeclarations;
+    Common::HashMap<uint32, EngineResourceDeclaration *> _engineResourceDeclarations;
 
     uint32 _entryContextId;
     bool _allowMultipleSounds;
