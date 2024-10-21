@@ -30,12 +30,14 @@ namespace MediaStation {
 
 class Subfile {
 public:
-    Chunk current_chunk;
+    Chunk rootChunk;
+    Chunk currentChunk;
 
     Subfile();
     Subfile(Common::SeekableReadStream *stream);
 
     Chunk nextChunk();
+    bool atEnd();
 
     uint32 rate;
 

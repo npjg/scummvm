@@ -19,43 +19,34 @@
  *
  */
 
-#include "mediastation/datafile.h"
-#include "mediastation/contextparameters.h"
+#include "mediastation/mediastation.h"
+#include "mediastation/mediascript/variabledeclaration.h"
 
-#ifndef MEDIASTATION_CONTEXT_H
-#define MEDIASTATION_CONTEXT_H
+#ifndef MEDIASTATION_CONTEXTPARAMETERS_H
+#define MEDIASTATION_CONTEXTPARAMETERS_H
 
 namespace MediaStation {
 
-class Context : Datafile {
+class ContextParameters {
 public:
-    Context(const Common::Path &path);
-    ~Context();
-
-    bool readPreamble();
+    ContextParameters(Chunk &chunk);
+    ~ContextParameters();
 
 private:
     enum class SectionType {
         EMPTY = 0x0000,
-        OLD_STYLE = 0x000d,
-        PARAMETERS = 0x000e,
-        PALETTE = 0x05aa,
-        END = 0x0010,
-        ASSET_HEADER = 0x0011,
-        POOH = 0x057a,
-        ASSET_LINK = 0x0013,
-        FUNCTION = 0x0031
+        VARIABLE = 0x0014,
+        NAME = 0x0bb9,
+        FILE_NUMBER = 0x0011,
+        BYTECODE = 0x0017
     };
 
-    uint32 unk1;
-    uint32 subfile_count;
-    uint32 file_size;
-    Graphics::Palette *_palette;
-    ContextParameters *_parameters;
-
-    void readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    void readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    bool readHeaderSection(Subfile &subfile, Chunk &chunk);
+    // This is not an internal file ID, but the number of the file
+    // as it appears in the filename. For instance, the context in
+    // "100.cxt" would have file number 100.
+    uint fileNumber;
+    Common::String *contextName;
+    Common::HashMap<uint32, VariableDeclaration *> _variables;
 };
 
 } // End of namespace MediaStation

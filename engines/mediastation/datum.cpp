@@ -67,6 +67,7 @@ Datum::Datum(Chunk &chunk, DatumType expectedType) {
 }
 
 void Datum::readWithType(Chunk &chunk) {
+    debugC(9, kDebugLoading, "Datum::Datum(): Type 0x%x", t);
     if (DatumType::UINT8 == t) {
         u.i = chunk.readByte();
     } else if (DatumType::UINT16_1 == t || DatumType::UINT16_2 == t) {
@@ -78,7 +79,7 @@ void Datum::readWithType(Chunk &chunk) {
     } else if (DatumType::FLOAT64_1 == t || DatumType::FLOAT64_2 == t) {
         u.f = chunk.readDoubleLE();
     } else if (DatumType::STRING == t || DatumType::FILENAME == t) {
-        // TODO: This copies the string, and is thus inefficient!
+        // TODO: This copies the string. Can we read it directly from the chunk?
         int size = Datum(chunk, DatumType::UINT32_1).u.i;
         char* buffer = new char[size + 1];
         chunk.read(buffer, size);

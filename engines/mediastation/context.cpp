@@ -19,13 +19,30 @@
  *
  */
 
-#include "mediastation/context.h"
 #include "mediastation/mediastation.h"
+#include "mediastation/context.h"
+#include "mediastation/datum.h"
 
 namespace MediaStation {
 
-Context::Context(const Common::Path &path) : Datafile(path) {
+Context::Context(const Common::Path &path) : Datafile(path), _palette(nullptr), _parameters(nullptr) {
+    // This stuff isn't part of any graphics palette.
+    readPreamble();
 
+    // READ THE FIRST SUBFILE.
+    Subfile subfile = Subfile(_stream);
+    Chunk chunk = subfile.nextChunk();
+
+    if (g_engine->isFirstGenerationEngine()) {
+        readOldStyleHeaderSections(subfile, chunk);
+    } else {
+        readNewStyleHeaderSections(subfile, chunk);
+    }
+}
+
+Context::~Context() {
+    delete _palette;
+    delete _parameters;
 }
 
 bool Context::readPreamble() {
@@ -35,14 +52,108 @@ bool Context::readPreamble() {
 		close();
 		return false;
     }
+    _stream->skip(2); // 0x00 0x00
 
     unk1 = _stream->readUint32LE();
-    debugC(5, kDebugLoading, "Contextt::openFile(): unk1 = %d", unk1);
+    debugC(5, kDebugLoading, "Context::openFile(): unk1 = 0x%x", unk1);
 
     subfile_count = _stream->readUint32LE();
     // The total size of this file, including this header.
     // (Basically the true file size shown on the filesystem.)
     file_size = _stream->readUint32LE();
+    return true;
+}
+
+void Context::readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk) {
+    error("Context::readOldStyleHeaderSections(): Not implemented yet");
+}
+
+void Context::readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk) {
+    // READ THE PALETTE.
+    bool moreSectionsToRead = (chunk.id == MKTAG('i', 'g', 'o', 'd'));
+    if (!moreSectionsToRead) {
+        warning("Context::readNewStyleHeaderSections(): Got no header sections");
+    }
+
+    while (moreSectionsToRead) {
+        // VERIFY THIS CHUNK IS A HEADER.
+        // TODO: What are the situations when it's not?
+        uint16 sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
+        debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): sectionType = 0x%x", sectionType);
+        bool chunkIsHeader = (sectionType == 0x000d);
+        if (!chunkIsHeader) {
+            error("Context::readNewStyleHeaderSections(): Expected header chunk, got %s", tag2str(chunk.id));
+        }
+
+        // READ THIS HEADER SECTION.
+        moreSectionsToRead = readHeaderSection(subfile, chunk);
+        if (subfile.atEnd()) {
+            break;
+        } else {
+            chunk = subfile.nextChunk();
+            moreSectionsToRead = (chunk.id == MKTAG('i', 'g', 'o', 'd'));
+        }
+    }
+    debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): Finished reading sections.");
+}
+
+bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
+    uint16 sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
+    debugC(5, kDebugLoading, "Context::readHeaderSection(): sectionType = 0x%x", sectionType);
+    switch ((SectionType)sectionType) {
+        case SectionType::PARAMETERS: {
+            if (_parameters != nullptr) {
+                error("Context::readHeaderSection(): Got multiple parameters");
+            }
+            _parameters = new ContextParameters(chunk);
+        }
+
+        case SectionType::ASSET_LINK: {
+            break;
+        }
+
+        case SectionType::PALETTE: {
+            if (_palette != nullptr) {
+                error("Context::readHeaderSection(): Got multiple palettes");
+            }
+            // TODO: Avoid the copying here!
+            const uint PALETTE_ENTRIES = 256;
+            const uint PALETTE_BYTES = PALETTE_ENTRIES * 3;
+            byte* buffer = new byte[PALETTE_BYTES];
+            chunk.read(buffer, PALETTE_BYTES);
+            _palette = new Graphics::Palette(buffer, PALETTE_ENTRIES);
+            delete[] buffer;
+            debugC(5, kDebugLoading, " - Read palette");
+            // This is likely just an ending flag that we expect to be zero.
+            Datum(chunk, DatumType::UINT16_1).u.i;
+        }
+
+        case SectionType::ASSET_HEADER: {
+            break;
+        }
+
+        case SectionType::FUNCTION: {
+            break;
+        }
+
+        case SectionType::END: {
+            return false;
+        }
+
+        case SectionType::EMPTY: {
+            break;
+        }
+
+        case SectionType::POOH: {
+            break;
+        }
+
+        default: {
+            error("Context::readHeaderSection(): Unknown section type 0x%x", sectionType);
+        }
+    }
+
+    return true;
 }
 
 } // End of namespace MediaStation

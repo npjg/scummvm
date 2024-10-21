@@ -31,6 +31,7 @@
 #include "mediastation/mediastation.h"
 #include "mediastation/detection.h"
 #include "mediastation/boot.h"
+#include "mediastation/context.h"
 
 namespace MediaStation {
 
@@ -56,12 +57,16 @@ Common::String MediaStationEngine::getGameId() const {
 }
 
 Common::Error MediaStationEngine::run() {
-	// ATTEMPT TO LOAD BOOT.STM.
-	Common::Path boot_stm_path = Common::Path("BOOT.STM");
-	_boot = new Boot(boot_stm_path);
+	// LOAD BOOT.STM.
+	Common::Path bootStmFilepath = Common::Path("BOOT.STM");
+	_boot = new Boot(bootStmFilepath);
 
+	// INITIALIZE GRAPHICS.
+	// All Media Station games run at 640x480.
 	initGraphics(640, 480);
 	_screen = new Graphics::Screen();
+
+	Context *activeScreen = loadContext(_boot->_entryContextId);
 
 	// Draw a series of boxes on screen as a sample
 	for (int i = 0; i < 100; ++i)
@@ -94,6 +99,38 @@ Common::Error MediaStationEngine::run() {
 	}
 
 	return Common::kNoError;
+}
+
+Context *MediaStationEngine::loadContext(uint32 contextId) {
+	if (_boot == nullptr) {
+		error("Cannot load contexts before BOOT.STM is read");
+	}
+
+    // GET THE FILE ID.
+    SubfileDeclaration *subfileDeclaration = _boot->_subfileDeclarations.getValOrDefault(contextId);
+    if (subfileDeclaration == nullptr) {
+		warning("MediaStationEngine::loadContext(): Couldn't find subfile declaration with ID 0x%x", contextId);
+        return nullptr;
+    }
+	// The subfile declarations have other assets too, so we need to make sure 
+	if (subfileDeclaration->_startOffsetInFile != 16) {
+		warning("MediaStationEngine::loadContext(): Requested ID wasn't for a context.");
+		return nullptr;
+	}
+    uint32 fileId = subfileDeclaration->_fileId;
+
+    // GET THE FILENAME.
+    FileDeclaration *fileDeclaration = _boot->_fileDeclarations.getValOrDefault(fileId);
+    if (fileDeclaration == nullptr) {
+		warning("MediaStationEngine::loadContext(): Couldn't find file declaration with ID 0x%x", fileId);
+        return nullptr;
+    }
+    Common::String *fileName = fileDeclaration->_name;
+
+	// LOAD THE CONTEXT.
+	Common::Path entryCxtFilepath = Common::Path(*fileName);
+	Context *context= new Context(entryCxtFilepath);
+	return context;
 }
 
 } // End of namespace MediaStation

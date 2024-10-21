@@ -3,6 +3,9 @@ MODULE := engines/mediastation
 MODULE_OBJS = \
 	mediastation.o \
 	chunk.o \
+	context.o \
+	contextparameters.o \
+	mediascript/variabledeclaration.o \
 	subfile.o \
 	boot.o \
 	datum.o \

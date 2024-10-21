@@ -37,6 +37,7 @@
 #include "mediastation/detection.h"
 #include "mediastation/datafile.h"
 #include "mediastation/boot.h"
+#include "mediastation/context.h"
 
 namespace MediaStation {
 
@@ -57,6 +58,8 @@ private:
 	Common::RandomSource _randomSource;
 	Boot *_boot;
 	// map the list of contexts here.
+
+	Context *loadContext(uint32 contextId);
 
 protected:
 	// Engine APIs
@@ -86,7 +89,7 @@ public:
 		if (_boot == nullptr) {
 			error("Attempted to get engine version before BOOT.STM was read");
 		} else { 
-			return (_boot->_versionInfo != nullptr);
+			return (_boot->_versionInfo == nullptr);
 		}
 	}
 };

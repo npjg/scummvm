@@ -28,19 +28,19 @@ Subfile::Subfile() : _stream(nullptr) {}
 
 Subfile::Subfile(Common::SeekableReadStream *stream) : _stream(stream) {
     // VERIFY FILE SIGNATURE.
-    Chunk root_chunk = nextChunk();
-    if (root_chunk.id != MKTAG('R', 'I', 'F', 'F'))
+    rootChunk = nextChunk();
+    if (rootChunk.id != MKTAG('R', 'I', 'F', 'F'))
         // TODO: These need to be interpreted as ASCII.
-        error("Subfile::Subfile(): Expected \"RIFF\" chunk, got %s", tag2str(root_chunk.id));
+        error("Subfile::Subfile(): Expected \"RIFF\" chunk, got %s", tag2str(rootChunk.id));
     _stream->skip(4); // IMTS
 
     // READ RATE CHUNK.
     // This chunk shoudl always contain just one piece of data - the "rate"
     // (whatever that is). Usually it is zero.
     // TODO: Figure out what this actually is.
-    Chunk rate_chunk = nextChunk();
-    if (rate_chunk.id != MKTAG('r', 'a', 't', 'e'))
-        error("Subfile::Subfile(): Expected \"rate\" chunk, got %s", tag2str(root_chunk.id));
+    Chunk rateChunk = nextChunk();
+    if (rateChunk.id != MKTAG('r', 'a', 't', 'e'))
+        error("Subfile::Subfile(): Expected \"rate\" chunk, got %s", tag2str(rootChunk.id));
     rate = _stream->readUint32LE();
 
     // READ PAST LIST CHUNK.
@@ -48,15 +48,20 @@ Subfile::Subfile(Common::SeekableReadStream *stream) : _stream(stream) {
 
     // QUEUE UP THE FIRST DATA CHUNK.
     if (_stream->readUint32BE() != MKTAG('d', 'a', 't', 'a'))
-        error("Subfile::Subfile(): Expected \"data\" as first bytes of subfile, got %s", tag2str(rate_chunk.id));
+        error("Subfile::Subfile(): Expected \"data\" as first bytes of subfile, got %s", tag2str(rateChunk.id));
 }
 
 Chunk Subfile::nextChunk() {
     // Chunks always start on even-indexed bytes.
     if (_stream->pos() & 1)
         _stream->skip(1);
-    current_chunk = Chunk(_stream);
-    return current_chunk;
+    currentChunk = Chunk(_stream);
+    return currentChunk;
+}
+
+bool Subfile::atEnd() {
+    // TODO: Is this the best place to put this and approach to use?
+    return rootChunk.bytesRemaining() == 0;
 }
 
 } // End of namespace MediaStation
