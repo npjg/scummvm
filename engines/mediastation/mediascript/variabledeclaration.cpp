@@ -35,6 +35,7 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
             uint totalItems = Datum(chunk).u.i;
             value.collection = new Common::Array<VariableDeclaration *>;
             for (uint i = 0; i < totalItems; i++) {
+                debugC(7, kDebugLoading, " - Reading collection value %d of %d", i, totalItems);
                 VariableDeclaration *variableDeclaration = new VariableDeclaration(chunk);
                 value.collection->push_back(variableDeclaration);
             }
@@ -49,16 +50,19 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
             buffer[size] = '\0';
             value.string = new Common::String(buffer);
             delete[] buffer;
+            debugC(7, kDebugLoading, " - Read string %s", value.string->c_str());
             break;
         }
 
         case Type::ASSET_ID: {
             value.assetId = Datum(chunk, DatumType::UINT16_1).u.i;
+            debugC(7, kDebugLoading, " - Read asset ID %d", value.assetId);
             break;
         }
 
         case Type::BOOLEAN: {
             uint rawValue = Datum(chunk, DatumType::UINT16_1).u.i;
+            debugC(7, kDebugLoading, " - Read boolean %d", rawValue);
             value.b = (rawValue == 1);
             break;
         }
@@ -66,6 +70,7 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
         case Type::LITERAL: {
             // Client code can worry about extracting the value.
             value.datum = new Datum(chunk);
+            debugC(7, kDebugLoading, " - Read literal value");
         }
 
         default: {
