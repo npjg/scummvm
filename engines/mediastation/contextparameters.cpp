@@ -54,6 +54,7 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
                 }
                 VariableDeclaration *variable = new VariableDeclaration(chunk);
                 _variables.setVal(variable->id, variable);
+                break;
             }
 
             case SectionType::BYTECODE: {
@@ -65,6 +66,7 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
                 error("ContextParameters::ContextParameters(): Unknown section type 0x%x", sectionType);
             }
         }
+        sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
     }
 }
 

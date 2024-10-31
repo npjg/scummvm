@@ -127,6 +127,7 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
             debugC(5, kDebugLoading, " - Read palette");
             // This is likely just an ending flag that we expect to be zero.
             Datum(chunk, DatumType::UINT16_1).u.i;
+            break;
         }
 
         case SectionType::ASSET_HEADER: {
