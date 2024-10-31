@@ -131,22 +131,28 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         }
 
         case SectionType::ASSET_HEADER: {
+            AssetHeader *header = new AssetHeader(chunk);
+            _assetHeaders.setVal(header->_id, header);
             break;
         }
 
         case SectionType::FUNCTION: {
+            error("Context::readHeaderSection(): FUNCTION Not implemented yet");
             break;
         }
 
         case SectionType::END: {
+            error("Context::readHeaderSection(): END Not implemented yet");
             return false;
         }
 
         case SectionType::EMPTY: {
+            error("Context::readHeaderSection(): EMPTY Not implemented yet");
             break;
         }
 
         case SectionType::POOH: {
+            error("Context::readHeaderSection(): POOH Not implemented yet");
             break;
         }
 

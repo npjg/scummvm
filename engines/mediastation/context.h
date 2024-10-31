@@ -21,6 +21,7 @@
 
 #include "mediastation/datafile.h"
 #include "mediastation/contextparameters.h"
+#include "mediastation/asset_header.h"
 
 #ifndef MEDIASTATION_CONTEXT_H
 #define MEDIASTATION_CONTEXT_H
@@ -52,6 +53,7 @@ private:
     uint32 file_size;
     Graphics::Palette *_palette;
     ContextParameters *_parameters;
+    Common::HashMap<uint, AssetHeader *> _assetHeaders;
 
     void readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk);
     void readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk);
