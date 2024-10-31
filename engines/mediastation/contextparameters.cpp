@@ -58,7 +58,8 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
             }
 
             case SectionType::BYTECODE: {
-                error("Parameters::Parameters(): Section type BYTECODE not implemented yet");
+                Function *function = new Function(chunk);
+                _functions.setVal(function->_id, function);
                 break;
             }
 

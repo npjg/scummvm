@@ -19,38 +19,21 @@
  *
  */
 
-#include "mediastation/mediastation.h"
-#include "mediastation/mediascript/variabledeclaration.h"
+#include "mediastation/datum.h"
 #include "mediastation/mediascript/function.h"
-
-#ifndef MEDIASTATION_CONTEXTPARAMETERS_H
-#define MEDIASTATION_CONTEXTPARAMETERS_H
 
 namespace MediaStation {
 
-class ContextParameters {
-public:
-    ContextParameters(Chunk &chunk);
-    ~ContextParameters();
+Function::Function(Chunk &chunk) {
+    _fileId = Datum(chunk).u.i;
+    _id = Datum(chunk).u.i + 19900;
+    debugC(5, kDebugLoading, "Function::Function(): ID = 0x%x", _id);
+    _code = new CodeChunk(chunk);
+}
 
-private:
-    enum class SectionType {
-        EMPTY = 0x0000,
-        VARIABLE = 0x0014,
-        NAME = 0x0bb9,
-        FILE_NUMBER = 0x0011,
-        BYTECODE = 0x0017
-    };
-
-    // This is not an internal file ID, but the number of the file
-    // as it appears in the filename. For instance, the context in
-    // "100.cxt" would have file number 100.
-    uint fileNumber;
-    Common::String *contextName;
-    Common::HashMap<uint32, VariableDeclaration *> _variables;
-    Common::HashMap<uint32, Function *> _functions;
-};
+Function::~Function() {
+    delete _code;
+}
 
 } // End of namespace MediaStation
 
-#endif

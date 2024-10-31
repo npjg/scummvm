@@ -5,6 +5,8 @@ MODULE_OBJS = \
 	chunk.o \
 	context.o \
 	contextparameters.o \
+	mediascript/codechunk.o \
+	mediascript/function.o \
 	mediascript/variabledeclaration.o \
 	subfile.o \
 	boot.o \
