@@ -71,6 +71,7 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
             // Client code can worry about extracting the value.
             value.datum = new Datum(chunk);
             debugC(7, kDebugLoading, " - Read literal value");
+            break;
         }
 
         default: {
