@@ -30,7 +30,7 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
     fileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
     uint sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
     while ((SectionType)sectionType != SectionType::EMPTY) {
-        debugC(5, kDebugLoading, "ContextParameters::ContextParameters: sectionType = 0x%x", sectionType);
+        debugC(5, kDebugLoading, "ContextParameters::ContextParameters: sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
         switch ((SectionType)sectionType) {
             case SectionType::NAME: {
                 uint repeatedFileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
@@ -43,7 +43,7 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
             }
             
             case SectionType::FILE_NUMBER: {
-                error("Parameters::Parameters(): Section type FILE_NUMBER not implemented yet");
+                error("ContextParameters::ContextParameters(): Section type FILE_NUMBER not implemented yet");
                 break;
             }
 
@@ -62,7 +62,7 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
             }
 
             default: {
-                error("Parameters::Parameters(): Unknown section type 0x%x", sectionType);
+                error("ContextParameters::ContextParameters(): Unknown section type 0x%x", sectionType);
             }
         }
     }

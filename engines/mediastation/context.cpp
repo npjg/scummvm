@@ -72,17 +72,17 @@ void Context::readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk) {
     // READ THE PALETTE.
     bool moreSectionsToRead = (chunk.id == MKTAG('i', 'g', 'o', 'd'));
     if (!moreSectionsToRead) {
-        warning("Context::readNewStyleHeaderSections(): Got no header sections");
+        warning("Context::readNewStyleHeaderSections(): Got no header sections (@0x%lx)", chunk.pos());
     }
 
     while (moreSectionsToRead) {
         // VERIFY THIS CHUNK IS A HEADER.
         // TODO: What are the situations when it's not?
         uint16 sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
-        debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): sectionType = 0x%x", sectionType);
+        debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
         bool chunkIsHeader = (sectionType == 0x000d);
         if (!chunkIsHeader) {
-            error("Context::readNewStyleHeaderSections(): Expected header chunk, got %s", tag2str(chunk.id));
+            error("Context::readNewStyleHeaderSections(): Expected header chunk, got %s (@0x%lx)", tag2str(chunk.id), chunk.pos());
         }
 
         // READ THIS HEADER SECTION.
@@ -90,20 +90,21 @@ void Context::readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk) {
         if (subfile.atEnd()) {
             break;
         } else {
+            debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): Getting next chunk (@0x%lx)", chunk.pos());
             chunk = subfile.nextChunk();
             moreSectionsToRead = (chunk.id == MKTAG('i', 'g', 'o', 'd'));
         }
     }
-    debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): Finished reading sections.");
+    debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): Finished reading sections (@0x%lx)", chunk.pos());
 }
 
 bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
     uint16 sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
-    debugC(5, kDebugLoading, "Context::readHeaderSection(): sectionType = 0x%x", sectionType);
+    debugC(5, kDebugLoading, "Context::readHeaderSection(): sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
     switch ((SectionType)sectionType) {
         case SectionType::PARAMETERS: {
             if (_parameters != nullptr) {
-                error("Context::readHeaderSection(): Got multiple parameters");
+                error("Context::readHeaderSection(): Got multiple parameters (@0x%lx)", chunk.pos());
             }
             _parameters = new ContextParameters(chunk);
         }
@@ -114,7 +115,7 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
 
         case SectionType::PALETTE: {
             if (_palette != nullptr) {
-                error("Context::readHeaderSection(): Got multiple palettes");
+                error("Context::readHeaderSection(): Got multiple palettes (@0x%lx)", chunk.pos());
             }
             // TODO: Avoid the copying here!
             const uint PALETTE_ENTRIES = 256;
@@ -149,7 +150,7 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         }
 
         default: {
-            error("Context::readHeaderSection(): Unknown section type 0x%x", sectionType);
+            error("Context::readHeaderSection(): Unknown section type 0x%x (@0x%lx)", sectionType, chunk.pos());
         }
     }
 
