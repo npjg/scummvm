@@ -98,7 +98,7 @@ void Datum::readWithType(Chunk &chunk) {
     } else if (DatumType::REFERENCE == t) {
         u.ref = new Reference(chunk);
     } else {
-        error("Unknown datum type: %d", t);
+        error("Unknown datum type: 0x%x (@0x%lx)", t, chunk.pos());
     }
 }
 
