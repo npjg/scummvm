@@ -90,7 +90,7 @@ void Context::readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk) {
         if (subfile.atEnd()) {
             break;
         } else {
-            debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): Getting next chunk (@0x%lx)", chunk.pos());
+            debugC(5, kDebugLoading, "\nContext::readNewStyleHeaderSections(): Getting next chunk (@0x%lx)", chunk.pos());
             chunk = subfile.nextChunk();
             moreSectionsToRead = (chunk.id == MKTAG('i', 'g', 'o', 'd'));
         }
@@ -124,7 +124,7 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
             chunk.read(buffer, PALETTE_BYTES);
             _palette = new Graphics::Palette(buffer, PALETTE_ENTRIES);
             delete[] buffer;
-            debugC(5, kDebugLoading, " - Read palette");
+            debugC(5, kDebugLoading, "Context::readHeaderSection(): Read palette");
             // This is likely just an ending flag that we expect to be zero.
             Datum(chunk, DatumType::UINT16_1).u.i;
             break;
