@@ -27,12 +27,12 @@ namespace MediaStation {
 
 Point::Point() : x(0), y(0) {}
 Point::Point(Chunk &chunk) {
-    x = Datum(chunk, DatumType::UINT16_1).u.i;
-    y = Datum(chunk, DatumType::UINT16_1).u.i;
+    x = Datum(chunk, DatumType::INT16_2).u.i;
+    y = Datum(chunk, DatumType::INT16_2).u.i;
 }
 
 BoundingBox::BoundingBox(Chunk &chunk) {
-    left_top_point = Datum(chunk, DatumType::POINT_1);
+    left_top_point = Datum(chunk, DatumType::POINT_2);
     dimensions = Datum(chunk, DatumType::POINT_1); 
 }
 
