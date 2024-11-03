@@ -34,7 +34,6 @@ AssetHeader::AssetHeader(Chunk &chunk) {
     AssetHeader::SectionType sectionType = getSectionType(chunk);
     bool moreSectionsToRead = (AssetHeader::SectionType::EMPTY != sectionType);
     while (moreSectionsToRead) {
-        debugC(5, kDebugLoading, "AssetHeader::AssetHeader(): sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
         readSection(sectionType, chunk);
         sectionType = getSectionType(chunk);
         moreSectionsToRead = (AssetHeader::SectionType::EMPTY != sectionType);
@@ -42,6 +41,7 @@ AssetHeader::AssetHeader(Chunk &chunk) {
 }
 
 void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk) {
+    debugC(5, kDebugLoading, "AssetHeader::AssetHeader(): sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
     switch (sectionType) {
         case AssetHeader::SectionType::EMPTY: {
             break;
@@ -57,6 +57,8 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
             break;
         }
 
+        case AssetHeader::SectionType::STAGE_ID: {
+            _stageId = Datum(chunk).u.i;
             break;
         }
 
@@ -156,6 +158,58 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
 
         case AssetHeader::SectionType::MOVIE_LOAD_TYPE: {
             _loadType = Datum(chunk).u.i;
+            break;
+        }
+
+        case AssetHeader::SectionType::GET_OFFSTAGE_EVENTS: {
+            _getOffstageEvents = Datum(chunk).u.i;
+            break;
+        }
+
+        case AssetHeader::SectionType::PALETTE: {
+            // TODO: Avoid the copying here!
+            const uint PALETTE_ENTRIES = 256;
+            const uint PALETTE_BYTES = PALETTE_ENTRIES * 3;
+            byte* buffer = new byte[PALETTE_BYTES];
+            chunk.read(buffer, PALETTE_BYTES);
+            _palette = new Graphics::Palette(buffer, PALETTE_ENTRIES);
+            delete[] buffer;
+            break;
+        }
+
+        case AssetHeader::SectionType::DISSOLVE_FACTOR: {
+            _dissolveFactor = Datum(chunk).u.i;
+            break;
+        }
+
+        case AssetHeader::SectionType::SOUND_ENCODING_1: 
+        case AssetHeader::SectionType::SOUND_ENCODING_2: {
+            _soundEncoding = Datum(chunk).u.i;
+            break;
+        }
+
+        case AssetHeader::SectionType::SPRITE_CHUNK_COUNT: {
+            _chunkCount = Datum(chunk).u.i;
+            break;
+        }
+
+        case AssetHeader::SectionType::START_POINT: {
+            _startPoint = Datum(chunk, DatumType::POINT_2).u.point;
+            break;
+        }
+
+        case AssetHeader::SectionType::END_POINT: {
+            _endPoint = Datum(chunk, DatumType::POINT_2).u.point;
+            break;
+        }
+
+        case AssetHeader::SectionType::STEP_RATE: {
+            _stepRate = Datum(chunk).u.i;
+            break;
+        }
+
+        case AssetHeader::SectionType::DURATION: {
+            _duration = Datum(chunk).u.i;
             break;
         }
 

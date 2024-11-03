@@ -73,8 +73,10 @@ class AssetHeader {
 public:
     enum class SectionType {
         EMPTY = 0x0000,
+        SOUND_ENCODING_1 = 0x0001,
+        SOUND_ENCODING_2 = 0x0002,
         EVENT_HANDLER = 0x0017,
-        STAGE = 0x0019,
+        STAGE_ID = 0x0019,
         ASSET_ID = 0x001a,
         CHUNK_REFERENCE = 0x001b,
         MOVIE_AUDIO_CHUNK_REFERENCE = 0x06a4,
@@ -91,6 +93,7 @@ public:
         LOAD_TYPE = 0x0032,
         SOUND_INFO = 0x0033,
         MOVIE_LOAD_TYPE = 0x0037,
+        SPRITE_CHUNK_COUNT = 0x03e8,
 
         PALETTE = 0x05aa,
         DISSOLVE_FACTOR = 0x05dc,
@@ -147,6 +150,16 @@ public:
     uint32 _y; // Image only.
     Common::String *name;
     Common::HashMap<uint, EventHandler *> _eventHandlers;
+    uint32 _stageId;
+    uint32 _soundEncoding;
+    uint32 _chunkCount;
+
+    // PATH FIELDS.
+    uint32 _dissolveFactor;
+    Point *_startPoint;
+    Point *_endPoint;
+    uint32 _stepRate;
+    uint32 _duration;
 
 private:
     void readSection(AssetHeader::SectionType sectionType, Chunk &chunk);

@@ -2,6 +2,7 @@ MODULE := engines/mediastation
 
 MODULE_OBJS = \
 	mediastation.o \
+	asset_header.o \
 	chunk.o \
 	context.o \
 	contextparameters.o \
