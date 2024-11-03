@@ -48,7 +48,15 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
         }
 
         case AssetHeader::SectionType::EVENT_HANDLER: {
-            error("Event handler Not implemented");
+            EventHandler *_eventHandler = new EventHandler(chunk);
+            // TODO: Make sure we wonʻt overwrite an existing event handler.
+            if (_eventHandlers.contains(_eventHandler->_type)) {
+                warning("AssetHeader::readSection(): Event handler 0x%x already exists, overwriting", _eventHandler->_type);
+            }
+            _eventHandlers.setVal(_eventHandler->_type, _eventHandler);
+            break;
+        }
+
             break;
         }
 

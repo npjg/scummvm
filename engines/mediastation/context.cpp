@@ -133,6 +133,8 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         case SectionType::ASSET_HEADER: {
             AssetHeader *header = new AssetHeader(chunk);
             _assetHeaders.setVal(header->_id, header);
+            // TODO: This only appears sometimes.
+            Datum(chunk).u.i;
             break;
         }
 

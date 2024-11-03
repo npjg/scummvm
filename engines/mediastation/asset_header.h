@@ -23,6 +23,7 @@
 
 #include "mediastation/chunk.h"
 #include "mediastation/datum.h"
+#include "mediastation/mediascript/eventhandler.h"
 
 #ifndef MEDIASTATION_ASSET_HEADER_H
 #define MEDIASTATION_ASSET_HEADER_H
@@ -145,6 +146,7 @@ public:
     uint32 _x; // Image only.
     uint32 _y; // Image only.
     Common::String *name;
+    Common::HashMap<uint, EventHandler *> _eventHandlers;
 
 private:
     void readSection(AssetHeader::SectionType sectionType, Chunk &chunk);

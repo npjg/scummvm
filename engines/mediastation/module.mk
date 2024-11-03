@@ -5,6 +5,7 @@ MODULE_OBJS = \
 	chunk.o \
 	context.o \
 	contextparameters.o \
+	mediascript/eventhandler.o \
 	mediascript/codechunk.o \
 	mediascript/function.o \
 	mediascript/variabledeclaration.o \
