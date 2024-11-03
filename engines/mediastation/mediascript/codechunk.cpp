@@ -27,6 +27,8 @@ namespace MediaStation {
 
 CodeChunk::CodeChunk(Chunk &chunk) {
     uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
+    debugC(5, kDebugLoading, "CodeChunk::CodeChunk(): Length 0x%x (@0x%lx)", lengthInBytes, chunk.pos());
+
     warning("CodeChunk::CodeChunk(): Skipping code chunk because bytecode parsing not yet implemented (0x%x bytes)", lengthInBytes);
     chunk.skip(lengthInBytes);
 }
