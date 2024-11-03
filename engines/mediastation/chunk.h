@@ -47,21 +47,31 @@ public:
     void clearErr() { _input->clearErr(); }
     uint32 read(void *dataPtr, uint32 dataSize) {
         if (pos() > _dataEndOffset) {
-            error("Attempted to read past end of chunk");
+            uint overrun = pos() - _dataEndOffset;
+            error("Attempted to read 0x%x bytes at a location 0x%x bytes past end of chunk (@0x%lx)", dataSize, overrun, pos());
+        } else {
+            return _input->read(dataPtr, dataSize);
         }
-        return _input->read(dataPtr, dataSize);
     }
     int64 pos() const { return _input->pos(); }
     int64 size() const { return _input->size(); }
     bool seek(int64 offset, int whence = SEEK_SET) {
-        if (offset < _dataStartOffset) {
-            error("Attempted to seek past start of chunk");
-        } else if (offset > _dataEndOffset) {
-            error("Attempted to seek past end of chunk");
-        } else {
-            return _input->seek(offset, whence);
+        // TODO: This is a bad hack and should be cleaned up!
+        bool result = _input->seek(offset, whence);
+        if (result == false) {
+            return false;
         }
+        
+        if (pos() < _dataStartOffset) {
+            uint overrun = _dataStartOffset - offset;
+            error("Attempted to seek 0x%x bytes before start of chunk (@0x%lx)", overrun, pos());
+        } else if (pos() > _dataEndOffset) {
+            uint overrun = offset - _dataEndOffset;
+            error("Attempted to seek 0x%x bytes past end of chunk (@0x%lx)", overrun, pos());
+        }
+        return true;
     }
+    bool skip(uint32 offset) { return seek(offset, SEEK_CUR); }
 };
 
 } // End of namespace MediaStation
