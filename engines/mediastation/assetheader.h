@@ -23,6 +23,7 @@
 
 #include "mediastation/chunk.h"
 #include "mediastation/datum.h"
+
 #include "mediastation/mediascript/eventhandler.h"
 
 #ifndef MEDIASTATION_ASSET_HEADER_H
@@ -79,8 +80,8 @@ public:
         STAGE_ID = 0x0019,
         ASSET_ID = 0x001a,
         CHUNK_REFERENCE = 0x001b,
-        MOVIE_AUDIO_CHUNK_REFERENCE = 0x06a4,
-        MOVIE_VIDEO_CHUNK_REFERENCE = 0x06a5,
+        MOVIE_ANIMATION_CHUNK_REFERENCE = 0x06a4,
+        MOVIE_AUDIO_CHUNK_REFERENCE = 0x06a5,
         ASSET_REFERENCE = 0x077b,
         BOUNDING_BOX = 0x001c,
         MOUSE_ACTIVE_AREA = 0x001d,
@@ -120,6 +121,11 @@ public:
         ASSET_NAME = 0x0bb8,
     };
 
+    enum class SoundEncoding {
+        PCM_S16LE_MONO_22050 = 0x0010, // Uncompressed linear PCM
+        IMA_ADPCM_S16LE_MONO_22050 = 0x0004 // IMA ADPCM encoding, must be decoded
+    };
+
     AssetHeader(Chunk &chunk);
     ~AssetHeader();
 
@@ -127,10 +133,10 @@ public:
     AssetType _type;
     AssetId _id;
 
-    union {
-        MovieChunkReference m;
-        ChunkReference c;
-    } _chunkReference;
+    ChunkReference _chunkReference;
+    // These two are only used in movies.
+    ChunkReference _audioChunkReference;
+    ChunkReference _animationChunkReference;
     BoundingBox *_boundingBox;
     Polygon *_mouseActiveArea;
     uint32 _zIndex;
@@ -148,10 +154,10 @@ public:
     bool _getOffstageEvents;
     uint32 _x; // Image only.
     uint32 _y; // Image only.
-    Common::String *name;
+    Common::String *_name;
     Common::HashMap<uint, EventHandler *> _eventHandlers;
     uint32 _stageId;
-    uint32 _soundEncoding;
+    SoundEncoding _soundEncoding;
     uint32 _chunkCount;
 
     // PATH FIELDS.

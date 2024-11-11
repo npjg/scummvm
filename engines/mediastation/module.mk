@@ -2,10 +2,14 @@ MODULE := engines/mediastation
 
 MODULE_OBJS = \
 	mediastation.o \
-	asset_header.o \
+	assetheader.o \
 	chunk.o \
 	context.o \
 	contextparameters.o \
+	assets/bitmap.o \
+	assets/sound.o \
+	assets/movie.o \
+	assets/sprite.o \
 	mediascript/eventhandler.o \
 	mediascript/codechunk.o \
 	mediascript/function.o \

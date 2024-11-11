@@ -19,47 +19,46 @@
  *
  */
 
-#include "mediastation/datafile.h"
-#include "mediastation/contextparameters.h"
+#include "mediastation/datum.h"
 #include "mediastation/assetheader.h"
-#include "mediastation/mediascript/function.h"
+#include "mediastation/assets/bitmap.h"
 
-#ifndef MEDIASTATION_CONTEXT_H
-#define MEDIASTATION_CONTEXT_H
+#ifndef MEDIASTATION_SPRITE_H
+#define MEDIASTATION_SPRITE_H
 
 namespace MediaStation {
 
-class Context : Datafile {
+class SpriteFrameHeader : public BitmapHeader {
 public:
-    Context(const Common::Path &path);
-    ~Context();
+    SpriteFrameHeader(Chunk &chunk);
+    ~SpriteFrameHeader();
 
-    bool readPreamble();
+    uint _index;
+    Point *_boundingBox;
+};
 
-    uint32 unk1;
-    uint32 subfile_count;
-    uint32 file_size;
-    Graphics::Palette *_palette;
-    ContextParameters *_parameters;
+class SpriteFrame : public Bitmap {
+public:
+    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header) : Bitmap(chunk, header) {
+        x = header->dimensions->x;
+        y = header->dimensions->y;
+    }
+
+    SpriteFrameHeader *_bitmapHeader;
+    uint x;
+    uint y;
+};
+
+class Sprite {
+public:
+    Sprite(AssetHeader *asset);
+    ~Sprite();
+
+    void readFrame(Chunk &chunk);
+    Common::Array<SpriteFrame *> _frames;
 
 private:
-    enum class SectionType {
-        EMPTY = 0x0000,
-        OLD_STYLE = 0x000d,
-        PARAMETERS = 0x000e,
-        PALETTE = 0x05aa,
-        END = 0x0010,
-        ASSET_HEADER = 0x0011,
-        POOH = 0x057a,
-        ASSET_LINK = 0x0013,
-        FUNCTION = 0x0031
-    };
-    void readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    void readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    bool readHeaderSection(Subfile &subfile, Chunk &chunk);
-
-    void readAssetInFirstSubfile(Chunk &chunk);
-    void readAssetFromLaterSubfile(Subfile &subfile);
+    AssetHeader *_header;
 };
 
 } // End of namespace MediaStation

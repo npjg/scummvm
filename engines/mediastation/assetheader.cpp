@@ -20,11 +20,24 @@
  */
 
 #include "mediastation/datum.h"
-#include "mediastation/asset_header.h"
+#include "mediastation/assetheader.h"
 
 namespace MediaStation {
 
-AssetHeader::AssetHeader(Chunk &chunk) {
+AssetHeader::AssetHeader(Chunk &chunk) : 
+    _chunkReference(0),
+    _audioChunkReference(0),
+    _animationChunkReference(0),
+    _boundingBox(nullptr),
+    _mouseActiveArea(nullptr),
+    _palette(nullptr),
+    _name(nullptr),
+    _startPoint(nullptr),
+    _endPoint(nullptr)
+
+ {
+    // I arbitrarily chose the bitmap as the default union member,
+    // but they are all pointers so it doesn't matter.
     _fileNumber = Datum(chunk).u.i;
     // TODO: Cast to an asset type.
     _type = AssetType(Datum(chunk).u.i);
@@ -38,6 +51,15 @@ AssetHeader::AssetHeader(Chunk &chunk) {
         sectionType = getSectionType(chunk);
         moreSectionsToRead = (AssetHeader::SectionType::EMPTY != sectionType);
     }
+}
+
+AssetHeader::~AssetHeader() {
+    delete _boundingBox;
+    delete _mouseActiveArea;
+    delete _palette;
+    delete _name;
+    delete _startPoint;
+    delete _endPoint;
 }
 
 void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk) {
@@ -67,7 +89,7 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
             // as the ID we have already read.
             uint32 duplicateAssetId = Datum(chunk).u.i;
             if (duplicateAssetId != _id) {
-                warning("AssetHeader::readSection(): Asset ID %d does not match original asset ID %d", duplicateAssetId, _id);
+                warning("AssetHeader::readSection(): AssetHeader ID %d does not match original asset ID %d", duplicateAssetId, _id);
             }
             break;
         }
@@ -79,24 +101,17 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
             //  - They might be in the same RIFF subfile as this header,
             //  - They might be in a different RIFF subfile in the same CXT file,
             //  - They might be in a different CXT file entirely.
-            if (_type == AssetType::MOVIE) {
-                _chunkReference.m = MovieChunkReference();
-                _chunkReference.m.headerChunkId = Datum(chunk).u.i;
-            } else {
-                // TODO: Need to get the chunk reference out of here. It is its
-                // own datum type.
-                _chunkReference.c = Datum(chunk).u.i;
-            }
+            _chunkReference = Datum(chunk, DatumType::REFERENCE).u.i;
             break;
         }
 
         case AssetHeader::SectionType::MOVIE_AUDIO_CHUNK_REFERENCE: {
-            _chunkReference.m.audioChunkId = Datum(chunk).u.i;
+            _audioChunkReference = Datum(chunk, DatumType::REFERENCE).u.i;
             break;
         }
 
-        case AssetHeader::SectionType::MOVIE_VIDEO_CHUNK_REFERENCE: {
-            _chunkReference.m.videoChunkId = Datum(chunk).u.i;
+        case AssetHeader::SectionType::MOVIE_ANIMATION_CHUNK_REFERENCE: {
+            _animationChunkReference = Datum(chunk, DatumType::REFERENCE).u.i;
             break;
         }
 
@@ -184,7 +199,7 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
 
         case AssetHeader::SectionType::SOUND_ENCODING_1: 
         case AssetHeader::SectionType::SOUND_ENCODING_2: {
-            _soundEncoding = Datum(chunk).u.i;
+            _soundEncoding = SoundEncoding(Datum(chunk).u.i);
             break;
         }
 

@@ -38,6 +38,12 @@
 #include "mediastation/datafile.h"
 #include "mediastation/boot.h"
 #include "mediastation/context.h"
+#include "mediastation/assetheader.h"
+
+#include "mediastation/assets/bitmap.h"
+#include "mediastation/assets/sound.h"
+#include "mediastation/assets/movie.h"
+#include "mediastation/assets/sprite.h"
 
 namespace MediaStation {
 
@@ -52,6 +58,51 @@ enum DebugChannels {
 
 struct MediaStationGameDescription;
 
+struct FunctionDeclaration {
+	// ID
+	// Human readable name
+	// Number of params (-1 = 1+ PARAMS)
+	// Function pointer
+};
+
+struct Asset {
+	AssetHeader *header;
+
+	Asset(AssetHeader *header) : header(header) {
+		if (AssetType::IMAGE == header->_type) {
+			a.bitmap = nullptr;
+		} else if (AssetType::SOUND == header->_type) {
+			a.sound = new Sound(header);
+		} else if (AssetType::MOVIE == header->_type) {
+			a.movie = new Movie(header);
+		} else if (AssetType::SPRITE == header->_type) {
+			a.sprite = new Sprite(header);
+		}
+	}
+
+    ~Asset() {
+		if (header->_type == AssetType::MOVIE) {
+			delete a.movie;
+		} else if (header->_type == AssetType::SOUND) {
+			delete a.sound;
+		} else if (header->_type == AssetType::IMAGE) {
+			delete a.bitmap;
+		} else if (header->_type == AssetType::SPRITE) {
+			delete a.sprite;
+		}
+		delete header;
+		header = nullptr;
+	}
+
+    union {
+        Bitmap *bitmap;
+        Sound *sound;
+        Sprite *sprite;
+        // Font *font;
+        Movie *movie;
+    } a;
+};
+
 class MediaStationEngine : public Engine {
 private:
 	const ADGameDescription *_gameDescription;
@@ -60,6 +111,7 @@ private:
 	// map the list of contexts here.
 
 	Context *loadContext(uint32 contextId);
+	Common::HashMap<uint, FunctionDeclaration> _functionDeclarations;
 
 protected:
 	// Engine APIs
@@ -92,6 +144,10 @@ public:
 			return (_boot->_versionInfo == nullptr);
 		}
 	}
+
+    Common::HashMap<uint, Function *> _functions;
+    Common::HashMap<uint, Asset *> _assets;
+    Common::HashMap<uint, Asset *> _assetsByChunkReference;
 };
 
 extern MediaStationEngine *g_engine;

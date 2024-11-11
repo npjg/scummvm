@@ -23,6 +23,9 @@
 #include "mediastation/context.h"
 #include "mediastation/datum.h"
 
+#include "mediastation/assets/bitmap.h"
+#include "mediastation/assets/movie.h"
+
 namespace MediaStation {
 
 Context::Context(const Common::Path &path) : Datafile(path), _palette(nullptr), _parameters(nullptr) {
@@ -32,11 +35,25 @@ Context::Context(const Common::Path &path) : Datafile(path), _palette(nullptr), 
     // READ THE FIRST SUBFILE.
     Subfile subfile = Subfile(_stream);
     Chunk chunk = subfile.nextChunk();
-
+    // First, read the header sections.
     if (g_engine->isFirstGenerationEngine()) {
         readOldStyleHeaderSections(subfile, chunk);
     } else {
         readNewStyleHeaderSections(subfile, chunk);
+    }
+    // Then, read any asset data.
+    chunk = subfile.currentChunk;
+    while (!subfile.atEnd()) {
+        readAssetInFirstSubfile(chunk);
+        if (!subfile.atEnd()) {
+            chunk = subfile.nextChunk();
+        }
+    }
+
+    // Then, assets in the rest of the subfiles.
+    for (uint i = 1; i < subfile_count; i++) {
+        subfile = Subfile(_stream);
+        readAssetFromLaterSubfile(subfile);
     }
 }
 
@@ -98,6 +115,52 @@ void Context::readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk) {
     debugC(5, kDebugLoading, "Context::readNewStyleHeaderSections(): Finished reading sections (@0x%lx)", chunk.pos());
 }
 
+void Context::readAssetInFirstSubfile(Chunk &chunk) {
+    if (chunk.id == MKTAG('i', 'g', 'o', 'd')) {
+        warning("Context::readAssetInFirstSubfile(): Skippping \"igod\" asset link chunk");
+        chunk.skip(chunk.bytesRemaining());
+        return;
+    }
+
+    // TODO: Make sure this is not an asset link.
+    Asset *asset = g_engine->_assetsByChunkReference.getValOrDefault(chunk.id);
+    if (asset == nullptr) {
+        error("Context::Context(): Asset for chunk \"%s\" (0x%x) does not exist or has not been read yet in this title. (@0x%lx)", tag2str(chunk.id), chunk.id, chunk.pos());
+    }
+    debugC(5, kDebugLoading, "\nContext::readAssetInFirstSubfile(): Got asset with chunk ID %s in first subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->header->_type, chunk.pos());
+
+    if (AssetType::IMAGE == asset->header->_type) {
+        BitmapHeader *bitmapHeader = new BitmapHeader(chunk);
+        asset->a.bitmap = new Bitmap(chunk, bitmapHeader, asset->header);
+    } else if (AssetType::SOUND == asset->header->_type) {
+        asset->a.sound->readChunk(chunk);
+    } else if (AssetType::MOVIE == asset->header->_type) {
+        asset->a.movie->readStill(chunk);
+    } else if (AssetType::SPRITE == asset->header->_type) {
+        asset->a.sprite->readFrame(chunk);
+    } else {
+        error("Context::Context(): Unknown asset data in first subfile 0x%x (@0x%lx)", asset->header->_type, chunk.pos());
+    }
+}
+
+void Context::readAssetFromLaterSubfile(Subfile &subfile) {
+    Chunk chunk = subfile.nextChunk();
+    Asset *asset = g_engine->_assetsByChunkReference.getValOrDefault(chunk.id);
+    if (asset == nullptr) {
+        error("Context::readAssetFromLaterSubfile(): Asset for chunk \"%s\" (0x%x) does not exist or has not been read yet in this title. (@0x%lx)", tag2str(chunk.id), chunk.id, chunk.pos());
+    }
+    debugC(5, kDebugLoading, "\nContext::readAssetFromLaterSubfile(): Got asset with chunk ID %s in later subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->header->_type, chunk.pos());
+
+    if (AssetType::MOVIE == asset->header->_type) {
+        asset->a.movie->readSubfile(subfile, chunk);
+    } else if (AssetType::SOUND == asset->header->_type) {
+        asset->a.sound->readSubfile(subfile, chunk, asset->header->_chunkCount);
+    } else {
+        error("Context::readAssetFromLaterSubfile(): Unknown asset data in first subfile 0x%x (@0x%lx)", asset->header->_type, chunk.pos());
+    }
+
+}
+
 bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
     uint16 sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
     debugC(5, kDebugLoading, "Context::readHeaderSection(): sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
@@ -110,6 +173,7 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         }
 
         case SectionType::ASSET_LINK: {
+            // error("Context::readHeaderSection(): ASSET_LINK not implemented yet");
             break;
         }
 
@@ -132,8 +196,23 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
 
         case SectionType::ASSET_HEADER: {
             AssetHeader *header = new AssetHeader(chunk);
-            _assetHeaders.setVal(header->_id, header);
-            // TODO: This only appears sometimes.
+            Asset *asset = new Asset(header);
+            if (g_engine->_assets.contains(header->_id)) {
+                error("Context::Context(): Asset with ID 0x%d was already defined in this title", header->_id);
+            }
+            g_engine->_assets.setVal(header->_id, asset);
+            if (header->_chunkReference != 0) {
+                debugC(5, kDebugLoading, "Context::readHeaderSection(): Storing asset with chunk ID \"%s\" (0x%x)", tag2str(header->_chunkReference), header->_chunkReference);
+                g_engine->_assetsByChunkReference.setVal(header->_chunkReference, asset);
+            }
+            // TODO: Store the movie chunk references better.
+            if (header->_audioChunkReference != 0) {
+                g_engine->_assetsByChunkReference.setVal(header->_audioChunkReference, asset);  
+            }
+            if (header->_animationChunkReference != 0) {
+                g_engine->_assetsByChunkReference.setVal(header->_animationChunkReference, asset);  
+            }
+            // TODO: This datum only appears sometimes.
             Datum(chunk).u.i;
             break;
         }

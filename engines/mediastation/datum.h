@@ -70,7 +70,7 @@ public:
         Point *point;
         BoundingBox *bbox;
         unsigned char *palette;
-        Reference *ref;
+        uint32 chunkRef;
     } u;
 
     Datum();
@@ -107,13 +107,6 @@ public:
     Polygon(Chunk &chunk);
 };
 
-class Reference {
-public:
-    uint32 chunk_id;
-
-    Reference();
-    Reference(Chunk &chunk);
-};
 
 } // End of namespace MediaStation
 

@@ -19,47 +19,46 @@
  *
  */
 
-#include "mediastation/datafile.h"
-#include "mediastation/contextparameters.h"
-#include "mediastation/assetheader.h"
-#include "mediastation/mediascript/function.h"
+#include "audio/mixer.h"
+#include "audio/audiostream.h"
+#include "audio/decoders/raw.h"
 
-#ifndef MEDIASTATION_CONTEXT_H
-#define MEDIASTATION_CONTEXT_H
+#include "mediastation/datum.h"
+#include "mediastation/assetheader.h"
+
+#ifndef MEDIASTATION_SOUND_H
+#define MEDIASTATION_SOUND_H
 
 namespace MediaStation {
 
-class Context : Datafile {
+class Sound {
 public:
-    Context(const Common::Path &path);
-    ~Context();
+    // For standalone Sound assets.
+    Sound(AssetHeader *header);
+    // For sounds that are part of a movie.
+    Sound(AssetHeader::SoundEncoding encoding);
+    ~Sound();
 
-    bool readPreamble();
+    void readSubfile(Subfile &subFile, Chunk &chunk, uint totalChunks);
+    void readChunk(Chunk& chunk);
 
-    uint32 unk1;
-    uint32 subfile_count;
-    uint32 file_size;
-    Graphics::Palette *_palette;
-    ContextParameters *_parameters;
+    AssetHeader *_header;
+    AssetHeader::SoundEncoding _encoding;
+
+    void play();
+
+    // All Media Station audio is signed 16-bit little-endian mono at 22050 Hz.
+    // Some defaults must be overridden in the flags.
+    static const uint RATE = 22050;
+    static const byte FLAGS = Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN;
 
 private:
-    enum class SectionType {
-        EMPTY = 0x0000,
-        OLD_STYLE = 0x000d,
-        PARAMETERS = 0x000e,
-        PALETTE = 0x05aa,
-        END = 0x0010,
-        ASSET_HEADER = 0x0011,
-        POOH = 0x057a,
-        ASSET_LINK = 0x0013,
-        FUNCTION = 0x0031
-    };
-    void readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    void readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    bool readHeaderSection(Subfile &subfile, Chunk &chunk);
+    void decodeImaAdpcm();
+    Audio::SoundHandle _soundHandle;
+    Common::Array<Audio::SeekableAudioStream *> _streams;
 
-    void readAssetInFirstSubfile(Chunk &chunk);
-    void readAssetFromLaterSubfile(Subfile &subfile);
+    Audio::QueuingAudioStream *_queue;
+	Audio::Mixer *_mixer;
 };
 
 } // End of namespace MediaStation

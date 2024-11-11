@@ -44,11 +44,6 @@ Polygon::Polygon(Chunk &chunk) {
     }
 }
 
-Reference::Reference() : chunk_id(0) {}
-Reference::Reference(Chunk &chunk) {
-    chunk_id = chunk.readUint32LE();
-}
-
 Datum::Datum() { 
     u.i = 0;
 }
@@ -96,7 +91,7 @@ void Datum::readWithType(Chunk &chunk) {
         u.palette = new unsigned char[0x300];
         chunk.read(u.palette, 0x300);
     } else if (DatumType::REFERENCE == t) {
-        u.ref = new Reference(chunk);
+        u.chunkRef = chunk.readUint32BE();
     } else {
         error("Unknown datum type: 0x%x (@0x%lx)", t, chunk.pos());
     }
