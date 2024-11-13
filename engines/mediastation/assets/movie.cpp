@@ -26,6 +26,7 @@ namespace MediaStation {
 
 MovieFrameHeader::MovieFrameHeader(Chunk &chunk) : BitmapHeader(chunk) {
     _index = Datum(chunk).u.i;
+    debugC(5, kDebugLoading, "MovieFrameHeader::MovieFrameHeader(): _index = 0x%x (@0x%lx)", _index, chunk.pos());
     _keyframeEndInMilliseconds = Datum(chunk).u.i;
 }
 
@@ -52,9 +53,19 @@ MovieFrameFooter::MovieFrameFooter(Chunk &chunk) {
         _index = Datum(chunk).u.i;
         _unk8 = Datum(chunk).u.i;
         _unk9 = Datum(chunk).u.i;
-        debugC(5, kDebugLoading, "MovieFrameFooter::MovieFrameFooter(): _startInMilliseconds = 0x%x, _endInMilliseconds = 0x%x, _left = 0x%x, _top = 0x%x, _index = 0x%x (@0x%x)", _startInMilliseconds, _endInMilliseconds, _left, _top, _index, chunk.pos());
+        debugC(5, kDebugLoading, "MovieFrameFooter::MovieFrameFooter(): _startInMilliseconds = 0x%x, _endInMilliseconds = 0x%x, _left = 0x%x, _top = 0x%x, _index = 0x%x (@0x%lx)", _startInMilliseconds, _endInMilliseconds, _left, _top, _index, chunk.pos());
         debugC(5, kDebugLoading, "MovieFrameFooter::MovieFrameFooter(): _unk4 = 0x%x, _unk5 = 0x%x, _unk6 = 0x%x, _unk7 = 0x%x, _unk8 = 0x%x, _unk9 = 0x%x", _unk4, _unk5, _unk6, _unk7, _unk8, _unk9);
     }
+}
+
+MovieFrame::MovieFrame(Chunk &chunk, MovieFrameHeader *header) :
+    Bitmap(chunk, header), 
+    _footer(nullptr) {
+        _keyframeEndInMilliseconds = header->_keyframeEndInMilliseconds;
+    }
+
+MovieFrame::~MovieFrame() {
+    delete _footer;
 }
 
 Movie::Movie(AssetHeader *header) : _header(header) {
@@ -136,23 +147,35 @@ void Movie::readSubfile(Subfile &subfile, Chunk &chunk) {
         debugC(5, kDebugLoading, "Movie::readSubfile(): (Frameset %d of %d) Reading animation chunks... (@0x%lx)", i, chunkCount, chunk.pos());
         bool isAnimationChunk = (chunk.id == _header->_animationChunkReference);
         if (!isAnimationChunk) {
-            warning("Movie::readSubfile(): (Frameset %d of %d) No animation chunks found (0x%x)", i, chunkCount, chunk.pos());
+            warning("Movie::readSubfile(): (Frameset %d of %d) No animation chunks found (0x%lx)", i, chunkCount, chunk.pos());
         }
+        MovieFrameHeader *header = nullptr;
+        MovieFrame *frame = nullptr;
         while (isAnimationChunk) {
             uint sectionType = Datum(chunk).u.i;
             debugC(5, kDebugLoading, "Movie::readSubfile(): sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
             switch (Movie::SectionType(sectionType)) {
                 case Movie::SectionType::FRAME: {
-                    MovieFrameHeader *header = new MovieFrameHeader(chunk);
-                    MovieFrame *frame = new MovieFrame(chunk, header);
+                    header = new MovieFrameHeader(chunk);
+                    frame = new MovieFrame(chunk, header);
                     _frames.push_back(frame);
                     break;
                 }
 
                 case Movie::SectionType::FOOTER: {
                     MovieFrameFooter *footer = new MovieFrameFooter(chunk);
-                    _footers.push_back(footer);
-                    // TODO: We donʻt do anything with this yet!
+                    // _footers.push_back(footer);
+                    // TODO: This does NOT handle the case where there are
+                    // keyframes. We need to match the footer to an arbitrary
+                    // frame, since some keyframes don't have footers, sigh.
+                    if (header == nullptr) {
+                        error("Movie::readSubfile(): No frame to match footer to");
+                    }
+                    if (header->_index == footer->_index) {
+                        frame->_footer = footer;
+                    } else {
+                        error("Movie::readSubfile(): Footer index does not match frame index: %d != %d", header->_index, footer->_index);
+                    }
                     break;
                 }
 

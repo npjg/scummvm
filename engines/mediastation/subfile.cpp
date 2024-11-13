@@ -19,6 +19,9 @@
  *
  */
 
+#include "common/debug.h"
+
+#include "mediastation/mediastation.h"
 #include "mediastation/chunk.h"
 #include "mediastation/subfile.h"
 
@@ -28,6 +31,7 @@ Subfile::Subfile() : _stream(nullptr) {}
 
 Subfile::Subfile(Common::SeekableReadStream *stream) : _stream(stream) {
     // VERIFY FILE SIGNATURE.
+    debugC(5, kDebugLoading, "\n*** Subfile::Subfile(): Got new subfile (@0x%lx) ***", _stream->pos());
     rootChunk = nextChunk();
     if (rootChunk.id != MKTAG('R', 'I', 'F', 'F'))
         // TODO: These need to be interpreted as ASCII.

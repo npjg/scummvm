@@ -59,7 +59,11 @@ public:
 
 class MovieFrame : public Bitmap {
 public:
-    MovieFrame(Chunk &chunk, MovieFrameHeader *header) : Bitmap(chunk, header) {}
+    MovieFrame(Chunk &chunk, MovieFrameHeader *header);
+    ~MovieFrame();
+
+    MovieFrameFooter *_footer;
+    uint _keyframeEndInMilliseconds;
 };
 
 class Movie {
