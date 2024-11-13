@@ -22,7 +22,7 @@
 #include "graphics/framelimiter.h"
 #include "common/scummsys.h"
 #include "common/config-manager.h"
-#include "common/debug-channels.h"
+#include "common/debug-channels.h"	
 #include "common/events.h"
 #include "common/system.h"
 #include "engines/util.h"
@@ -68,35 +68,86 @@ Common::Error MediaStationEngine::run() {
 
 	Context *activeScreen = loadContext(_boot->_entryContextId);
 
-	// Draw a series of boxes on screen as a sample
-	for (int i = 0; i < 100; ++i)
-		_screen->frameRect(Common::Rect(i, i, 640 - i, 480 - i), i);
-	_screen->update();
+	Asset *openingMovie = _assets.getValOrDefault(105);
+	if (activeScreen->_palette == nullptr) {
+		error("No palette");
+	}
+	Asset *palette = _assets.getValOrDefault(104);
+	_screen->setPalette(*palette->header->_palette);
+	// _screen->setPalette(*activeScreen->_palette);
 
-	// Simple event handling loop
-	byte pal[256 * 3] = { 0 };
-	Common::Event e;
-	int offset = 0;
+    Common::Event e;
+    uint32 currentTime = g_system->getMillis();
+	uint32 animationStart = currentTime;
+    uint32 nextFrameTime = currentTime;
+    Graphics::ManagedSurface *previousFrameSurface = nullptr;
+    int previousFrameLeft = 0;
+    int previousFrameTop = 0;
 
-	Graphics::FrameLimiter limiter(g_system, 60);
-	while (!shouldQuit()) {
-		while (g_system->getEventManager()->pollEvent(e)) {
-			debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-			debugC(9, kDebugEvents, "@@@@   Processing events");
-			debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+	Common::Array<MovieFrame *> activeFrames;
+    for (MovieFrame *frame : openingMovie->a.movie->_frames) {
+		while (true) {
+			currentTime = g_system->getMillis();
+
+			// ERASE ANY FRAMES THAT HAVE EXPIRED.
+			// We need to know WHEN the frames have expired!
+			for (auto it = activeFrames.begin(); it != activeFrames.end(); ) {
+				MovieFrame *activeFrame = *it;
+				if (animationStart + activeFrame->_footer->_endInMilliseconds <= currentTime) {
+					// _screen->fillRect(
+					// 	Common::Rect(
+					// 		activeFrame->_footer->_left,
+					// 		activeFrame->_footer->_top,
+					// 		activeFrame->_footer->_left + activeFrame->width(), 
+					// 		activeFrame->_footer->_top + activeFrame->height()), 0);
+					it = activeFrames.erase(it); // Erase and update iterator
+				} else {
+					++it; // Move to the next frame
+				}
+			}
+
+			// RE-DRAW THE REMAINING ACTIVE FRAMES.
+			//for (MovieFrame *activeFrame : activeFrames) {
+			//	_screen->transBlitFrom(frame->surface, Common::Point(frame->_footer->_left, frame->_footer->_top), 0, false);
+			//}
+
+
+			if (currentTime >= nextFrameTime) {
+				break;
+			}
+
+			while (g_system->getEventManager()->pollEvent(e)) {
+				debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+				debugC(9, kDebugEvents, "@@@@   Processing events");
+				debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+
+				if (e.type == Common::EVENT_QUIT || e.type == Common::EVENT_KEYDOWN || e.type == Common::EVENT_LBUTTONDOWN) {
+					return Common::kNoError;
+				}
+			}
+
+			g_system->delayMillis(50);
 		}
 
-		// Cycle through a simple palette
-		++offset;
-		for (int i = 0; i < 256; ++i)
-			pal[i * 3 + 1] = (i + offset) % 256;
-		g_system->getPaletteManager()->setPalette(pal, 0, 256);
-		// Delay for a bit. All events loops should have a delay
-		// to prevent the system being unduly loaded
-		limiter.delayBeforeSwap();
-		// _screen->update();
-		limiter.startFrame();
-	}
+        if (currentTime >= nextFrameTime) {
+            // Blit the new frame
+			uint32 frameDuration = frame->_footer->_endInMilliseconds - frame->_footer->_startInMilliseconds;
+			debugC(7, kDebugGraphics, "Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms", frame->_footer->_index, frame->width(), frame->height(), frame->_footer->_left, frame->_footer->_top, frame->_footer->_startInMilliseconds, frame->_footer->_endInMilliseconds, frame->_keyframeEndInMilliseconds);
+            frameDuration = 100;
+			_screen->transBlitFrom(frame->surface, Common::Point(frame->_footer->_left, frame->_footer->_top), 0, false);
+			_screen->update();
+
+            // Update timing and position for the next frame
+            nextFrameTime = currentTime + frameDuration;
+			activeFrames.push_back(frame);
+            //previousFrameSurface = &frame->surface;
+            //previousFrameLeft = frame->_footer->_left;
+            //previousFrameTop = frame->_footer->_top;
+
+			// We have to erase the previous frame before we draw this one,
+			// assuming its time has expired!
+        }
+    }
 
 	return Common::kNoError;
 }
