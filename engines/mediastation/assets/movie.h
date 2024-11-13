@@ -49,7 +49,7 @@ public:
     uint _top;
     uint _unk3;
     uint _unk4;
-    uint _unk5;
+    uint _zIndex; // TODO: This is still unconfirmed but seems likely.
     uint _unk6;
     uint _unk7;
     uint _unk8;
@@ -64,6 +64,7 @@ public:
 
     MovieFrameFooter *_footer;
     uint _keyframeEndInMilliseconds;
+    bool _showing;
 };
 
 class Movie {

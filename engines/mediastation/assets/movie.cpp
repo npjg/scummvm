@@ -47,14 +47,14 @@ MovieFrameFooter::MovieFrameFooter(Chunk &chunk) {
         _endInMilliseconds = Datum(chunk).u.i;
         _left = Datum(chunk).u.i;
         _top = Datum(chunk).u.i;
-        _unk5 = Datum(chunk).u.i;
+        _zIndex = Datum(chunk).u.i;
         _unk6 = Datum(chunk).u.i;
         _unk7 = Datum(chunk).u.i;
         _index = Datum(chunk).u.i;
         _unk8 = Datum(chunk).u.i;
         _unk9 = Datum(chunk).u.i;
         debugC(5, kDebugLoading, "MovieFrameFooter::MovieFrameFooter(): _startInMilliseconds = 0x%x, _endInMilliseconds = 0x%x, _left = 0x%x, _top = 0x%x, _index = 0x%x (@0x%lx)", _startInMilliseconds, _endInMilliseconds, _left, _top, _index, chunk.pos());
-        debugC(5, kDebugLoading, "MovieFrameFooter::MovieFrameFooter(): _unk4 = 0x%x, _unk5 = 0x%x, _unk6 = 0x%x, _unk7 = 0x%x, _unk8 = 0x%x, _unk9 = 0x%x", _unk4, _unk5, _unk6, _unk7, _unk8, _unk9);
+        debugC(5, kDebugLoading, "MovieFrameFooter::MovieFrameFooter(): _unk4 = 0x%x, _unk5 = 0x%x, _unk6 = 0x%x, _unk7 = 0x%x, _unk8 = 0x%x, _unk9 = 0x%x", _unk4, _zIndex, _unk6, _unk7, _unk8, _unk9);
     }
 }
 
