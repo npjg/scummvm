@@ -84,70 +84,51 @@ Common::Error MediaStationEngine::run() {
     int previousFrameLeft = 0;
     int previousFrameTop = 0;
 
-	Common::Array<MovieFrame *> activeFrames;
-    for (MovieFrame *frame : openingMovie->a.movie->_frames) {
-		while (true) {
-			currentTime = g_system->getMillis();
+	Movie *currentMovie = openingMovie->a.movie;
+	while (true) {
+		currentTime = g_system->getMillis();
+		while (g_system->getEventManager()->pollEvent(e)) {
+			debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+			debugC(9, kDebugEvents, "@@@@   Processing events");
+			debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 
-			// ERASE ANY FRAMES THAT HAVE EXPIRED.
-			// We need to know WHEN the frames have expired!
-			for (auto it = activeFrames.begin(); it != activeFrames.end(); ) {
-				MovieFrame *activeFrame = *it;
-				if (animationStart + activeFrame->_footer->_endInMilliseconds <= currentTime) {
-					// _screen->fillRect(
-					// 	Common::Rect(
-					// 		activeFrame->_footer->_left,
-					// 		activeFrame->_footer->_top,
-					// 		activeFrame->_footer->_left + activeFrame->width(), 
-					// 		activeFrame->_footer->_top + activeFrame->height()), 0);
-					it = activeFrames.erase(it); // Erase and update iterator
-				} else {
-					++it; // Move to the next frame
-				}
+			if (e.type == Common::EVENT_QUIT || e.type == Common::EVENT_KEYDOWN || e.type == Common::EVENT_LBUTTONDOWN) {
+				return Common::kNoError;
 			}
-
-			// RE-DRAW THE REMAINING ACTIVE FRAMES.
-			//for (MovieFrame *activeFrame : activeFrames) {
-			//	_screen->transBlitFrom(frame->surface, Common::Point(frame->_footer->_left, frame->_footer->_top), 0, false);
-			//}
-
-
-			if (currentTime >= nextFrameTime) {
-				break;
-			}
-
-			while (g_system->getEventManager()->pollEvent(e)) {
-				debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-				debugC(9, kDebugEvents, "@@@@   Processing events");
-				debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-
-				if (e.type == Common::EVENT_QUIT || e.type == Common::EVENT_KEYDOWN || e.type == Common::EVENT_LBUTTONDOWN) {
-					return Common::kNoError;
-				}
-			}
-
-			g_system->delayMillis(50);
 		}
 
-        if (currentTime >= nextFrameTime) {
-            // Blit the new frame
-			uint32 frameDuration = frame->_footer->_endInMilliseconds - frame->_footer->_startInMilliseconds;
-			debugC(7, kDebugGraphics, "Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms", frame->_footer->_index, frame->width(), frame->height(), frame->_footer->_left, frame->_footer->_top, frame->_footer->_startInMilliseconds, frame->_footer->_endInMilliseconds, frame->_keyframeEndInMilliseconds);
-            frameDuration = 100;
+		// DRAW THE FRAMES.
+		Common::Array<MovieFrame *> framesToDraw;
+		for (MovieFrame *frame : currentMovie->_frames) {
+			bool isAfterStart = animationStart + frame->_footer->_startInMilliseconds <= currentTime;
+			bool isBeforeEnd = animationStart + frame->_footer->_endInMilliseconds >= currentTime;
+			if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
+				frame->_showing = false;
+				continue;
+			}
+			//if (frame->_showing) {
+			//	continue;
+			//}
+
+			// Blit the new frame
+			// frame->_showing = true;
+			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->_footer->_index, frame->width(), frame->height(), frame->_footer->_left, frame->_footer->_top, frame->_footer->_startInMilliseconds, frame->_footer->_endInMilliseconds, frame->_keyframeEndInMilliseconds, frame->_footer->_zIndex);
+			framesToDraw.push_back(frame);
+		}
+
+		// BLIT THE FRAMES.
+		Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
+			return a->_footer->_zIndex > b->_footer->_zIndex;
+		});
+		for (MovieFrame *frame : framesToDraw) {
+			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->_footer->_index, frame->width(), frame->height(), frame->_footer->_left, frame->_footer->_top, frame->_footer->_startInMilliseconds, frame->_footer->_endInMilliseconds, frame->_keyframeEndInMilliseconds, frame->_footer->_zIndex);
 			_screen->transBlitFrom(frame->surface, Common::Point(frame->_footer->_left, frame->_footer->_top), 0, false);
-			_screen->update();
+		}
+		framesToDraw.clear();
 
-            // Update timing and position for the next frame
-            nextFrameTime = currentTime + frameDuration;
-			activeFrames.push_back(frame);
-            //previousFrameSurface = &frame->surface;
-            //previousFrameLeft = frame->_footer->_left;
-            //previousFrameTop = frame->_footer->_top;
-
-			// We have to erase the previous frame before we draw this one,
-			// assuming its time has expired!
-        }
-    }
+		_screen->update();
+		g_system->delayMillis(50);
+	}
 
 	return Common::kNoError;
 }
