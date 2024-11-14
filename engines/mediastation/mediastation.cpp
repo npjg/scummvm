@@ -79,11 +79,6 @@ Common::Error MediaStationEngine::run() {
     Common::Event e;
     uint32 currentTime = g_system->getMillis();
 	uint32 animationStart = currentTime;
-    uint32 nextFrameTime = currentTime;
-    Graphics::ManagedSurface *previousFrameSurface = nullptr;
-    int previousFrameLeft = 0;
-    int previousFrameTop = 0;
-
 	Movie *currentMovie = openingMovie->a.movie;
 	while (true) {
 		currentTime = g_system->getMillis();
@@ -100,8 +95,8 @@ Common::Error MediaStationEngine::run() {
 		// DRAW THE FRAMES.
 		Common::Array<MovieFrame *> framesToDraw;
 		for (MovieFrame *frame : currentMovie->_frames) {
-			bool isAfterStart = animationStart + frame->_footer->_startInMilliseconds <= currentTime;
-			bool isBeforeEnd = animationStart + frame->_footer->_endInMilliseconds >= currentTime;
+			bool isAfterStart = animationStart + frame->startInMilliseconds() <= currentTime;
+			bool isBeforeEnd = animationStart + frame->endInMilliseconds() >= currentTime;
 			if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
 				frame->_showing = false;
 				continue;
@@ -112,17 +107,17 @@ Common::Error MediaStationEngine::run() {
 
 			// Blit the new frame
 			// frame->_showing = true;
-			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->_footer->_index, frame->width(), frame->height(), frame->_footer->_left, frame->_footer->_top, frame->_footer->_startInMilliseconds, frame->_footer->_endInMilliseconds, frame->_keyframeEndInMilliseconds, frame->_footer->_zIndex);
+			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
 			framesToDraw.push_back(frame);
 		}
 
 		// BLIT THE FRAMES.
 		Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
-			return a->_footer->_zIndex > b->_footer->_zIndex;
+			return a->zCoordinate() > b->zCoordinate();
 		});
 		for (MovieFrame *frame : framesToDraw) {
-			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->_footer->_index, frame->width(), frame->height(), frame->_footer->_left, frame->_footer->_top, frame->_footer->_startInMilliseconds, frame->_footer->_endInMilliseconds, frame->_keyframeEndInMilliseconds, frame->_footer->_zIndex);
-			_screen->transBlitFrom(frame->surface, Common::Point(frame->_footer->_left, frame->_footer->_top), 0, false);
+			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+			_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
 		}
 		framesToDraw.clear();
 

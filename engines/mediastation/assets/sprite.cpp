@@ -35,8 +35,28 @@ SpriteFrameHeader::~SpriteFrameHeader() {
     delete _boundingBox;
 }
 
+uint32 SpriteFrame::left() {
+    return _bitmapHeader->_boundingBox->x;
+}
+
+uint32 SpriteFrame::top() {
+    return _bitmapHeader->_boundingBox->y;
+}
+
+Common::Point SpriteFrame::topLeft() {
+    return Common::Point(left(), top());
+}
+
+Common::Rect SpriteFrame::boundingBox() {
+    return Common::Rect(topLeft(), width(), height());
+}
+
+uint32 SpriteFrame::index() {
+    return _bitmapHeader->_index;
+}
+
 Sprite::Sprite(AssetHeader *header) : _header(header) {
-    
+
 }
 
 Sprite::~Sprite() {

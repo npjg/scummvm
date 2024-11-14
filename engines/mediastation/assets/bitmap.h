@@ -40,7 +40,7 @@ public:
 
     bool isCompressed();
 
-    Point *dimensions;
+    Common::Point *dimensions;
     CompressionType compression_type;
     uint unk2;
 };

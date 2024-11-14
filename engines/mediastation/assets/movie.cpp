@@ -60,9 +60,86 @@ MovieFrameFooter::MovieFrameFooter(Chunk &chunk) {
 
 MovieFrame::MovieFrame(Chunk &chunk, MovieFrameHeader *header) :
     Bitmap(chunk, header), 
-    _footer(nullptr) {
-        _keyframeEndInMilliseconds = header->_keyframeEndInMilliseconds;
+    _footer(nullptr),
+    _showing(false) 
+    {
+        _bitmapHeader = header;
     }
+
+void MovieFrame::setFooter(MovieFrameFooter *footer) {
+    if (footer != nullptr) {
+        assert(footer->_index == _bitmapHeader->_index);
+    }
+    _footer = footer;
+}
+
+uint32 MovieFrame::left() {
+    if (_footer != nullptr) {
+        return _footer->_left;
+    } else {
+        error("MovieFrame::left(): Cannot get the left coordinate of a keyframe");
+    }
+}
+
+uint32 MovieFrame::top() {
+    if (_footer != nullptr) {
+        return _footer->_top;
+    } else {
+        error("MovieFrame::left(): Cannot get the top coordinate of a keyframe");
+    }
+}
+
+Common::Point MovieFrame::topLeft() {
+    if (_footer != nullptr) {
+        return Common::Point(_footer->_left, _footer->_top);
+    } else {
+        error("MovieFrame::topLeft(): Cannot get the top-left coordinate of a keyframe");
+    }
+}
+
+Common::Rect MovieFrame::boundingBox() {
+    if (_footer != nullptr) {
+        return Common::Rect(Common::Point(_footer->_left, _footer->_top), width(), height());
+    } else {
+        error("MovieFrame::boundingBox(): Cannot get the bounding box of a keyframe");
+    }
+}
+
+uint32 MovieFrame::index() {
+    if (_footer != nullptr) {
+        return _footer->_index;
+    } else {
+        error("MovieFrame::index(): Cannot get the index of a keyframe");
+    }
+}
+
+uint32 MovieFrame::startInMilliseconds() {
+    if (_footer != nullptr) {
+        return _footer->_startInMilliseconds;
+    } else {
+        error("MovieFrame::startInMilliseconds(): Cannot get the start time of a keyframe");
+    }
+}
+
+uint32 MovieFrame::endInMilliseconds() {
+    if (_footer != nullptr) {
+        return _footer->_endInMilliseconds;
+    } else {
+        error("MovieFrame::endInMilliseconds(): Cannot get the end time of a keyframe");
+    }
+}
+
+uint32 MovieFrame::zCoordinate() {
+    if (_footer != nullptr) {
+        return _footer->_zIndex;
+    } else {
+        error("MovieFrame::zCoordinate(): Cannot get the z-coordinate of a keyframe");
+    }
+}
+
+uint32 MovieFrame::keyframeEndInMilliseconds() {
+    return _bitmapHeader->_keyframeEndInMilliseconds;
+}
 
 MovieFrame::~MovieFrame() {
     delete _footer;
@@ -172,7 +249,7 @@ void Movie::readSubfile(Subfile &subfile, Chunk &chunk) {
                         error("Movie::readSubfile(): No frame to match footer to");
                     }
                     if (header->_index == footer->_index) {
-                        frame->_footer = footer;
+                        frame->setFooter(footer);
                     } else {
                         error("Movie::readSubfile(): Footer index does not match frame index: %d != %d", header->_index, footer->_index);
                     }

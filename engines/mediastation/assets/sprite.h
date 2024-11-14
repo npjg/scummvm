@@ -34,19 +34,21 @@ public:
     ~SpriteFrameHeader();
 
     uint _index;
-    Point *_boundingBox;
+    Common::Point *_boundingBox;
 };
 
 class SpriteFrame : public Bitmap {
 public:
-    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header) : Bitmap(chunk, header) {
-        x = header->dimensions->x;
-        y = header->dimensions->y;
-    }
+    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header) : Bitmap(chunk, header) {}
 
+    uint32 left();
+    uint32 top();
+    Common::Point topLeft();
+    Common::Rect boundingBox();
+    uint32 index();
+
+private:
     SpriteFrameHeader *_bitmapHeader;
-    uint x;
-    uint y;
 };
 
 class Sprite {

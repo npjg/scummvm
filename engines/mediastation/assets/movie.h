@@ -62,9 +62,24 @@ public:
     MovieFrame(Chunk &chunk, MovieFrameHeader *header);
     ~MovieFrame();
 
-    MovieFrameFooter *_footer;
-    uint _keyframeEndInMilliseconds;
+    void setFooter(MovieFrameFooter *footer);
+    uint32 left();
+    uint32 top();
+    Common::Point topLeft();
+    Common::Rect boundingBox();
+    uint32 index();
+    uint32 startInMilliseconds();
+    uint32 endInMilliseconds();
+    uint32 keyframeEndInMilliseconds();
+    // This is called zCoordinate because zIndex is too close to "index" and
+    // that could be confusing.
+    uint32 zCoordinate();
+    
     bool _showing;
+
+private:
+    MovieFrameHeader *_bitmapHeader;
+    MovieFrameFooter *_footer;
 };
 
 class Movie {

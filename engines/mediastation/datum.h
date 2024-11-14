@@ -28,6 +28,10 @@
 namespace MediaStation {
 
 enum class DatumType {
+    // The INVALID type isn't a type we see in data files; it is just a 
+    // default initialization value.
+    INVALID = 0x0000,
+
     UINT8 = 0x0002,
     // TODO: Understand why there are different (u)int16 type codes.
     UINT16_1 = 0x0003,
@@ -65,12 +69,12 @@ public:
     union {
         int i;
         double f;
-        Common::String *string;
-        Polygon *polygon;
-        Point *point;
-        BoundingBox *bbox;
-        unsigned char *palette;
         uint32 chunkRef;
+        Common::String *string;
+        Common::Array<Common::Point *> *polygon;
+        Common::Point *point;
+        Common::Rect *bbox;
+        unsigned char *palette;
     } u;
 
     Datum();
@@ -80,33 +84,6 @@ public:
 private:
     void readWithType(Chunk &chunk);
 };
-
-class Point {
-public:
-    int x;
-    int y;
-
-    Point();
-    Point(Chunk &chunk);
-};
-
-class BoundingBox {
-public:
-    Datum left_top_point;
-    Datum dimensions;
-
-    BoundingBox();
-    BoundingBox(Chunk &chunk);
-};
-
-class Polygon {
-public:
-    Common::Array<Datum> points;
-
-    Polygon();
-    Polygon(Chunk &chunk);
-};
-
 
 } // End of namespace MediaStation
 

@@ -137,8 +137,8 @@ public:
     // These two are only used in movies.
     ChunkReference _audioChunkReference;
     ChunkReference _animationChunkReference;
-    BoundingBox *_boundingBox;
-    Polygon *_mouseActiveArea;
+    Common::Rect *_boundingBox;
+    Common::Array<Common::Point *> *_mouseActiveArea;
     uint32 _zIndex;
     uint32 _assetReference;
     uint32 _startup;
@@ -162,15 +162,15 @@ public:
 
     // PATH FIELDS.
     uint32 _dissolveFactor;
-    Point *_startPoint;
-    Point *_endPoint;
+    Common::Point *_startPoint;
+    Common::Point *_endPoint;
     uint32 _stepRate;
     uint32 _duration;
 
 private:
     void readSection(AssetHeader::SectionType sectionType, Chunk &chunk);
     AssetHeader::SectionType getSectionType(Chunk &chunk);
-};;
+};
 
 } // End of namespace MediaStation
 
