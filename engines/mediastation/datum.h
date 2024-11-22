@@ -19,7 +19,9 @@
  *
  */
 
-#include "mediastation/mediastation.h"
+#include "common/str.h"
+#include "common/rect.h"
+
 #include "mediastation/chunk.h"
 
 #ifndef MEDIASTATION_DATUM_H
@@ -78,11 +80,13 @@ public:
     } u;
 
     Datum();
-    Datum(Chunk &chunk);
-    Datum(Chunk &chunk, DatumType expectedType);
+    Datum(Common::SeekableReadStream &chunk);
+    Datum(Common::SeekableReadStream &chunk, DatumType expectedType);
+
+    void dispose();
 
 private:
-    void readWithType(Chunk &chunk);
+    void readWithType(Common::SeekableReadStream &chunk);
 };
 
 } // End of namespace MediaStation

@@ -23,6 +23,7 @@
 #include "mediastation/chunk.h"
 #include "mediastation/datum.h"
 #include "mediastation/datafile.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 
@@ -61,7 +62,7 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
         }
 
         case Type::BOOLEAN: {
-            uint rawValue = Datum(chunk, DatumType::UINT16_1).u.i;
+            uint rawValue = Datum(chunk, DatumType::UINT8).u.i;
             debugC(7, kDebugLoading, " VariableDeclaration::VariableDeclaration(): BOOL: %d", rawValue);
             value.b = (rawValue == 1);
             break;

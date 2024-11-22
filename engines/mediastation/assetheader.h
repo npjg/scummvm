@@ -19,15 +19,13 @@
  *
  */
 
+#ifndef MEDIASTATION_ASSET_HEADER_H
+#define MEDIASTATION_ASSET_HEADER_H
+
 #include "graphics/palette.h"
 
 #include "mediastation/chunk.h"
-#include "mediastation/datum.h"
-
 #include "mediastation/mediascript/eventhandler.h"
-
-#ifndef MEDIASTATION_ASSET_HEADER_H
-#define MEDIASTATION_ASSET_HEADER_H
 
 namespace MediaStation {
 

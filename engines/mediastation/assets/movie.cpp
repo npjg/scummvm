@@ -19,8 +19,10 @@
  *
  */
 
+#include "mediastation/mediastation.h"
 #include "mediastation/assets/movie.h"
 #include "mediastation/datum.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 

@@ -29,6 +29,7 @@
 #include "graphics/paletteman.h"
 
 #include "mediastation/mediastation.h"
+#include "mediastation/debugchannels.h"
 #include "mediastation/detection.h"
 #include "mediastation/boot.h"
 #include "mediastation/context.h"
@@ -61,12 +62,32 @@ Common::Error MediaStationEngine::run() {
 	Common::Path bootStmFilepath = Common::Path("BOOT.STM");
 	_boot = new Boot(bootStmFilepath);
 
-	// INITIALIZE GRAPHICS.
+	// INITIALIZE SUBSYSTEMS.
 	// All Media Station games run at 640x480.
 	initGraphics(640, 480);
 	_screen = new Graphics::Screen();
+	_mediaScript = new MediaScript();
+
+	// LOAD THE ROOT CONTEXT.
+	Context *root = nullptr;
+	uint32 rootContextId = _boot->getRootContextId();
+	if (rootContextId != 0) {
+		root = loadContext(rootContextId);
+	} else {
+		warning("MediaStation::run(): Title has no root context");
+	}
 
 	Context *activeScreen = loadContext(_boot->_entryContextId);
+	// Run the bytecode in here.
+	if (activeScreen->_screenAsset != nullptr) {
+		EventHandler *entryEvent = activeScreen->_screenAsset->_eventHandlers.getValOrDefault(uint(EventHandler::Type::Entry));
+		warning("Got event handler");
+		if (entryEvent != nullptr) {
+			_mediaScript->evaluate(entryEvent->_code);
+		} else {
+			error("No entry event handler");
+		}
+	}
 
 	Asset *openingMovie = _assets.getValOrDefault(105);
 	if (activeScreen->_palette == nullptr) {
@@ -80,6 +101,8 @@ Common::Error MediaStationEngine::run() {
     uint32 currentTime = g_system->getMillis();
 	uint32 animationStart = currentTime;
 	Movie *currentMovie = openingMovie->a.movie;
+
+	// PLAY THE SOUND.
 	while (true) {
 		currentTime = g_system->getMillis();
 		while (g_system->getEventManager()->pollEvent(e)) {
@@ -87,39 +110,53 @@ Common::Error MediaStationEngine::run() {
 			debugC(9, kDebugEvents, "@@@@   Processing events");
 			debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 
-			if (e.type == Common::EVENT_QUIT || e.type == Common::EVENT_KEYDOWN || e.type == Common::EVENT_LBUTTONDOWN) {
-				return Common::kNoError;
+			switch (e.type) {
+				case Common::EVENT_QUIT: {
+					return Common::kNoError;
+				}
+
+				case Common::EVENT_KEYDOWN: {
+					return Common::kNoError;
+				}
+
+				case Common::EVENT_LBUTTONDOWN: {
+					return Common::kNoError;
+				}
+
+				default: {
+					break;
+				}
 			}
 		}
 
-		// DRAW THE FRAMES.
-		Common::Array<MovieFrame *> framesToDraw;
-		for (MovieFrame *frame : currentMovie->_frames) {
-			bool isAfterStart = animationStart + frame->startInMilliseconds() <= currentTime;
-			bool isBeforeEnd = animationStart + frame->endInMilliseconds() >= currentTime;
-			if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
-				frame->_showing = false;
-				continue;
-			}
-			//if (frame->_showing) {
-			//	continue;
-			//}
+		// // DRAW THE FRAMES.
+		// Common::Array<MovieFrame *> framesToDraw;
+		// for (MovieFrame *frame : currentMovie->_frames) {
+		// 	bool isAfterStart = animationStart + frame->startInMilliseconds() <= currentTime;
+		// 	bool isBeforeEnd = animationStart + frame->endInMilliseconds() >= currentTime;
+		// 	if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
+		// 		frame->_showing = false;
+		// 		continue;
+		// 	}
+		// 	//if (frame->_showing) {
+		// 	//	continue;
+		// 	//}
 
-			// Blit the new frame
-			// frame->_showing = true;
-			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
-			framesToDraw.push_back(frame);
-		}
+		// 	// Blit the new frame
+		// 	// frame->_showing = true;
+		// 	debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+		// 	framesToDraw.push_back(frame);
+		// }
 
-		// BLIT THE FRAMES.
-		Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
-			return a->zCoordinate() > b->zCoordinate();
-		});
-		for (MovieFrame *frame : framesToDraw) {
-			debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
-			_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
-		}
-		framesToDraw.clear();
+		// // BLIT THE FRAMES.
+		// Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
+		// 	return a->zCoordinate() > b->zCoordinate();
+		// });
+		// for (MovieFrame *frame : framesToDraw) {
+		// 	debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+		// 	_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
+		// }
+		// framesToDraw.clear();
 
 		_screen->update();
 		g_system->delayMillis(50);
@@ -156,7 +193,7 @@ Context *MediaStationEngine::loadContext(uint32 contextId) {
 
 	// LOAD THE CONTEXT.
 	Common::Path entryCxtFilepath = Common::Path(*fileName);
-	Context *context= new Context(entryCxtFilepath);
+	Context *context = new Context(entryCxtFilepath);
 	return context;
 }
 

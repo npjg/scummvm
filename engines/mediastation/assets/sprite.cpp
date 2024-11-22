@@ -19,8 +19,9 @@
  *
  */
 
-#include "mediastation/assets/sprite.h"
 #include "mediastation/datum.h"
+#include "mediastation/assets/sprite.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 

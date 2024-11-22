@@ -19,23 +19,31 @@
  *
  */
 
-#include "mediastation/chunk.h"
-#include "mediastation/debugchannels.h"
+#ifndef MEDIASTATION_ASSET_H
+#define MEDIASTATION_ASSET_H
 
 namespace MediaStation {
 
-Chunk::Chunk() : _input(nullptr), _dataStartOffset(0), _dataEndOffset(0) {}
+class AssetHeader;
+class Bitmap;
+class Sound;
+class Movie;
+class Sprite;
 
-Chunk::Chunk(Common::SeekableReadStream *stream) : _input(stream), _dataStartOffset(0), _dataEndOffset(0) {
-    // READ THE HEADER.
-    id = _input->readUint32BE();
-    length = _input->readUint32LE();
-    _dataStartOffset = pos();
-    _dataEndOffset = _dataStartOffset + length;
-    debugC(5, kDebugLoading, "Chunk::Chunk(): Got chunk with ID \"%s\" and size 0x%x", tag2str(id), length);
-    if (length == 0) {
-        error("Encountered a zero-length chunk. This usually indicates corrupted data - maybe a CD-ROM read error.");
-    }
-}
+struct Asset {
+	Asset(AssetHeader *header);
+    ~Asset();
+
+	AssetHeader *header;
+    union {
+        Bitmap *bitmap;
+        Sound *sound;
+        Sprite *sprite;
+        // Font *font;
+        Movie *movie;
+    } a;
+};
 
 } // End of namespace MediaStation
+
+#endif

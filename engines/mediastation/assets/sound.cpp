@@ -19,13 +19,10 @@
  *
  */
 
-#include "common/file.h"
-#include "audio/mixer.h"
-#include "audio/audiostream.h"
-#include "audio/decoders/raw.h"
+#include "audio/decoders/adpcm.h"
 
+#include "mediastation/debugchannels.h"
 #include "mediastation/assets/sound.h"
-#include "mediastation/subfile.h"
 
 namespace MediaStation {
 
@@ -62,7 +59,7 @@ void Sound::readSubfile(Subfile &subfile, Chunk &chunk, uint totalChunks) {
         chunk = subfile.nextChunk();
         if (chunk.id != expectedChunkId) {
             // TODO: Make this show the chunk IDs as strings, not numbers.
-            error("Sound::readSubfile(): Expected chunk %d, got %d", tag2str(expectedChunkId), tag2str(chunk.id));
+            error("Sound::readSubfile(): Expected chunk %s, got %s", tag2str(expectedChunkId), tag2str(chunk.id));
         }
         readChunk(chunk);
     }
@@ -70,25 +67,30 @@ void Sound::readSubfile(Subfile &subfile, Chunk &chunk, uint totalChunks) {
 
 void Sound::readChunk(Chunk &chunk) {
     // TODO: Can we read the chunk directly into the audio stream?
+    debugC(5, kDebugLoading, "Sound::readChunk(): (encoding = 0x%x) Reading audio chunk (@0x%lx)", (uint)_encoding, chunk.pos());
+    byte *buffer = (byte *)malloc(chunk.length);
+    chunk.read((void *)buffer, chunk.length);
+
     switch(_encoding) {
         case AssetHeader::SoundEncoding::PCM_S16LE_MONO_22050: {
-            byte *buffer = (byte *)malloc(chunk.length);
-            chunk.read((void *)buffer, chunk.length);
             Audio::SeekableAudioStream *stream = Audio::makeRawStream(buffer, chunk.length, Sound::RATE, Sound::FLAGS, DisposeAfterUse::NO);
             _streams.push_back(stream);
             break;
         }
 
         case AssetHeader::SoundEncoding::IMA_ADPCM_S16LE_MONO_22050: {
-            error("Can't play IMA ADPCM stream yet");
+            // TODO: Support ADPCM decoding.
+            Audio::SeekableAudioStream *stream = nullptr; // Audio::makeADPCMStream(buffer, chunk.length, DisposeAfterUse::NO, Audio::ADPCMType::kADPCMMSIma, Sound::RATE, 1, 4);
+            _streams.push_back(stream);
             break;
         }
 
         default: {
-            error("Unknown audio encoding");
+            error("Sound::readChunk(): Unknown audio encoding 0x%x", (uint)_encoding);
             break;
         }
     }
+    debugC(5, kDebugLoading, "Sound::readChunk(): Finished reading audio chunk (@0x%lx)", chunk.pos());
 }
 
 void Sound::play() {
@@ -102,7 +104,7 @@ void Sound::play() {
     }
 
     _mixer->stopHandle(_soundHandle);
-	_mixer->playStream(Audio::Mixer::kSFXSoundType, &_soundHandle, _queue, -1, Audio::Mixer::kMaxChannelVolume, 0, DisposeAfterUse::YES, false, false);
+	_mixer->playStream(Audio::Mixer::kSFXSoundType, &_soundHandle, _queue, -1, Audio::Mixer::kMaxChannelVolume, 0, DisposeAfterUse::NO, false, false);
 }
 
 }

@@ -23,6 +23,7 @@
 #include "mediastation/datum.h"
 #include "mediastation/contextparameters.h"
 #include "mediastation/mediascript/variabledeclaration.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 

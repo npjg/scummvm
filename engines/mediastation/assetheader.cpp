@@ -21,6 +21,7 @@
 
 #include "mediastation/datum.h"
 #include "mediastation/assetheader.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 

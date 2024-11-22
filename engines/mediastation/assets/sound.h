@@ -19,15 +19,16 @@
  *
  */
 
+#ifndef MEDIASTATION_SOUND_H
+#define MEDIASTATION_SOUND_H
+
 #include "audio/mixer.h"
 #include "audio/audiostream.h"
 #include "audio/decoders/raw.h"
 
-#include "mediastation/datum.h"
+#include "mediastation/chunk.h"
+#include "mediastation/subfile.h"
 #include "mediastation/assetheader.h"
-
-#ifndef MEDIASTATION_SOUND_H
-#define MEDIASTATION_SOUND_H
 
 namespace MediaStation {
 

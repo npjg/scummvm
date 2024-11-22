@@ -30,6 +30,7 @@
 
 #include "mediastation/detection.h"
 #include "mediastation/detection_tables.h"
+#include "mediastation/debugchannels.h"
 #include "mediastation/mediastation.h"
 
 const DebugChannelDef MediaStationMetaEngineDetection::debugFlagList[] = {

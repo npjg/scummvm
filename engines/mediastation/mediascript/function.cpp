@@ -21,18 +21,21 @@
 
 #include "mediastation/datum.h"
 #include "mediastation/mediascript/function.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 
 Function::Function(Chunk &chunk) {
     _fileId = Datum(chunk).u.i;
-    _id = Datum(chunk).u.i + 19900;
-    debugC(5, kDebugLoading, "Function::Function(): ID = 0x%x", _id);
+    _id = Datum(chunk).u.i; // + 19900;
+    uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
+    debugC(5, kDebugLoading, "Function::Function(): id = 0x%x, size = 0x%x bytes", _id, lengthInBytes);
     _code = new CodeChunk(chunk);
 }
 
 Function::~Function() {
     delete _code;
+    _code = nullptr;
 }
 
 } // End of namespace MediaStation

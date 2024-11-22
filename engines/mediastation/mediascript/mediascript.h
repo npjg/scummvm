@@ -19,23 +19,28 @@
  *
  */
 
-#include "mediastation/chunk.h"
-#include "mediastation/debugchannels.h"
+#ifndef MEDIASTATION_MEDIASCRIPT_H
+#define MEDIASTATION_MEDIASCRIPT_H
+
+#include "common/hashmap.h"
+
+#include "mediastation/mediascript/codechunk.h"
 
 namespace MediaStation {
 
-Chunk::Chunk() : _input(nullptr), _dataStartOffset(0), _dataEndOffset(0) {}
+class MediaScript {
+public:
+    //MediaScript();
+    //~MediaScript();
 
-Chunk::Chunk(Common::SeekableReadStream *stream) : _input(stream), _dataStartOffset(0), _dataEndOffset(0) {
-    // READ THE HEADER.
-    id = _input->readUint32BE();
-    length = _input->readUint32LE();
-    _dataStartOffset = pos();
-    _dataEndOffset = _dataStartOffset + length;
-    debugC(5, kDebugLoading, "Chunk::Chunk(): Got chunk with ID \"%s\" and size 0x%x", tag2str(id), length);
-    if (length == 0) {
-        error("Encountered a zero-length chunk. This usually indicates corrupted data - maybe a CD-ROM read error.");
-    }
-}
+    Operand evaluate(CodeChunk *code);
+    Common::HashMap<uint32, Operand *> _variables;
+
+private:
+};
+
+// extern MediaScript *g_mediascript;
 
 } // End of namespace MediaStation
+
+#endif

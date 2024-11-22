@@ -19,7 +19,10 @@
  *
  */
 
-#include "mediastation/datum.h"
+#include "graphics/managed_surface.h"
+
+#include "mediastation/chunk.h"
+#include "mediastation/assetheader.h"
 
 #ifndef MEDIASTATION_BITMAP_H
 #define MEDIASTATION_BITMAP_H

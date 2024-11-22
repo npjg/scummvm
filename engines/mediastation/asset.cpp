@@ -19,49 +19,40 @@
  *
  */
 
-#ifndef MEDIASTATION_SPRITE_H
-#define MEDIASTATION_SPRITE_H
+#include "mediastation/asset.h"
 
 #include "mediastation/assetheader.h"
 #include "mediastation/assets/bitmap.h"
+#include "mediastation/assets/sound.h"
+#include "mediastation/assets/movie.h"
+#include "mediastation/assets/sprite.h"
 
 namespace MediaStation {
 
-class SpriteFrameHeader : public BitmapHeader {
-public:
-    SpriteFrameHeader(Chunk &chunk);
-    ~SpriteFrameHeader();
+Asset::Asset(AssetHeader *header) : header(header) {
+    if (AssetType::IMAGE == header->_type) {
+        a.bitmap = nullptr;
+    } else if (AssetType::SOUND == header->_type) {
+        a.sound = new Sound(header);
+    } else if (AssetType::MOVIE == header->_type) {
+        a.movie = new Movie(header);
+    } else if (AssetType::SPRITE == header->_type) {
+        a.sprite = new Sprite(header);
+    }
+}
 
-    uint _index;
-    Common::Point *_boundingBox;
-};
-
-class SpriteFrame : public Bitmap {
-public:
-    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header) : Bitmap(chunk, header) {}
-
-    uint32 left();
-    uint32 top();
-    Common::Point topLeft();
-    Common::Rect boundingBox();
-    uint32 index();
-
-private:
-    SpriteFrameHeader *_bitmapHeader;
-};
-
-class Sprite {
-public:
-    Sprite(AssetHeader *asset);
-    ~Sprite();
-
-    void readFrame(Chunk &chunk);
-    Common::Array<SpriteFrame *> _frames;
-
-private:
-    AssetHeader *_header;
-};
+Asset::~Asset() {
+    if (header->_type == AssetType::MOVIE) {
+        delete a.movie;
+    } else if (header->_type == AssetType::SOUND) {
+        delete a.sound;
+    } else if (header->_type == AssetType::IMAGE) {
+        delete a.bitmap;
+    } else if (header->_type == AssetType::SPRITE) {
+        delete a.sprite;
+    }
+    delete header;
+    header = nullptr;
+}
 
 } // End of namespace MediaStation
-
-#endif

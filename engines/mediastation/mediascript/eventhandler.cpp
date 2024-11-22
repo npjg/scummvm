@@ -20,6 +20,7 @@
  */
 
 #include "mediastation/mediascript/eventhandler.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 

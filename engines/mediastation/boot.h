@@ -208,6 +208,8 @@ public:
 
     Boot(const Common::Path &path);
     ~Boot();
+
+    uint32 getRootContextId();
 };
 
 } // End of namespace MediaStation

@@ -19,12 +19,12 @@
  *
  */
 
+#ifndef MEDIASTATION_CONTEXTPARAMETERS_H
+#define MEDIASTATION_CONTEXTPARAMETERS_H
+
 #include "mediastation/mediastation.h"
 #include "mediastation/mediascript/variabledeclaration.h"
 #include "mediastation/mediascript/function.h"
-
-#ifndef MEDIASTATION_CONTEXTPARAMETERS_H
-#define MEDIASTATION_CONTEXTPARAMETERS_H
 
 namespace MediaStation {
 

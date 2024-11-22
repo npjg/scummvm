@@ -22,13 +22,19 @@
 #include "mediastation/mediastation.h"
 #include "mediastation/context.h"
 #include "mediastation/datum.h"
+#include "mediastation/debugchannels.h"
 
 #include "mediastation/assets/bitmap.h"
 #include "mediastation/assets/movie.h"
+#include "mediastation/assets/sprite.h"
 
 namespace MediaStation {
 
-Context::Context(const Common::Path &path) : Datafile(path), _palette(nullptr), _parameters(nullptr) {
+Context::Context(const Common::Path &path) : 
+    Datafile(path), 
+    _palette(nullptr),
+    _parameters(nullptr),
+    _screenAsset(nullptr) {
     // This stuff isn't part of any graphics palette.
     readPreamble();
 
@@ -125,7 +131,7 @@ void Context::readAssetInFirstSubfile(Chunk &chunk) {
     // TODO: Make sure this is not an asset link.
     Asset *asset = g_engine->_assetsByChunkReference.getValOrDefault(chunk.id);
     if (asset == nullptr) {
-        error("Context::Context(): Asset for chunk \"%s\" (0x%x) does not exist or has not been read yet in this title. (@0x%lx)", tag2str(chunk.id), chunk.id, chunk.pos());
+        error("Context::readAssetInFirstSubfile(): Asset for chunk \"%s\" (0x%x) does not exist or has not been read yet in this title. (@0x%lx)", tag2str(chunk.id), chunk.id, chunk.pos());
     }
     debugC(5, kDebugLoading, "\nContext::readAssetInFirstSubfile(): Got asset with chunk ID %s in first subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->header->_type, chunk.pos());
 
@@ -139,7 +145,7 @@ void Context::readAssetInFirstSubfile(Chunk &chunk) {
     } else if (AssetType::SPRITE == asset->header->_type) {
         asset->a.sprite->readFrame(chunk);
     } else {
-        error("Context::Context(): Unknown asset data in first subfile 0x%x (@0x%lx)", asset->header->_type, chunk.pos());
+        error("Context::readAssetInFirstSubfile(): Unknown asset data in first subfile 0x%x (@0x%lx)", asset->header->_type, chunk.pos());
     }
 }
 
@@ -170,10 +176,11 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
                 error("Context::readHeaderSection(): Got multiple parameters (@0x%lx)", chunk.pos());
             }
             _parameters = new ContextParameters(chunk);
+            break;
         }
 
         case SectionType::ASSET_LINK: {
-            // error("Context::readHeaderSection(): ASSET_LINK not implemented yet");
+            warning("Context::readHeaderSection(): ASSET_LINK not implemented yet");
             break;
         }
 
@@ -197,8 +204,14 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         case SectionType::ASSET_HEADER: {
             AssetHeader *header = new AssetHeader(chunk);
             Asset *asset = new Asset(header);
+            if (header->_type == AssetType::SCREEN) {
+                if (_screenAsset != nullptr) {
+                    error("Context::readHeaderSection(): Got multiple screen assets in the same context");
+                }
+                _screenAsset = header;
+            }
             if (g_engine->_assets.contains(header->_id)) {
-                error("Context::Context(): Asset with ID 0x%d was already defined in this title", header->_id);
+                error("Context::readHeaderSection(): Asset with ID 0x%d was already defined in this title", header->_id);
             }
             g_engine->_assets.setVal(header->_id, asset);
             if (header->_chunkReference != 0) {
@@ -218,7 +231,11 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         }
 
         case SectionType::FUNCTION: {
-            error("Context::readHeaderSection(): FUNCTION Not implemented yet");
+            Function *function = new Function(chunk);
+            g_engine->_functions.setVal(function->_id, function);
+            if (!g_engine->isFirstGenerationEngine()) {
+                Datum(chunk).u.i; // Should be zero.
+            }
             break;
         }
 
@@ -243,6 +260,19 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
     }
 
     return true;
+}
+
+void Context::play() {
+    // FIND AND EXECUTE THE ENTRY SCRIPT.
+    // The entry script is stored in the asset with the same ID as the context.
+    // It's the asset that has a SCREEN asset type.
+    if (_screenAsset == nullptr) {
+        error("Context::play(): No entry script exists for this context, cannot play it");
+    }
+    EventHandler *entryHandler = _screenAsset->_eventHandlers.getVal(uint32(EventHandler::Type::Entry));
+    // So how can we actually execute this script?
+
+    // FIND AND EXECUTE THE EXIT SCRIPT.
 }
 
 } // End of namespace MediaStation

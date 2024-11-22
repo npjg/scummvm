@@ -19,23 +19,21 @@
  *
  */
 
-#include "mediastation/chunk.h"
 #include "mediastation/debugchannels.h"
+#include "mediastation/mediascript/mediascript.h"
 
 namespace MediaStation {
 
-Chunk::Chunk() : _input(nullptr), _dataStartOffset(0), _dataEndOffset(0) {}
-
-Chunk::Chunk(Common::SeekableReadStream *stream) : _input(stream), _dataStartOffset(0), _dataEndOffset(0) {
-    // READ THE HEADER.
-    id = _input->readUint32BE();
-    length = _input->readUint32LE();
-    _dataStartOffset = pos();
-    _dataEndOffset = _dataStartOffset + length;
-    debugC(5, kDebugLoading, "Chunk::Chunk(): Got chunk with ID \"%s\" and size 0x%x", tag2str(id), length);
-    if (length == 0) {
-        error("Encountered a zero-length chunk. This usually indicates corrupted data - maybe a CD-ROM read error.");
+Operand MediaScript::evaluate(CodeChunk *code) {
+    Node *node = code->getNextNode();
+    while (node != nullptr) {
+        debugC(5, kDebugScript, "MediaScript::evaluate(): Evaluating node");
+        node->evaluate();
+        node = code->getNextNode();
     }
+    debugC(5, kDebugScript, "MediaScript::evaluate(): Finished executing code chunk");
+    Operand returnValue; // Empty for now.
+    return returnValue;
 }
 
 } // End of namespace MediaStation

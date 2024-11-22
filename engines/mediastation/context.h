@@ -19,13 +19,13 @@
  *
  */
 
+#ifndef MEDIASTATION_CONTEXT_H
+#define MEDIASTATION_CONTEXT_H
+
 #include "mediastation/datafile.h"
 #include "mediastation/contextparameters.h"
 #include "mediastation/assetheader.h"
 #include "mediastation/mediascript/function.h"
-
-#ifndef MEDIASTATION_CONTEXT_H
-#define MEDIASTATION_CONTEXT_H
 
 namespace MediaStation {
 
@@ -41,6 +41,7 @@ public:
     uint32 file_size;
     Graphics::Palette *_palette;
     ContextParameters *_parameters;
+    AssetHeader *_screenAsset;
 
 private:
     enum class SectionType {
@@ -60,6 +61,7 @@ private:
 
     void readAssetInFirstSubfile(Chunk &chunk);
     void readAssetFromLaterSubfile(Subfile &subfile);
+    void play();
 };
 
 } // End of namespace MediaStation

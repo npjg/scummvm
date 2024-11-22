@@ -19,8 +19,9 @@
  *
  */
 
+#include "mediastation/datum.h"
 #include "mediastation/assets/bitmap.h"
-// TODO: Do we need to include the Chunk too?
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 

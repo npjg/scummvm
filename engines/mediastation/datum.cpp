@@ -22,6 +22,7 @@
 #include "mediastation/mediastation.h"
 #include "mediastation/chunk.h"
 #include "mediastation/datum.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 
@@ -30,12 +31,12 @@ Datum::Datum() {
     u.i = 0;
 }
 
-Datum::Datum(Chunk &chunk) {
+Datum::Datum(Common::SeekableReadStream &chunk) {
     t = static_cast<DatumType>(chunk.readUint16LE());
     readWithType(chunk);
 }
 
-Datum::Datum(Chunk &chunk, DatumType expectedType) {
+Datum::Datum(Common::SeekableReadStream &chunk, DatumType expectedType) {
     t = static_cast<DatumType>(chunk.readUint16LE());
     if (t != expectedType) {
         error("Datum::Datum(): Expected datum type 0x%x, got 0x%x (@0x%lx)", expectedType, t, chunk.pos());
@@ -43,7 +44,7 @@ Datum::Datum(Chunk &chunk, DatumType expectedType) {
     readWithType(chunk);
 }
 
-void Datum::readWithType(Chunk &chunk) {
+void Datum::readWithType(Common::SeekableReadStream &chunk) {
     debugC(9, kDebugLoading, "Datum::Datum(): Type 0x%x (@0x%lx)", t, chunk.pos());
     if (DatumType::UINT8 == t) {
         u.i = chunk.readByte();
@@ -98,6 +99,11 @@ void Datum::readWithType(Chunk &chunk) {
     } else {
         error("Unknown datum type: 0x%x (@0x%lx)", t, chunk.pos());
     }
+}
+
+void Datum::dispose() {
+    // TODO: Delete any allocated memory here. This is not in a destructor so
+    // the user can speifically request for it in special cases.
 }
 
 } // End of namespace MediaStation

@@ -19,12 +19,13 @@
  *
  */
 
-#include "mediastation/datafile.h"
-#include "mediastation/mediascript/codechunk.h"
-#include "mediastation/datum.h"
-
 #ifndef MEDIASTATION_MEDIASCRIPT_EVENTHANDLER_H
 #define MEDIASTATION_MEDIASCRIPT_EVENTHANDLER_H
+
+#include "mediastation/datafile.h"
+#include "mediastation/datum.h"
+
+#include "mediastation/mediascript/codechunk.h"
 
 namespace MediaStation {
 

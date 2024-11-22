@@ -23,7 +23,7 @@
 #include "mediastation/datum.h"
 #include "mediastation/subfile.h"
 #include "mediastation/chunk.h"
-#include "mediastation/mediastation.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 
@@ -419,6 +419,17 @@ Boot::SectionType Boot::getSectionType(Chunk& chunk) {
     Datum datum = Datum(chunk, DatumType::UINT16_1);
     Boot::SectionType sectionType = static_cast<Boot::SectionType>(datum.u.i);
     return sectionType;
+}
+
+uint32 Boot::getRootContextId() {
+    // TODO: Is the ID of the root context actually stored somewhere so
+    // we don't need to find it ourselves? Maybe it is always the 
+    for (auto &declaration : _contextDeclarations) {
+        if (declaration._value->fileReferences.empty()) {
+            return declaration._value->fileNumber;
+        }
+    }
+    return 0;
 }
 
 Boot::~Boot() {
