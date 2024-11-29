@@ -22,10 +22,31 @@
 #ifndef MEDIASTATION_ASSET_HEADER_H
 #define MEDIASTATION_ASSET_HEADER_H
 
+#include "common/hashmap.h"
+#include "common/str.h"
 #include "graphics/palette.h"
 
 #include "mediastation/chunk.h"
 #include "mediastation/mediascript/eventhandler.h"
+
+// Specialize the Common::Hash template for EventHandler::Type and ArgumentType
+namespace Common {
+
+template <>
+struct Hash<MediaStation::EventHandler::Type> {
+    uint operator()(const MediaStation::EventHandler::Type &key) const {
+        return static_cast<uint>(key);
+    }
+};
+
+template <>
+struct Hash<MediaStation::EventHandler::ArgumentType> {
+    uint operator()(const MediaStation::EventHandler::ArgumentType &key) const {
+        return static_cast<uint>(key);
+    }
+};
+
+} // End of namespace Common
 
 namespace MediaStation {
 
@@ -127,43 +148,50 @@ public:
     AssetHeader(Chunk &chunk);
     ~AssetHeader();
 
-    uint32 _fileNumber;
+    uint32 _fileNumber = 0;
     AssetType _type;
     AssetId _id;
 
-    ChunkReference _chunkReference;
+    ChunkReference _chunkReference = 0;
     // These two are only used in movies.
-    ChunkReference _audioChunkReference;
-    ChunkReference _animationChunkReference;
-    Common::Rect *_boundingBox;
+    ChunkReference _audioChunkReference = 0;
+    ChunkReference _animationChunkReference = 0;
+    Common::Rect *_boundingBox = nullptr;
     Common::Array<Common::Point *> *_mouseActiveArea;
-    uint32 _zIndex;
-    uint32 _assetReference;
-    uint32 _startup;
-    bool _transparency;
-    bool _hasOwnSubfile;
-    uint32 _cursorResourceId;
-    uint32 _frameRate;
-    uint32 _loadType;
-    uint32 _totalChunks;
-    uint32 _rate;
-    bool _editable;
-    Graphics::Palette *_palette;
-    bool _getOffstageEvents;
-    uint32 _x; // Image only.
-    uint32 _y; // Image only.
-    Common::String *_name;
-    Common::HashMap<uint, EventHandler *> _eventHandlers;
-    uint32 _stageId;
+    uint32 _zIndex = 0;
+    uint32 _assetReference = 0;
+    uint32 _startup = 0;
+    bool _transparency = false;
+    bool _hasOwnSubfile = false;
+    uint32 _cursorResourceId = 0;
+    uint32 _frameRate = 0;
+    uint32 _loadType = 0;
+    uint32 _totalChunks = 0;
+    uint32 _rate = 0;
+    bool _editable = 0;
+    Graphics::Palette *_palette = 0;
+    bool _getOffstageEvents = 0;
+    uint32 _x = 0; // Image only.
+    uint32 _y = 0; // Image only.
+    Common::String *_name = nullptr;
+    uint32 _stageId = 0;
     SoundEncoding _soundEncoding;
-    uint32 _chunkCount;
+    uint32 _chunkCount = 0;
 
+    
     // PATH FIELDS.
-    uint32 _dissolveFactor;
-    Common::Point *_startPoint;
-    Common::Point *_endPoint;
-    uint32 _stepRate;
-    uint32 _duration;
+    uint32 _dissolveFactor = 0;
+    Common::Point *_startPoint = nullptr;
+    Common::Point *_endPoint = nullptr;
+    uint32 _stepRate = 0;
+    uint32 _duration = 0;
+
+    // EVENT HANDLER FIELDS.
+    Common::HashMap<EventHandler::Type, EventHandler *> _eventHandlers;
+    Common::Array<EventHandler *> _timeHandlers;
+    Common::Array<EventHandler *> _keyDownHandlers;
+    Common::Array<EventHandler *> _inputHandlers;
+    Common::Array<EventHandler *> _loadCompleteHandlers;
 
 private:
     void readSection(AssetHeader::SectionType sectionType, Chunk &chunk);

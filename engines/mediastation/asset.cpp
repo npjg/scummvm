@@ -26,6 +26,7 @@
 #include "mediastation/assets/sound.h"
 #include "mediastation/assets/movie.h"
 #include "mediastation/assets/sprite.h"
+#include "mediastation/assets/path.h"
 
 namespace MediaStation {
 
@@ -38,18 +39,27 @@ Asset::Asset(AssetHeader *header) : header(header) {
         a.movie = new Movie(header);
     } else if (AssetType::SPRITE == header->_type) {
         a.sprite = new Sprite(header);
+    } else if (AssetType::PATH == header->_type) {
+        a.path = new Path(header);
     }
 }
 
 Asset::~Asset() {
     if (header->_type == AssetType::MOVIE) {
         delete a.movie;
+        a.movie = nullptr;
     } else if (header->_type == AssetType::SOUND) {
         delete a.sound;
+        a.sound = nullptr;
     } else if (header->_type == AssetType::IMAGE) {
         delete a.bitmap;
+        a.bitmap = nullptr;
     } else if (header->_type == AssetType::SPRITE) {
         delete a.sprite;
+        a.sprite = nullptr;
+    } else if (header->_type == AssetType::PATH) {
+        delete a.path;
+        a.path = nullptr;
     }
     delete header;
     header = nullptr;

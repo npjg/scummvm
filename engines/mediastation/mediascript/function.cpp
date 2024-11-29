@@ -19,6 +19,8 @@
  *
  */
 
+#include "common/array.h"
+
 #include "mediastation/datum.h"
 #include "mediastation/mediascript/function.h"
 #include "mediastation/debugchannels.h"
@@ -36,6 +38,10 @@ Function::Function(Chunk &chunk) {
 Function::~Function() {
     delete _code;
     _code = nullptr;
+}
+
+Operand Function::execute(Common::Array<Operand> args) {
+    return _code->execute(&args);
 }
 
 } // End of namespace MediaStation

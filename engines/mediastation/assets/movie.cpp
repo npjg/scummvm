@@ -173,6 +173,76 @@ Movie::~Movie() {
     _footers.clear();
 }
 
+void Movie::play() {
+    // GET THE DURATION OF THE MOVIE.
+    uint maxDuration = 0;
+    for (MovieFrame *frame : _frames) {
+        if (frame->endInMilliseconds() > maxDuration) {
+            maxDuration = frame->endInMilliseconds();
+        }
+    }
+
+    // RUN THE MOVIE START EVENT HANDLER.
+    // So the thing is, we should only have one start event and one end event.
+    EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
+    if (startEvent != nullptr) {
+        debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
+        startEvent->execute();
+    }
+
+    // DRAW THE FRAMES.
+    uint32 currentTime = g_system->getMillis();
+	uint32 animationStart = currentTime;
+    uint32 lastProcessedTimeInMilliseconds = 0;
+    while (currentTime - animationStart < maxDuration) {
+        // PROCESS ANY TIME-BASED EVENT HANDLERS.
+        for (EventHandler *timeEvent : _header->_timeHandlers) {
+            double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
+            uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
+            bool timeEventAlreadyProcessed = timeEventInMilliseconds < lastProcessedTimeInMilliseconds;
+            bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - animationStart;
+            if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
+                debugC(5, kDebugScript, "Movie::play(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - animationStart);
+                timeEvent->execute();
+            }
+        }
+        lastProcessedTimeInMilliseconds = currentTime - animationStart;
+
+        // DRAW THE FRAMES.
+        uint frameBlitStart = g_system->getMillis() - animationStart;
+        debugC(8, kDebugScript, "Movie::play(): Starting frame blitting (movie time: %d)", frameBlitStart);
+        Common::Array<MovieFrame *> framesToDraw;
+        for (MovieFrame *frame : _frames) {
+            bool isAfterStart = animationStart + frame->startInMilliseconds() <= currentTime;
+            bool isBeforeEnd = animationStart + frame->endInMilliseconds() >= currentTime;
+            if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
+                continue;
+            }
+            debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+            framesToDraw.push_back(frame);
+        }
+
+        // BLIT THE FRAMES.
+        Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
+            return a->zCoordinate() > b->zCoordinate();
+        });
+        for (MovieFrame *frame : framesToDraw) {
+            debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+            g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
+        }
+        g_engine->_screen->update();
+        g_system->delayMillis(5);
+        g_engine->processEvents();
+        uint frameBlitEnd = g_system->getMillis() - animationStart;
+        debugC(8, kDebugScript, "Movie::play(): Finished frame blitting in %d ms (current movie time: %d ms)", frameBlitEnd - frameBlitStart, frameBlitEnd);
+
+        currentTime = g_system->getMillis();
+    }
+
+    // RUN THE MOVIE END EVENT HANDLER.
+
+}
+
 void Movie::readStill(Chunk &chunk) {
     uint sectionType = Datum(chunk).u.i;
     switch ((SectionType)sectionType) {

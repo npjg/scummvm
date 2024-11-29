@@ -19,31 +19,26 @@
  *
  */
 
-#ifndef MEDIASTATION_ASSET_H
-#define MEDIASTATION_ASSET_H
+#ifndef MEDIASTATION_PATH_H
+#define MEDIASTATION_PATH_H
+
+#include "mediastation/assetheader.h"
+#include "mediastation/assets/bitmap.h"
 
 namespace MediaStation {
 
-class AssetHeader;
-class Bitmap;
-class Sound;
-class Movie;
-class Sprite;
-class Path;
+class Path {
+public:
+    Path(AssetHeader *asset);
+    ~Path();
 
-struct Asset {
-	Asset(AssetHeader *header);
-    ~Asset();
+    void play();
+    void setDuration(uint durationInMilliseconds);
+    uint32 percentComplete();
 
-	AssetHeader *header;
-    union {
-        Bitmap *bitmap;
-        Sound *sound;
-        Sprite *sprite;
-        // Font *font;
-        Movie *movie;
-        Path *path;
-    } a;
+private:
+    uint32 _percentComplete = 0;
+    AssetHeader *_header = nullptr;
 };
 
 } // End of namespace MediaStation

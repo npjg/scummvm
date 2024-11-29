@@ -25,18 +25,7 @@
 
 namespace MediaStation {
 
-AssetHeader::AssetHeader(Chunk &chunk) : 
-    _chunkReference(0),
-    _audioChunkReference(0),
-    _animationChunkReference(0),
-    _boundingBox(nullptr),
-    _mouseActiveArea(nullptr),
-    _palette(nullptr),
-    _name(nullptr),
-    _startPoint(nullptr),
-    _endPoint(nullptr)
-
- {
+AssetHeader::AssetHeader(Chunk &chunk) {
     // I arbitrarily chose the bitmap as the default union member,
     // but they are all pointers so it doesn't matter.
     _fileNumber = Datum(chunk).u.i;
@@ -71,12 +60,41 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
         }
 
         case AssetHeader::SectionType::EVENT_HANDLER: {
-            EventHandler *_eventHandler = new EventHandler(chunk);
-            // TODO: Make sure we wonʻt overwrite an existing event handler.
-            if (_eventHandlers.contains(_eventHandler->_type)) {
-                warning("AssetHeader::readSection(): Event handler 0x%x already exists, overwriting", _eventHandler->_type);
+            EventHandler *eventHandler = new EventHandler(chunk);
+            switch (eventHandler->_type) {
+                case EventHandler::Type::Time: {
+                    _timeHandlers.push_back(eventHandler);
+                    break;
+                }
+
+                case EventHandler::Type::KeyDown: {
+                    _keyDownHandlers.push_back(eventHandler);
+                    break;
+                }
+
+                case EventHandler::Type::Input: {
+                    _inputHandlers.push_back(eventHandler);
+                    break;
+                }
+
+                case EventHandler::Type::LoadComplete: {
+                    _loadCompleteHandlers.push_back(eventHandler);
+                    break;
+                }
+
+                default: {
+                    if (eventHandler->_argumentType != EventHandler::ArgumentType::Null && eventHandler->_argumentType != EventHandler::ArgumentType::Unk1) {
+                        error("AssetHeader::readSection(): Event handler of type %d has a non-null argument type %d", eventHandler->_type, eventHandler->_argumentType);
+                    }
+
+                    if (_eventHandlers.contains(eventHandler->_type)) {
+                        error("AssetHeader::readSection(): Event handler type %d already exists", eventHandler->_type);
+                    } else {
+                        _eventHandlers.setVal(eventHandler->_type, eventHandler);
+                    }
+                    break;
+                }
             }
-            _eventHandlers.setVal(_eventHandler->_type, _eventHandler);
             break;
         }
 
@@ -220,12 +238,14 @@ void AssetHeader::readSection(AssetHeader::SectionType sectionType, Chunk& chunk
         }
 
         case AssetHeader::SectionType::STEP_RATE: {
-            _stepRate = Datum(chunk).u.i;
+            _stepRate = (uint32)(Datum(chunk, DatumType::FLOAT64_2).u.f);
             break;
         }
 
         case AssetHeader::SectionType::DURATION: {
-            _duration = Datum(chunk).u.i;
+            // These are stored in the file as fractional seconds,
+            // but we want milliseconds. 
+            _duration = (uint32)(Datum(chunk).u.f * 1000);
             break;
         }
 

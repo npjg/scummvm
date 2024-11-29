@@ -24,16 +24,4 @@
 
 namespace MediaStation {
 
-Operand MediaScript::evaluate(CodeChunk *code) {
-    Node *node = code->getNextNode();
-    while (node != nullptr) {
-        debugC(5, kDebugScript, "MediaScript::evaluate(): Evaluating node");
-        node->evaluate();
-        node = code->getNextNode();
-    }
-    debugC(5, kDebugScript, "MediaScript::evaluate(): Finished executing code chunk");
-    Operand returnValue; // Empty for now.
-    return returnValue;
-}
-
 } // End of namespace MediaStation

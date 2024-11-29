@@ -33,6 +33,8 @@
 #include "mediastation/detection.h"
 #include "mediastation/boot.h"
 #include "mediastation/context.h"
+#include "mediastation/asset.h"
+#include "mediastation/assets/movie.h"
 
 namespace MediaStation {
 
@@ -57,6 +59,14 @@ Common::String MediaStationEngine::getGameId() const {
 	return _gameDescription->gameId;
 }
 
+bool MediaStationEngine::isFirstGenerationEngine() {
+	if (_boot == nullptr) {
+		error("Attempted to get engine version before BOOT.STM was read");
+	} else { 
+		return (_boot->_versionInfo == nullptr);
+	}
+}
+
 Common::Error MediaStationEngine::run() {
 	// LOAD BOOT.STM.
 	Common::Path bootStmFilepath = Common::Path("BOOT.STM");
@@ -78,91 +88,62 @@ Common::Error MediaStationEngine::run() {
 	}
 
 	Context *activeScreen = loadContext(_boot->_entryContextId);
-	// Run the bytecode in here.
 	if (activeScreen->_screenAsset != nullptr) {
-		EventHandler *entryEvent = activeScreen->_screenAsset->_eventHandlers.getValOrDefault(uint(EventHandler::Type::Entry));
-		warning("Got event handler");
+		// GET THE PALETTE.
+		Asset *palette = _assets.getValOrDefault(104);
+		_screen->setPalette(*palette->header->_palette);
+
+		// PROCESS THE OPENING EVENT HANDLER.
+		EventHandler *entryEvent = activeScreen->_screenAsset->_eventHandlers.getValOrDefault(EventHandler::Type::Entry);
 		if (entryEvent != nullptr) {
-			_mediaScript->evaluate(entryEvent->_code);
+			debugC(5, kDebugScript, "Executing context entry event handler");
+			entryEvent->execute();
 		} else {
-			error("No entry event handler");
+			debugC(5, kDebugScript, "No context entry event handler");
 		}
 	}
 
-	Asset *openingMovie = _assets.getValOrDefault(105);
-	if (activeScreen->_palette == nullptr) {
-		error("No palette");
-	}
-	Asset *palette = _assets.getValOrDefault(104);
-	_screen->setPalette(*palette->header->_palette);
-	// _screen->setPalette(*activeScreen->_palette);
-
-    Common::Event e;
     uint32 currentTime = g_system->getMillis();
-	uint32 animationStart = currentTime;
-	Movie *currentMovie = openingMovie->a.movie;
-
-	// PLAY THE SOUND.
 	while (true) {
+		// _screen->update();
+
+		// PROCESS EVENTS.
 		currentTime = g_system->getMillis();
-		while (g_system->getEventManager()->pollEvent(e)) {
-			debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-			debugC(9, kDebugEvents, "@@@@   Processing events");
-			debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-
-			switch (e.type) {
-				case Common::EVENT_QUIT: {
-					return Common::kNoError;
-				}
-
-				case Common::EVENT_KEYDOWN: {
-					return Common::kNoError;
-				}
-
-				case Common::EVENT_LBUTTONDOWN: {
-					return Common::kNoError;
-				}
-
-				default: {
-					break;
-				}
-			}
+		Common::ErrorCode status = processEvents();
+		if (status == Common::kNoError) {
+			return status;
 		}
 
-		// // DRAW THE FRAMES.
-		// Common::Array<MovieFrame *> framesToDraw;
-		// for (MovieFrame *frame : currentMovie->_frames) {
-		// 	bool isAfterStart = animationStart + frame->startInMilliseconds() <= currentTime;
-		// 	bool isBeforeEnd = animationStart + frame->endInMilliseconds() >= currentTime;
-		// 	if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
-		// 		frame->_showing = false;
-		// 		continue;
-		// 	}
-		// 	//if (frame->_showing) {
-		// 	//	continue;
-		// 	//}
-
-		// 	// Blit the new frame
-		// 	// frame->_showing = true;
-		// 	debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
-		// 	framesToDraw.push_back(frame);
-		// }
-
-		// // BLIT THE FRAMES.
-		// Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
-		// 	return a->zCoordinate() > b->zCoordinate();
-		// });
-		// for (MovieFrame *frame : framesToDraw) {
-		// 	debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
-		// 	_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
-		// }
-		// framesToDraw.clear();
-
-		_screen->update();
 		g_system->delayMillis(50);
 	}
 
 	return Common::kNoError;
+}
+
+Common::ErrorCode MediaStationEngine::processEvents() {
+	while (g_system->getEventManager()->pollEvent(e)) {
+		debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+		debugC(9, kDebugEvents, "@@@@   Processing events");
+		debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+
+		switch (e.type) {
+			case Common::EVENT_QUIT: {
+				error("Quitting");
+			}
+
+			case Common::EVENT_KEYDOWN: {
+				error("Quitting");
+			}
+
+			case Common::EVENT_LBUTTONDOWN: {
+				error("Quitting");
+			}
+
+			default: {
+				break;
+			}
+		}
+	}
 }
 
 Context *MediaStationEngine::loadContext(uint32 contextId) {

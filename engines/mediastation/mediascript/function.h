@@ -29,12 +29,16 @@ namespace MediaStation {
 
 class Function {
 public:
-    uint _fileId;
-    uint _id;
-    CodeChunk *_code;
-
     Function(Chunk &chunk);
     ~Function();
+
+    Operand execute(Common::Array<Operand> args);
+
+    uint _fileId;
+    uint _id;
+
+private:
+    CodeChunk *_code;
 };
 
 } // End of namespace MediaStation

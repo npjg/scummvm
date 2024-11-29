@@ -19,16 +19,16 @@
  *
  */
 
+#ifndef MEDIASTATION_MEDIASCRIPT_VARIABLE_DECLARATION_H
+#define MEDIASTATION_MEDIASCRIPT_VARIABLE_DECLARATION_H
+
 #include "mediastation/chunk.h"
 #include "mediastation/datafile.h"
 #include "mediastation/datum.h"
 
-#ifndef MEDIASTATION_MEDIASCRIPT_VARIABLE_DECLARATION_H
-#define MEDIASTATION_MEDIASCRIPT_VARIABLE_DECLARATION_H
-
 namespace MediaStation {
 
-class VariableDeclaration {
+class Variable {
 public:
     enum class Type {
         // This is an "array", but the IMT sources 
@@ -55,14 +55,15 @@ public:
     uint32 type;
     union {
         bool b;
+        // Asset *
         uint assetId;
         Datum *datum;
         Common::String *string;
-        Common::Array<VariableDeclaration *> *collection;
+        Common::Array<Variable *> *collection;
     } value;
 
-    VariableDeclaration(Chunk &chunk);
-    ~VariableDeclaration();
+    Variable(Chunk &chunk);
+    ~Variable();
 };
 
 } // End of namespace MediaStation

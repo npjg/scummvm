@@ -24,12 +24,12 @@
 
 namespace MediaStation {
 
-EventHandler::EventHandler(Chunk &chunk): _argumentValue(nullptr), _code(nullptr) {
-    _type = Datum(chunk).u.i;
+EventHandler::EventHandler(Chunk &chunk): _code(nullptr) {
+    _type = (EventHandler::Type)(Datum(chunk).u.i);
     debugC(5, kDebugLoading, "EventHandler::EventHandler(): Type 0x%x (@0x%lx)", _type, chunk.pos());
-    _argumentType = (EventHandler::ArgumentType)Datum(chunk).u.i;
+    _argumentType = (EventHandler::ArgumentType)(Datum(chunk).u.i);
     debugC(5, kDebugLoading, "EventHandler::EventHandler(): Argument type 0x%x (@0x%lx)", _argumentType, chunk.pos());
-    _argumentValue = new Datum(chunk);
+    _argumentValue = Datum(chunk);
 
     if (_argumentType != EventHandler::ArgumentType::Null) {
         uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
@@ -39,8 +39,14 @@ EventHandler::EventHandler(Chunk &chunk): _argumentValue(nullptr), _code(nullptr
     _code = new CodeChunk(chunk);
 }
 
+Operand EventHandler::execute() {
+    // The only argument that can be provided to an event handler is the
+    // _argumentValue.
+    // So if we are here, we can execute it directly.
+    return _code->execute();
+}
+
 EventHandler::~EventHandler() {
-    delete _argumentValue;
     delete _code;
 }
 

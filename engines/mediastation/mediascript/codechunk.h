@@ -95,86 +95,107 @@ enum class VariableScope {
     Global = 4
 };
 
+enum class BuiltInFunction {
+    // TODO: Split out routines and methods into different enums.
+    // ROUTINES.
+    // effectTransitionOnSync = 13 // PARAMS: 1
+    drawing = 37, // PARAMS: 5
+    // TimeOfDay = 101
+    effectTransition = 12, // PARAMS: 1
+    // effectTransitionOnSync = 103 // PARAMS: 1
+    PrintStringToConsole = 180, // PARAMS: 1+
+    // TODO: What object types does CursorSet apply to?
+    // Currently it's only in var_7be1_cursor_currentTool in
+    // IBM/Crayola.
+    cursorSet = 200, // PARAMS: 0
+    spatialHide = 203, // PARAMS: 1
+    spatialMoveTo = 204, // PARAMS: 2
+    spatialZMoveTo = 216, // PARAMS: 1
+    spatialShow = 202, // PARAMS: 1
+    timePlay = 206, // PARAMS: 1
+    timeStop = 207, // PARAMS: 0
+    isPlaying = 372, // PARAMS: 0
+    setDissolveFactor = 241, // PARAMS: 1
+    // debugBeep
+    // quit
+    // DebugPrint
+
+    // HOTSPOT METHODS.
+    mouseActivate = 210, // PARAMS: 1
+    mouseDeactivate = 211, // PARAMS: 0
+    xPosition = 233, // PARAMS: 0
+    yPosiion = 234, // PARAMS: 0
+    TriggerAbsXPosition = 321, // PARAMS: 0
+    TriggerAbsYPosition = 322, // PARAMS: 0
+    isActive = 371, // PARAMS: 0
+
+    // IMAGE METHODS.
+    Width = 235, // PARAMS: 0
+    Height = 236, // PARAMS: 0
+    isVisible = 269,
+
+    // SPRITE METHODS.
+    movieReset = 219, // PARAMS: 0
+
+    // STAGE METHODS.
+    setWorldSpaceExtent = 363, // PARAMS: 2
+    setBounds = 287, // PARAMS: 4
+
+    // CAMERA METHODS.
+    stopPan = 350, // PARAMS: 0
+    viewportMoveTo = 352, // PARAMS: 2    
+    yViewportPosition = 357, // PARAMS: 0
+    panTo = 370, // PARAMS: 4
+
+    // CANVAS METHODS.
+    clearToPalette = 379, // PARAMS: 1
+
+    // DOCUMENT METHODS.
+    loadContext = 374, // PARAMS: 1
+    releaseContext = 375, // PARAMS: 1
+    branchToScreen = 201, // PARAMS: 1
+    isLoaded = 376, // PARAMS: 1
+
+    // PATH METHODS.
+    setDuration = 262, // PARAMS: 1
+    percentComplete = 263,
+
+    // TEXT METHODS.
+    text = 290,
+    setText = 291,
+    setMaximumTextLength = 293, // PARAM: 1
+
+    // COLLECTION METHODS.
+    // These aren't assets but arrays used in Media Script.
+    isEmpty = 254, // PARAMS: 0
+    empty = 252, // PARAMS: 0
+    append = 247, // PARAMS: 1+
+    getAt = 253, // PARAMS: 1
+    count = 249, // PARAMS: 0
+    // Looks like this lets you call a method on all the items in a collection.
+    // Examples look like : var_7be1_collect_shapes.send(spatialHide);
+    send = 257, // PARAMS: 1+. Looks like the first param is the function, 
+               // and the next params are any arguments you want to send.
+    // Seeking seems to be finding the index where a certain item is.
+    seek = 256, // PARAMS: 1
+    sort = 266, // PARAMS: 0
+    deleteAt = 258, // PARAMS: 1 
+
+    // PRINTER METHODS.
+    openLens = 346, // PARAMS: 0
+    closeLens = 347, // PARAMS: 0
+};
+
 struct Operand {
+    Operand() : type(OperandType::Empty) {}
+    Operand(OperandType type) : type(type) {}
+
+    OperandType type;
     union {
         Asset *a;
         int i;
         double d;
     } u;
-
-    OperandType type = OperandType::Empty;
-};
-
-class Node {
-public:
-    // virtual Node() = 0;
-    virtual ~Node() = default;
-    virtual Operand evaluate() const = 0;
-};
-
-class IfElse : public Node {
-public:
-    // read the items we need from the bytecode, condition, true, false, etc. 
-    Operand evaluate() const override;
-
-private:
-    Node *_condition;
-    Node *_trueBranch;
-    Node *_falseBranch;
-};
-
-class VariableAssignment : public Node {
-public:
-    VariableAssignment(uint32 id, VariableScope scope, Node *newValue) : _id(id), _scope(scope), _newValue(newValue) {}
-    Operand evaluate() const override;
-
-private:
-    uint32 _id;
-    VariableScope _scope;
-    Node *_newValue;
-};
-
-class RoutineCall : public Node {
-public:
-    RoutineCall(uint32 functionId, Common::Array<Node *> args) : _functionId(functionId), _args(args) {};
-    Operand evaluate() const override;
-
-private:
-    uint32 _functionId;
-    Common::Array<Node *> _args;
-};
-
-class MethodCall : public Node {
-public:
-    MethodCall(uint32 methodId, Node *self, Common::Array<Node *> args) : _methodId(methodId), _self(self), _args(args) {};
-    Operand evaluate() const override;
-
-private:
-    Node *_self; // This should always be an asset ID.
-    uint32 _methodId;
-    Common::Array<Node *> _args;
-};
-
-class AssetIdOperand : public Node {
-public:
-    AssetIdOperand(uint32 assetId) : _assetId(assetId) {};
-    Operand evaluate() const override;
-
-private:
-    uint32 _assetId;
-};
-
-class LiteralOperand  : public Node {
-public:
-    LiteralOperand(OperandType type, int value) : _type(type), _value(value) {};
-    Operand evaluate() const override;
-
-private:
-    OperandType _type;
-    int _value;
-};
-
-class VariableReference : public Node {
 
 };
 
@@ -183,9 +204,17 @@ public:
     CodeChunk(Common::SeekableReadStream &chunk);
     ~CodeChunk();
 
-    Node *getNextNode();
+    Operand execute(Common::Array<Operand> *args = nullptr);
 
 private:
+    Operand executeNextStatement();
+    Operand callBuiltInFunction(uint32 id, Common::Array<Operand> args);
+    Operand callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> args);
+    Operand getVariable(uint32 id, VariableScope scope);
+    void putVariable(uint32 id, VariableScope scope, Operand value);
+
+    Common::Array<Operand> _locals;
+    Common::Array<Operand> *_args;
     Common::SeekableReadStream *_bytecode;
 };
 

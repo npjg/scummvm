@@ -29,6 +29,7 @@
 #include "common/hash-str.h"
 #include "common/random.h"
 #include "common/serializer.h"
+#include "common/events.h"
 #include "common/util.h"
 #include "engines/engine.h"
 #include "engines/savestate.h"
@@ -45,59 +46,37 @@ namespace MediaStation {
 
 struct MediaStationGameDescription;
 
-struct FunctionDeclaration {
-	// ID
-	// Human readable name
-	// Number of params (-1 = 1+ PARAMS)
-	// Function pointer
-};
-
 class MediaStationEngine : public Engine {
-private:
-	const ADGameDescription *_gameDescription;
-	Common::RandomSource _randomSource;
-	Boot *_boot;
-	// map the list of contexts here.
-
-	Context *loadContext(uint32 contextId);
-	Common::HashMap<uint, FunctionDeclaration> _functionDeclarations;
-
-protected:
-	// Engine APIs
-	Common::Error run() override;
-
-public:
-	Graphics::Screen *_screen = nullptr;
-
 public:
 	MediaStationEngine(OSystem *syst, const ADGameDescription *gameDesc);
 	~MediaStationEngine() override;
 
 	uint32 getFeatures() const;
-
 	Common::String getGameId() const;
-
-	uint32 getRandomNumber(uint maxNum) {
-		return _randomSource.getRandomNumber(maxNum);
-	}
-
 	bool hasFeature(EngineFeature f) const override {
 		return
 		    (f == kSupportsReturnToLauncher);
 	};
-
-	bool isFirstGenerationEngine() {
-		if (_boot == nullptr) {
-			error("Attempted to get engine version before BOOT.STM was read");
-		} else { 
-			return (_boot->_versionInfo == nullptr);
-		}
-	}
+	bool isFirstGenerationEngine();
+	Common::ErrorCode processEvents();
 
     Common::HashMap<uint, Function *> _functions;
     Common::HashMap<uint, Asset *> _assets;
     Common::HashMap<uint, Asset *> _assetsByChunkReference;
-	MediaScript *_mediaScript;
+	MediaScript *_mediaScript = nullptr;
+	Graphics::Screen *_screen = nullptr;
+	Asset *_assetPlaying = nullptr;
+
+protected:
+	Common::Error run() override;
+
+private:
+	Context *loadContext(uint32 contextId);
+
+	Common::Event e;
+	const ADGameDescription *_gameDescription;
+	Common::RandomSource _randomSource;
+	Boot *_boot = nullptr;
 };
 
 extern MediaStationEngine *g_engine;

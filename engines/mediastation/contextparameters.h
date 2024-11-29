@@ -47,7 +47,7 @@ private:
     // "100.cxt" would have file number 100.
     uint fileNumber;
     Common::String *contextName;
-    Common::HashMap<uint32, VariableDeclaration *> _variables;
+    Common::HashMap<uint32, Variable *> _variables;
     Common::HashMap<uint32, Function *> _functions;
 };
 

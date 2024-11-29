@@ -22,6 +22,9 @@
 #ifndef MEDIASTATION_MEDIASCRIPT_EVENTHANDLER_H
 #define MEDIASTATION_MEDIASCRIPT_EVENTHANDLER_H
 
+#include "common/hashmap.h"
+#include "common/func.h"
+
 #include "mediastation/datafile.h"
 #include "mediastation/datum.h"
 
@@ -93,9 +96,12 @@ public:
     EventHandler(Chunk &chunk);
     ~EventHandler();
 
-    uint _type;
+    Operand execute();
+    EventHandler::Type _type;
     EventHandler::ArgumentType _argumentType;
-    Datum *_argumentValue;
+    Datum _argumentValue;
+
+private:
     CodeChunk *_code;
 };
 

@@ -27,17 +27,17 @@
 
 namespace MediaStation {
 
-VariableDeclaration::VariableDeclaration(Chunk &chunk) {
+Variable::Variable(Chunk &chunk) {
     id = Datum(chunk, DatumType::UINT16_1).u.i;
     type = Datum(chunk, DatumType::UINT8).u.i;
-    debugC(5, kDebugLoading, "VariableDeclaration::VariableDeclaration(): id = 0x%x, type 0x%x (@0x%lx)", id, type, chunk.pos());
+    debugC(5, kDebugLoading, "Variable::Variable(): id = 0x%x, type 0x%x (@0x%lx)", id, type, chunk.pos());
     switch ((Type)type) {
         case Type::COLLECTION: {
             uint totalItems = Datum(chunk).u.i;
-            value.collection = new Common::Array<VariableDeclaration *>;
+            value.collection = new Common::Array<Variable *>;
             for (uint i = 0; i < totalItems; i++) {
-                debugC(7, kDebugLoading, "VariableDeclaration::VariableDeclaration(): COLLECTION: Value %d of %d", i, totalItems);
-                VariableDeclaration *variableDeclaration = new VariableDeclaration(chunk);
+                debugC(7, kDebugLoading, "Variable::Variable(): COLLECTION: Value %d of %d", i, totalItems);
+                Variable *variableDeclaration = new Variable(chunk);
                 value.collection->push_back(variableDeclaration);
             }
             break;
@@ -51,19 +51,19 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
             buffer[size] = '\0';
             value.string = new Common::String(buffer);
             delete[] buffer;
-            debugC(7, kDebugLoading, "VariableDeclaration::VariableDeclaration(): STRING: %s", value.string->c_str());
+            debugC(7, kDebugLoading, "Variable::Variable(): STRING: %s", value.string->c_str());
             break;
         }
 
         case Type::ASSET_ID: {
             value.assetId = Datum(chunk, DatumType::UINT16_1).u.i;
-            debugC(7, kDebugLoading, "VariableDeclaration::VariableDeclaration(): ASSET ID: %d", value.assetId);
+            debugC(7, kDebugLoading, "Variable::Variable(): ASSET ID: %d", value.assetId);
             break;
         }
 
         case Type::BOOLEAN: {
             uint rawValue = Datum(chunk, DatumType::UINT8).u.i;
-            debugC(7, kDebugLoading, " VariableDeclaration::VariableDeclaration(): BOOL: %d", rawValue);
+            debugC(7, kDebugLoading, " Variable::Variable(): BOOL: %d", rawValue);
             value.b = (rawValue == 1);
             break;
         }
@@ -71,18 +71,18 @@ VariableDeclaration::VariableDeclaration(Chunk &chunk) {
         case Type::LITERAL: {
             // Client code can worry about extracting the value.
             value.datum = new Datum(chunk);
-            debugC(7, kDebugLoading, "VariableDeclaration::VariableDeclaration(): LITERAL");
+            debugC(7, kDebugLoading, "Variable::Variable(): LITERAL");
             break;
         }
 
         default: {
-            warning("VariableDeclaration::VariableDeclaration(): Got unknown variable value type 0x%x", type);
+            warning("Variable::Variable(): Got unknown variable value type 0x%x", type);
             value.datum = new Datum(chunk);
         }
     }
 }
 
-VariableDeclaration::~VariableDeclaration() {
+Variable::~Variable() {
     switch ((Type)type) {
         case Type::ASSET_ID: 
         case Type::BOOLEAN: {

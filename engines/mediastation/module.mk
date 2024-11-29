@@ -11,6 +11,7 @@ MODULE_OBJS = \
 	assets/sound.o \
 	assets/movie.o \
 	assets/sprite.o \
+	assets/path.o \
 	mediascript/mediascript.o \
 	mediascript/eventhandler.o \
 	mediascript/codechunk.o \

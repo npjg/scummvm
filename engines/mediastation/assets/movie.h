@@ -93,11 +93,13 @@ public:
     Movie(AssetHeader *asset);
     ~Movie();
 
+    void play();
     void readStill(Chunk &chunk);
     void readSubfile(Subfile &subfile, Chunk &chunk);
 
     Common::Array<MovieFrame *> _frames;
     Common::Array<MovieFrame *> _stills;
+    
 private:
     Common::Array<MovieFrameFooter *> _footers;
     Common::Array<Sound *> _sounds;

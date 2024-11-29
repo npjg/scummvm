@@ -32,9 +32,7 @@ class MediaScript {
 public:
     //MediaScript();
     //~MediaScript();
-
-    Operand evaluate(CodeChunk *code);
-    Common::HashMap<uint32, Operand *> _variables;
+    Common::HashMap<uint32, Operand> _variables;
 
 private:
 };

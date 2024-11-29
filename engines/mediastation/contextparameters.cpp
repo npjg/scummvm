@@ -53,7 +53,7 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
                 if (repeatedFileNumber != fileNumber) {
                     warning("ContextParameters::ContextParameters(): Repeated file number didn't match: %d != %d", repeatedFileNumber, fileNumber);
                 }
-                VariableDeclaration *variable = new VariableDeclaration(chunk);
+                Variable *variable = new Variable(chunk);
                 _variables.setVal(variable->id, variable);
                 break;
             }
