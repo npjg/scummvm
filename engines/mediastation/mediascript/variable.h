@@ -31,6 +31,9 @@ namespace MediaStation {
 class Variable {
 public:
     enum class Type {
+        // This is an invalid type used for initialization only.
+        EMPTY = 0x0000,
+
         // This is an "array", but the IMT sources 
         // use the term "collection".
         COLLECTION = 0x0007,
@@ -51,17 +54,19 @@ public:
         LITERAL = 0x0001
     };
 
-    uint32 id;
-    uint32 type;
+    uint32 id = 0;
+    Variable::Type type = Type::EMPTY;
     union {
-        bool b;
-        // Asset *
-        uint assetId;
-        Datum *datum;
+        Datum *datum = nullptr;
         Common::String *string;
         Common::Array<Variable *> *collection;
+        bool b;
+        int i;
+        double d;
+        uint assetId;
     } value;
 
+    Variable();
     Variable(Chunk &chunk);
     ~Variable();
 };

@@ -23,16 +23,12 @@
 #define MEDIASTATION_CONTEXTPARAMETERS_H
 
 #include "mediastation/mediastation.h"
-#include "mediastation/mediascript/variabledeclaration.h"
+#include "mediastation/mediascript/variable.h"
 #include "mediastation/mediascript/function.h"
 
 namespace MediaStation {
 
 class ContextParameters {
-public:
-    ContextParameters(Chunk &chunk);
-    ~ContextParameters();
-
 private:
     enum class SectionType {
         EMPTY = 0x0000,
@@ -42,12 +38,15 @@ private:
         BYTECODE = 0x0017
     };
 
+public:
+    ContextParameters(Chunk &chunk);
+    ~ContextParameters();
+
     // This is not an internal file ID, but the number of the file
     // as it appears in the filename. For instance, the context in
     // "100.cxt" would have file number 100.
     uint fileNumber;
     Common::String *contextName;
-    Common::HashMap<uint32, Variable *> _variables;
     Common::HashMap<uint32, Function *> _functions;
 };
 

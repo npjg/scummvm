@@ -94,17 +94,24 @@ public:
     ~Movie();
 
     void play();
+    void stop();
     void readStill(Chunk &chunk);
     void readSubfile(Subfile &subfile, Chunk &chunk);
 
     Common::Array<MovieFrame *> _frames;
     Common::Array<MovieFrame *> _stills;
-    
+
 private:
     Common::Array<MovieFrameFooter *> _footers;
     Common::Array<Sound *> _sounds;
     AssetHeader::SoundEncoding _soundEncoding;
     AssetHeader *_header;
+
+    bool _isPlaying;
+    uint _animationStart;
+    uint _lastProcessedTime;
+
+    void processTimeEventHandlers();
 };
 
 } // End of namespace MediaStation

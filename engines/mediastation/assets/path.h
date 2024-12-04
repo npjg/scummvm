@@ -34,7 +34,7 @@ public:
 
     void play();
     void setDuration(uint durationInMilliseconds);
-    uint32 percentComplete();
+    double percentComplete();
 
 private:
     uint32 _percentComplete = 0;

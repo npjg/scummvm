@@ -26,6 +26,8 @@
 #include "common/stream.h"
 
 #include "mediastation/asset.h"
+#include "mediastation/mediascript/variable.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -67,26 +69,6 @@ enum class Opcode {
     While = 224,
     Return = 222,
     Unk1 = 223
-};
-
-enum class OperandType {
-    Empty = 0, // a flag for C++ code, not real operand type.
-    // TODO: Figure out the difference between these two.
-    Literal1 = 151,
-    Literal2 = 153,
-    // TODO: Figure out the difference between these two.
-    Float1 = 152,
-    Float2 = 157,
-    String = 154,
-    // TODO: This only seems to be used in effectTransition:
-    //  effectTransition ( $FadeToPalette )
-    // compiles to:
-    //  [219, 102, 1]
-    //  [155, 301]
-    DollarSignVariable = 155,
-    AssetId = 156,
-    VariableDeclaration = 158,
-    Function = 160
 };
 
 enum class VariableScope {
@@ -184,19 +166,6 @@ enum class BuiltInFunction {
     // PRINTER METHODS.
     openLens = 346, // PARAMS: 0
     closeLens = 347, // PARAMS: 0
-};
-
-struct Operand {
-    Operand() : type(OperandType::Empty) {}
-    Operand(OperandType type) : type(type) {}
-
-    OperandType type;
-    union {
-        Asset *a;
-        int i;
-        double d;
-    } u;
-
 };
 
 class CodeChunk {

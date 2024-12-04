@@ -56,6 +56,8 @@ public:
     ~Sprite();
 
     void readFrame(Chunk &chunk);
+    void spatialShow();
+    void movieReset();
     Common::Array<SpriteFrame *> _frames;
 
 private:

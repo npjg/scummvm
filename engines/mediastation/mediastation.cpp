@@ -49,6 +49,26 @@ MediaStationEngine::MediaStationEngine(OSystem *syst, const ADGameDescription *g
 
 MediaStationEngine::~MediaStationEngine() {
 	delete _screen;
+	_screen = nullptr;
+
+	delete _boot;
+	_boot = nullptr;
+
+    for (auto it = _assets.begin(); it != _assets.end(); ++it) {
+        delete it->_value;
+    }
+    _assets.clear();
+	_assetsByChunkReference.clear();
+
+	for (auto it = _functions.begin(); it != _functions.end(); ++it) {
+		delete it->_value;
+	}
+	_functions.clear();
+
+	for (auto it = _variables.begin(); it != _variables.end(); ++it) {
+		delete it->_value;
+	}
+	_variables.clear();
 }
 
 uint32 MediaStationEngine::getFeatures() const {
@@ -68,15 +88,15 @@ bool MediaStationEngine::isFirstGenerationEngine() {
 }
 
 Common::Error MediaStationEngine::run() {
-	// LOAD BOOT.STM.
-	Common::Path bootStmFilepath = Common::Path("BOOT.STM");
-	_boot = new Boot(bootStmFilepath);
-
 	// INITIALIZE SUBSYSTEMS.
 	// All Media Station games run at 640x480.
 	initGraphics(640, 480);
 	_screen = new Graphics::Screen();
-	_mediaScript = new MediaScript();
+	_screen->fillRect(Common::Rect(640, 480), 255);
+
+	// LOAD BOOT.STM.
+	Common::Path bootStmFilepath = Common::Path("BOOT.STM");
+	_boot = new Boot(bootStmFilepath);
 
 	// LOAD THE ROOT CONTEXT.
 	Context *root = nullptr;
@@ -90,9 +110,8 @@ Common::Error MediaStationEngine::run() {
 	Context *activeScreen = loadContext(_boot->_entryContextId);
 	if (activeScreen->_screenAsset != nullptr) {
 		// GET THE PALETTE.
-		Asset *palette = _assets.getValOrDefault(104);
-		_screen->setPalette(*palette->header->_palette);
-
+		setPaletteFromHeader(activeScreen->_screenAsset);
+		
 		// PROCESS THE OPENING EVENT HANDLER.
 		EventHandler *entryEvent = activeScreen->_screenAsset->_eventHandlers.getValOrDefault(EventHandler::Type::Entry);
 		if (entryEvent != nullptr) {
@@ -175,7 +194,23 @@ Context *MediaStationEngine::loadContext(uint32 contextId) {
 	// LOAD THE CONTEXT.
 	Common::Path entryCxtFilepath = Common::Path(*fileName);
 	Context *context = new Context(entryCxtFilepath);
+
+	// SET THE VARIABLES.
 	return context;
+}
+
+void MediaStationEngine::setPalette(Asset *palette) {
+	assert(palette != nullptr);
+	setPaletteFromHeader(palette->header);
+}
+
+void MediaStationEngine::setPaletteFromHeader(AssetHeader *header) {
+	assert(header != nullptr);
+	if (header->_palette != nullptr) {
+		_screen->setPalette(*header->_palette);
+	} else {
+		warning("MediaStationEngine::setPaletteFromHeader(): Asset %d does not have a palette. Current palette will be unchanged.", header->_id);
+	}
 }
 
 } // End of namespace MediaStation

@@ -65,7 +65,6 @@ Operand CodeChunk::executeNextStatement() {
         case InstructionType::EMPTY: {
             debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): Reached end of bytecode");
             return Operand();
-            break;
         }
 
         case InstructionType::FUNCTION_CALL: {
@@ -82,7 +81,6 @@ Operand CodeChunk::executeNextStatement() {
                     // Operand variable = getVariable(id, scope);
                     putVariable(id, scope, newValue);
                     return Operand();
-                    break;
                 }
 
                 case Opcode::CallRoutine: {
@@ -108,7 +106,6 @@ Operand CodeChunk::executeNextStatement() {
                     }
                     debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallRoutine) Returned from called routine");
                     return returnValue;
-                    break;
                 }
 
                 case Opcode::CallMethod: {
@@ -118,8 +115,8 @@ Operand CodeChunk::executeNextStatement() {
                     uint32 parameterCount = Datum(*_bytecode).u.i;
                     debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Getting self object");
                     Operand selfObject = executeNextStatement();
-                    if (selfObject.type != OperandType::AssetId) {
-                        error("CodeChunk::executeNextStatement(): (Opcode::CallMethod) Attempt to call method on operand that is not an asset (type 0x%x)", selfObject.type);
+                    if (selfObject.getType() != Operand::Type::AssetId) {
+                        error("CodeChunk::executeNextStatement(): (Opcode::CallMethod) Attempt to call method on operand that is not an asset (type 0x%x)", selfObject.getType());
                     }
                     Common::Array<Operand> args;
                     for (uint i = 0; i < parameterCount; i++) {
@@ -129,14 +126,28 @@ Operand CodeChunk::executeNextStatement() {
                     }
 
                     // CALL THE METHOD.
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Calling method %d on asset 0x%x", methodId, selfObject.u.a);
+                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Calling method %d on asset 0x%x", methodId, selfObject.getAsset());
                     // TODO: Where do we get the method from? And can we define
                     // our own methods? Or are only the built-in methods
                     // supported?
                     Operand returnValue = callBuiltInMethod(methodId, selfObject, args);
                     debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Returned from called method");
                     return returnValue;
-                    break;
+                }
+
+                case Opcode::DeclareVariables: {
+                    uint32 localVariableCount = Datum(*_bytecode).u.i;
+                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::DeclareVariables) Declaring %d local variables", localVariableCount);
+                    _locals.resize(localVariableCount);
+                    return Operand();
+                }
+
+                case Opcode::Subtract: {
+                    Operand value1 = executeNextStatement();
+                    Operand value2 = executeNextStatement();
+
+                    Operand returnValue = value1 - value2;
+                    return returnValue;
                 }
 
                 default: {
@@ -147,33 +158,28 @@ Operand CodeChunk::executeNextStatement() {
         }
 
         case (InstructionType::OPERAND): {
-            OperandType operandType = OperandType(Datum(*_bytecode).u.i);
+            Operand::Type operandType = Operand::Type(Datum(*_bytecode).u.i);
             Operand operand(operandType);
             switch (operandType) {
-                case OperandType::AssetId: {
+                case Operand::Type::AssetId: {
                     uint32 assetId = Datum(*_bytecode).u.i;
-                    if (assetId == 0) {
-                        operand.u.a = nullptr;
-                    } else {
-                        if (!g_engine->_assets.contains(assetId)) {
-                            error("CodeChunk::getNextStatement(): (OperandType::AssetId) Asset with ID 0x%x does not exist in title", assetId);
-                        }
-                        operand.u.a = g_engine->_assets.getVal(assetId);
-                    }
-                    debugC(5, kDebugScript, "CodeChunk::getNextStatement(): (OperandType::AssetId) Got asset ID 0x%x", assetId);
+                    debugC(5, kDebugScript, "CodeChunk::getNextStatement(): (Operand::Type::AssetId) Got asset ID 0x%x", assetId);
+                    operand.putAsset(assetId);
                     return operand;
                 }
 
-                case OperandType::Literal1:
-                case OperandType::Literal2:
-                case OperandType::DollarSignVariable: {
-                    operand.u.i = Datum(*_bytecode).u.i;
+                case Operand::Type::Literal1:
+                case Operand::Type::Literal2:
+                case Operand::Type::DollarSignVariable: {
+                    int literal = Datum(*_bytecode).u.i;
+                    operand.putInteger(literal);
                     return operand;
                 }
 
-                case OperandType::Float1:
-                case OperandType::Float2: {
-                    operand.u.d = Datum(*_bytecode).u.f;
+                case Operand::Type::Float1:
+                case Operand::Type::Float2: {
+                    double d = Datum(*_bytecode).u.f;
+                    operand.putDouble(d);
                     return operand;
                 }
 
@@ -191,7 +197,6 @@ Operand CodeChunk::executeNextStatement() {
             debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (InstructionType::VariableRef) scope = %d", (uint)scope);
             Operand variable = getVariable(id, scope);
             return variable;
-            break;
         }
 
         default: {
@@ -203,11 +208,15 @@ Operand CodeChunk::executeNextStatement() {
 Operand CodeChunk::getVariable(uint32 id, VariableScope scope) {
     switch (scope) {
         case VariableScope::Global: {
-            return g_engine->_mediaScript->_variables.getValOrDefault(id);
+            Operand returnValue(Operand::Type::VariableDeclaration);
+            Variable *variable = g_engine->_variables.getVal(id);
+            returnValue.putVariable(variable);
+            return returnValue;
         }
 
         case VariableScope::Local: {
-            return _locals.operator[](id);
+            uint index = id - 1;
+            return _locals.operator[](index);
             break;
         }
 
@@ -229,12 +238,51 @@ Operand CodeChunk::getVariable(uint32 id, VariableScope scope) {
 void CodeChunk::putVariable(uint32 id, VariableScope scope, Operand value) {
     switch (scope) {
         case VariableScope::Global: {
-            g_engine->_mediaScript->_variables.setVal(id, value);
+            Variable *variable = g_engine->_variables.getVal(id);
+            if (variable == nullptr) {
+                error("CodeChunk::putVariable(): Attempted to assign to a non-existent global variable %d", id);
+            }
+
+            switch (value.getType()) {
+                case Operand::Type::Literal1:
+                case Operand::Type::Literal2: {
+                    variable->value.i = value.getInteger();
+                    break;
+                }
+
+                case Operand::Type::Float1:
+                case Operand::Type::Float2: {
+                    variable->value.d = value.getDouble();
+                    break;
+                }
+
+                case Operand::Type::String: {
+                    variable->value.string = value.getString();
+                    break;
+                }
+
+                case Operand::Type::AssetId: {
+                    variable->value.assetId = value.getAssetId();
+                    break;
+                }
+
+                case Operand::Type::VariableDeclaration: {
+                    // TODO: Will this cause a memory leak?
+                    error("Assigning variable to another variable not supported yet");
+                    // variable = value.u.variable;
+                    break;
+                }
+
+                default: {
+                    error("CodeChunk::putVariable(): Cannot put operand type 0x%x into variable", (uint)value.getType());
+                }
+            }
             break;
         }
 
         case VariableScope::Local: {
-            _locals[id] = value;
+            uint index = id - 1;
+            _locals[index] = value;
             break;
         }
 
@@ -252,7 +300,25 @@ void CodeChunk::putVariable(uint32 id, VariableScope scope, Operand value) {
 Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
     switch ((BuiltInFunction)id) {
         case BuiltInFunction::effectTransition: {
-            // assert (args.size() == 1);
+            switch (args.size()) {
+                case 1: {
+                    uint dollarSignVariable = args[0].getInteger();
+                    break;
+                }
+
+                case 3: {
+                    uint dollarSignVariable = args[0].getInteger();
+                    double percentComplete = args[1].getDouble();
+                    Asset *asset = args[2].getAsset();
+                    g_engine->setPalette(asset);
+                    break;
+                }
+
+                default: {
+                    error("CodeChunk::callBuiltInFunction(): (BuiltInFunction::effectTransition) Got %d args, which is unexpected", args.size());
+                }
+            }
+
             warning("CodeChunk::callBuiltInFunction(): Cannot handle EffectTransition yet");
             return Operand();
             break;
@@ -265,10 +331,22 @@ Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
 }
 
 Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> args) {
+    Asset *selfAsset = self.getAsset();
+    assert (selfAsset != nullptr);
+    AssetType selfAssetType = selfAsset->header->_type;
+
     switch ((BuiltInFunction)id) {
+        case BuiltInFunction::spatialShow: {
+            assert(args.empty());
+
+            // TODO: Show the image or sprite.
+
+            error("Can't handle spatial show yet");
+            return Operand();
+        }
+
         case BuiltInFunction::mouseActivate: {
-            assert(self.u.a->header->_type == AssetType::HOTSPOT);
-            // We don't need any args here.
+            assert (selfAssetType == AssetType::HOTSPOT);
             assert(args.empty());
 
             // TODO: Activate the mouse.
@@ -277,9 +355,8 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
         }
 
         case BuiltInFunction::mouseDeactivate: {
-            assert(self.u.a->header->_type == AssetType::HOTSPOT);
-            // We don't need any args here.
-            assert(args.empty());
+            assert (selfAssetType == AssetType::HOTSPOT);
+            assert (args.empty());
 
             // TODO: Deactivate the mouse.
 
@@ -289,10 +366,9 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
         case BuiltInFunction::timePlay: {
             assert(args.empty());
 
-            AssetType type = self.u.a->header->_type;
-            switch (type) {
+            switch (selfAssetType) {
                 case AssetType::MOVIE: {
-                    self.u.a->a.movie->play();
+                    selfAsset->a.movie->play();
                     break;
                 }
 
@@ -302,12 +378,12 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
                 }
 
                 case AssetType::PATH: {
-                    self.u.a->a.path->play();
+                    selfAsset->a.path->play();
                     break;
                 }
 
                 default: {
-                    error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::timePlay) Attempt to call timePlay on unsupported asset type %d", type);
+                    error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::timePlay) Attempt to call timePlay on unsupported asset type %d", selfAssetType);
                 }
             }
 
@@ -316,23 +392,21 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
         }
 
         case BuiltInFunction::setDuration: {
-            Asset *asset = self.u.a;
+            assert(selfAssetType == AssetType::PATH);
             assert(args.size() == 1);
-            assert(asset->header->_type == AssetType::PATH);
 
-            uint durationInMilliseconds = (uint)(args[0].u.d * 1000);
-            asset->a.path->setDuration(durationInMilliseconds);
+            uint durationInMilliseconds = (uint)(args[0].getDouble() * 1000);
+            selfAsset->a.path->setDuration(durationInMilliseconds);
             return Operand();
         }
 
         case BuiltInFunction::percentComplete: {
-            Asset *asset = self.u.a;
+            assert(selfAssetType == AssetType::PATH);
             assert(args.size() == 0);
-            assert(self.u.a->header->_type == AssetType::PATH);
 
-            uint percentComplete = asset->a.path->percentComplete();
-            Operand returnValue(OperandType::Literal1);
-            returnValue.u.i = percentComplete;
+            double percentComplete = selfAsset->a.path->percentComplete();
+            Operand returnValue(Operand::Type::Float1);
+            returnValue.putDouble(percentComplete);
             return returnValue;
         }
 

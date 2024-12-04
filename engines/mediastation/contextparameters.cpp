@@ -22,7 +22,7 @@
 #include "mediastation/mediastation.h"
 #include "mediastation/datum.h"
 #include "mediastation/contextparameters.h"
-#include "mediastation/mediascript/variabledeclaration.h"
+#include "mediastation/mediascript/variable.h"
 #include "mediastation/debugchannels.h"
 
 namespace MediaStation {
@@ -53,8 +53,16 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
                 if (repeatedFileNumber != fileNumber) {
                     warning("ContextParameters::ContextParameters(): Repeated file number didn't match: %d != %d", repeatedFileNumber, fileNumber);
                 }
+                // The trouble here is converting the variable to an operand.
+                // They are two totally separate types!
                 Variable *variable = new Variable(chunk);
-                _variables.setVal(variable->id, variable);
+                Operand operand;
+                if (g_engine->_variables.contains(variable->id)) {
+                    error("ContextParameters::ContextParameters(): Variable with ID 0x%x already exists", variable->id);
+                } else {
+                    g_engine->_variables.setVal(variable->id, variable);
+                    debugC(5, kDebugScript, "ContextParameters::ContextParameters(): Created global variable %d", variable->id);
+                }
                 break;
             }
 
@@ -74,7 +82,12 @@ ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
 
 ContextParameters::~ContextParameters() {
     delete contextName;
-    _variables.clear();
+    contextName = nullptr;
+
+    for (auto it = _functions.begin(); it != _functions.end(); ++it) {
+        delete it->_value;
+    }
+    _functions.clear();
 }
 
 } // End of namespace MediaStation

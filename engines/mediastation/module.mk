@@ -12,11 +12,11 @@ MODULE_OBJS = \
 	assets/movie.o \
 	assets/sprite.o \
 	assets/path.o \
-	mediascript/mediascript.o \
 	mediascript/eventhandler.o \
 	mediascript/codechunk.o \
 	mediascript/function.o \
-	mediascript/variabledeclaration.o \
+	mediascript/variable.o \
+	mediascript/operand.o \
 	subfile.o \
 	boot.o \
 	datum.o \

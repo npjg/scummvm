@@ -35,6 +35,9 @@ Path::~Path() {
 }
 
 void Path::play() {
+    // TODO: Check that itʻs zero before we reset it, since this function isn't re-entrant!
+    _percentComplete = 0;
+
     if (_header->_duration == 0) {
         warning("Path::play(): Got zero duration");
     } else if (_header->_stepRate == 0) {
@@ -54,7 +57,7 @@ void Path::play() {
     // STEP THE PATH.
     EventHandler *pathStepHandler = _header->_eventHandlers[EventHandler::Type::Step];
     for (uint i = 0; i < totalSteps; i++) {
-        _percentComplete = (uint32)(((double)(i + 1) / totalSteps) * 100);
+        _percentComplete = (double)(i + 1) / totalSteps;
         debugC(5, kDebugGraphics, "Path::play(): Step %d of %d (%d%% complete)", i, totalSteps, _percentComplete);
         // TODO: Actually step the path. It seems they mostly just use this for
         // palette animation in the On Step event handler, so nothing is actually drawn on the screen now.
@@ -85,8 +88,8 @@ void Path::setDuration(uint durationInMilliseconds) {
 }
 
 
-uint32 Path::percentComplete() {
-    debugC(5, kDebugScript, "Path::setDuration(): Returning percent complete %d%%", _percentComplete);
+double Path::percentComplete() {
+    debugC(5, kDebugScript, "Path::percentComplete(): Returning percent complete %d%%", _percentComplete);
     return _percentComplete;
 }
 

@@ -183,7 +183,6 @@ void Movie::play() {
     }
 
     // RUN THE MOVIE START EVENT HANDLER.
-    // So the thing is, we should only have one start event and one end event.
     EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
     if (startEvent != nullptr) {
         debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
@@ -240,7 +239,26 @@ void Movie::play() {
     }
 
     // RUN THE MOVIE END EVENT HANDLER.
+    EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieEnd);
+    if (endEvent != nullptr) {
+        debugC(5, kDebugScript, "Movie::play(): Executing movie end event handler");
+        endEvent->execute();
+    }
+}
 
+void Movie::processTimeEventHandlers() {
+    uint currentTime = g_system->getMillis();
+    for (EventHandler *timeEvent : _header->_timeHandlers) {
+        double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
+        uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
+        bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
+        bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _animationStart;
+        if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
+            debugC(5, kDebugScript, "Movie::processTimeEventHandlers(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - _animationStart);
+            timeEvent->execute();
+        }
+    }
+    _lastProcessedTime = currentTime - _animationStart;
 }
 
 void Movie::readStill(Chunk &chunk) {

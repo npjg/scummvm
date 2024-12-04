@@ -76,4 +76,13 @@ void Sprite::readFrame(Chunk &chunk) {
     _frames.push_back(frame);
 }
 
+void Sprite::spatialShow() {
+    // How to handle showing sprite frames as well as movie frames? Seems like
+    // we can't have this be just in the movie frame handler then...
+}
+
+void Sprite::movieReset() {
+    // TODO: Does this play from the start right away? Or do we wait until later?
+}
+
 } // End of namespace MediaStation

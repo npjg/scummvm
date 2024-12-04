@@ -40,7 +40,6 @@
 #include "mediastation/boot.h"
 #include "mediastation/context.h"
 #include "mediastation/asset.h"
-#include "mediastation/mediascript/mediascript.h"
 
 namespace MediaStation {
 
@@ -59,11 +58,12 @@ public:
 	};
 	bool isFirstGenerationEngine();
 	Common::ErrorCode processEvents();
+	void setPalette(Asset *palette);
 
-    Common::HashMap<uint, Function *> _functions;
     Common::HashMap<uint, Asset *> _assets;
+    Common::HashMap<uint, Function *> _functions;
+	Common::HashMap<uint32, Variable *> _variables;
     Common::HashMap<uint, Asset *> _assetsByChunkReference;
-	MediaScript *_mediaScript = nullptr;
 	Graphics::Screen *_screen = nullptr;
 	Asset *_assetPlaying = nullptr;
 
@@ -72,6 +72,7 @@ protected:
 
 private:
 	Context *loadContext(uint32 contextId);
+	void setPaletteFromHeader(AssetHeader *header);
 
 	Common::Event e;
 	const ADGameDescription *_gameDescription;

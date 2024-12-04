@@ -39,9 +39,9 @@ public:
     uint32 unk1;
     uint32 subfile_count;
     uint32 file_size;
-    Graphics::Palette *_palette;
-    ContextParameters *_parameters;
-    AssetHeader *_screenAsset;
+    Graphics::Palette *_palette = nullptr;
+    ContextParameters *_parameters = nullptr;
+    AssetHeader *_screenAsset = nullptr;
 
 private:
     enum class SectionType {
