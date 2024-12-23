@@ -24,6 +24,7 @@
 #include "mediastation/assetheader.h"
 #include "mediastation/assets/bitmap.h"
 #include "mediastation/assets/sound.h"
+#include "mediastation/assets/timer.h"
 #include "mediastation/assets/movie.h"
 #include "mediastation/assets/sprite.h"
 #include "mediastation/assets/path.h"
@@ -31,35 +32,139 @@
 namespace MediaStation {
 
 Asset::Asset(AssetHeader *header) : header(header) {
-    if (AssetType::IMAGE == header->_type) {
-        a.bitmap = nullptr;
-    } else if (AssetType::SOUND == header->_type) {
-        a.sound = new Sound(header);
-    } else if (AssetType::MOVIE == header->_type) {
-        a.movie = new Movie(header);
-    } else if (AssetType::SPRITE == header->_type) {
-        a.sprite = new Sprite(header);
-    } else if (AssetType::PATH == header->_type) {
-        a.path = new Path(header);
+    switch (header->_type) {
+        case AssetType::IMAGE:
+            a.bitmap = nullptr;
+            break;
+
+        case AssetType::SOUND:
+            a.sound = new Sound(header);
+            break;
+
+        case AssetType::TIMER:
+            a.timer = new Timer(header);
+            break;
+
+        case AssetType::MOVIE:
+            a.movie = new Movie(header);
+            break;
+
+        case AssetType::SPRITE:
+            a.sprite = new Sprite(header);
+            break;
+
+        case AssetType::PATH:
+            a.path = new Path(header);
+            break;
+
+        default:
+            error("Asset::Asset(): Unexpected asset type %d", header->_type);
+            break;
+    }
+}
+
+bool Asset::isPlaying() {
+    switch (header->_type) {
+        case AssetType::SOUND:
+            //return a.sound->isPlaying();
+            return false;
+
+        case AssetType::MOVIE:
+            return a.movie->isPlaying();
+
+        case AssetType::TIMER:
+            return a.timer->isPlaying();
+
+        case AssetType::SPRITE:
+            return false;
+
+        case AssetType::PATH:
+            return false;
+    }
+}
+
+void Asset::play() {
+    switch (header->_type) {
+        case AssetType::SOUND:
+            break;
+
+        case AssetType::MOVIE:
+            a.movie->play();
+            break;
+
+        case AssetType::TIMER:
+            a.timer->play();
+            break;
+
+        case AssetType::SPRITE:
+            break;
+
+        case AssetType::PATH:
+            break;
+    }
+}
+
+void Asset::process() {
+    switch (header->_type) {
+        case AssetType::SOUND: {
+            // a.sound->process();
+            break;
+        }
+
+        case AssetType::MOVIE: {
+            a.movie->process(); // TODO: This now returns a bool that says when itʻs finished playing or not.
+            break;
+        }
+
+        case AssetType::TIMER: {
+            a.timer->process();
+        }
+
+        case AssetType::SPRITE: {
+            // a.sprite->process();
+            break;
+        }
+
+        case AssetType::PATH: {
+            // a.path->process();
+            break;
+        }
+
+        default: 
+            break;
     }
 }
 
 Asset::~Asset() {
-    if (header->_type == AssetType::MOVIE) {
-        delete a.movie;
-        a.movie = nullptr;
-    } else if (header->_type == AssetType::SOUND) {
-        delete a.sound;
-        a.sound = nullptr;
-    } else if (header->_type == AssetType::IMAGE) {
-        delete a.bitmap;
-        a.bitmap = nullptr;
-    } else if (header->_type == AssetType::SPRITE) {
-        delete a.sprite;
-        a.sprite = nullptr;
-    } else if (header->_type == AssetType::PATH) {
-        delete a.path;
-        a.path = nullptr;
+    switch (header->_type) {
+        case AssetType::MOVIE:
+            delete a.movie;
+            a.movie = nullptr;
+            break;
+
+        case AssetType::SOUND:
+            delete a.sound;
+            a.sound = nullptr;
+            break;
+
+        case AssetType::IMAGE:
+            delete a.bitmap;
+            a.bitmap = nullptr;
+            break;
+
+        case AssetType::SPRITE:
+            delete a.sprite;
+            a.sprite = nullptr;
+            break;
+
+        case AssetType::PATH:
+            delete a.path;
+            a.path = nullptr;
+            break;
+
+        default:
+            // Handle unexpected asset type if necessary
+            break;
     }
     delete header;
     header = nullptr;

@@ -341,7 +341,7 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
 
             // TODO: Show the image or sprite.
 
-            error("Can't handle spatial show yet");
+            warning("Can't handle spatial show yet");
             return Operand();
         }
 
@@ -369,6 +369,7 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
             switch (selfAssetType) {
                 case AssetType::MOVIE: {
                     selfAsset->a.movie->play();
+                    g_engine->_assetsPlaying.push_back(selfAsset);
                     break;
                 }
 

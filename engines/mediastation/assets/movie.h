@@ -97,6 +97,9 @@ public:
     void stop();
     void readStill(Chunk &chunk);
     void readSubfile(Subfile &subfile, Chunk &chunk);
+    void process();
+
+    bool isPlaying() const { return _isPlaying; }
 
     Common::Array<MovieFrame *> _frames;
     Common::Array<MovieFrame *> _stills;
@@ -105,12 +108,14 @@ private:
     Common::Array<MovieFrameFooter *> _footers;
     Common::Array<Sound *> _sounds;
     AssetHeader::SoundEncoding _soundEncoding;
-    AssetHeader *_header;
+    AssetHeader *_header = nullptr;
 
-    bool _isPlaying;
-    uint _animationStart;
-    uint _lastProcessedTime;
+    bool _isPlaying = false;
+    uint _startTime = 0;
+    uint _lastProcessedTime = 0;
+    uint _duration = 0;
 
+    bool drawNextFrame();
     void processTimeEventHandlers();
 };
 

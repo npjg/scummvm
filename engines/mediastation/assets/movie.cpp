@@ -173,12 +173,69 @@ Movie::~Movie() {
     _footers.clear();
 }
 
-void Movie::play() {
-    // GET THE DURATION OF THE MOVIE.
-    uint maxDuration = 0;
+bool Movie::drawNextFrame() {
+    // DETERMINE WHICH FRAMES NEED TO BE DRAWN.
+    uint currentTime = g_system->getMillis();
+    uint movieTime = currentTime - _startTime;
+    debugC(8, kDebugGraphics, "Movie::drawNextFrame(): Starting frame blitting (movie time: %d)", movieTime);
+    if (movieTime > _duration) {
+        // RESET ANIMATION VARIABLES.
+        _isPlaying = false;
+        _startTime = 0;
+        _lastProcessedTime = 0;
+
+        // RUN THE MOVIE STOPPED EVENT HANDLER.
+        EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieEnd);
+        if (endEvent != nullptr) {
+            debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
+            endEvent->execute();
+        }
+        return false;
+    }
+
+    Common::Array<MovieFrame *> framesToDraw;
     for (MovieFrame *frame : _frames) {
-        if (frame->endInMilliseconds() > maxDuration) {
-            maxDuration = frame->endInMilliseconds();
+        bool isAfterStart = _startTime + frame->startInMilliseconds() <= currentTime;
+        bool isBeforeEnd = _startTime + frame->endInMilliseconds() >= currentTime;
+        if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
+            continue;
+        }
+        debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", movieTime, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+        framesToDraw.push_back(frame);
+    }
+
+    // BLIT THE FRAMES.
+    Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
+        return a->zCoordinate() > b->zCoordinate();
+    });
+    for (MovieFrame *frame : framesToDraw) {
+        debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", movieTime, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+        g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
+    }
+    // The main game loop takes care of updating the screen.
+
+    uint frameBlitEnd = g_system->getMillis() - _startTime;
+    uint elapsedTime = frameBlitEnd - movieTime;
+    debugC(8, kDebugGraphics, "Movie::play(): Finished frame blitting in %d ms (current movie time: %d ms)", elapsedTime, frameBlitEnd);
+    return true;
+}
+
+void Movie::play() {
+    if (_isPlaying) {
+        error("Movie::play(): Attempted to play a movie that is already playing");
+        return;
+    }
+
+    // SET ANIMATION VARIABLES.
+    _isPlaying = true;
+    _startTime = g_system->getMillis();
+    _lastProcessedTime = 0;
+
+    // GET THE DURATION OF THE MOVIE.
+    _duration = 0;
+    for (MovieFrame *frame : _frames) {
+        if (frame->endInMilliseconds() > _duration) {
+            _duration = frame->endInMilliseconds();
         }
     }
 
@@ -188,77 +245,45 @@ void Movie::play() {
         debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
         startEvent->execute();
     }
+}
 
-    // DRAW THE FRAMES.
-    uint32 currentTime = g_system->getMillis();
-	uint32 animationStart = currentTime;
-    uint32 lastProcessedTimeInMilliseconds = 0;
-    while (currentTime - animationStart < maxDuration) {
-        // PROCESS ANY TIME-BASED EVENT HANDLERS.
-        for (EventHandler *timeEvent : _header->_timeHandlers) {
-            double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
-            uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
-            bool timeEventAlreadyProcessed = timeEventInMilliseconds < lastProcessedTimeInMilliseconds;
-            bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - animationStart;
-            if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
-                debugC(5, kDebugScript, "Movie::play(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - animationStart);
-                timeEvent->execute();
-            }
-        }
-        lastProcessedTimeInMilliseconds = currentTime - animationStart;
+void Movie::process() {
+    processTimeEventHandlers();
+    drawNextFrame();
+}
 
-        // DRAW THE FRAMES.
-        uint frameBlitStart = g_system->getMillis() - animationStart;
-        debugC(8, kDebugScript, "Movie::play(): Starting frame blitting (movie time: %d)", frameBlitStart);
-        Common::Array<MovieFrame *> framesToDraw;
-        for (MovieFrame *frame : _frames) {
-            bool isAfterStart = animationStart + frame->startInMilliseconds() <= currentTime;
-            bool isBeforeEnd = animationStart + frame->endInMilliseconds() >= currentTime;
-            if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
-                continue;
-            }
-            debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
-            framesToDraw.push_back(frame);
-        }
+void Movie::stop() {
+    // RESET ANIMATION VARIABLES.
+    _isPlaying = false;
+    _startTime = 0;
+    _lastProcessedTime = 0;
 
-        // BLIT THE FRAMES.
-        Common::sort(framesToDraw.begin(), framesToDraw.end(), [](MovieFrame *a, MovieFrame *b) {
-            return a->zCoordinate() > b->zCoordinate();
-        });
-        for (MovieFrame *frame : framesToDraw) {
-            debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", currentTime - animationStart, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
-            g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
-        }
-        g_engine->_screen->update();
-        g_system->delayMillis(5);
-        g_engine->processEvents();
-        uint frameBlitEnd = g_system->getMillis() - animationStart;
-        debugC(8, kDebugScript, "Movie::play(): Finished frame blitting in %d ms (current movie time: %d ms)", frameBlitEnd - frameBlitStart, frameBlitEnd);
-
-        currentTime = g_system->getMillis();
-    }
-
-    // RUN THE MOVIE END EVENT HANDLER.
-    EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieEnd);
+    // RUN THE MOVIE STOPPED EVENT HANDLER.
+    EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieStopped);
     if (endEvent != nullptr) {
-        debugC(5, kDebugScript, "Movie::play(): Executing movie end event handler");
+        debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
         endEvent->execute();
     }
 }
 
 void Movie::processTimeEventHandlers() {
+    if (!_isPlaying) {
+        warning("Movie::processTimeEventHandlers(): Attempted to process time event handlers while movie is not playing");
+        return;
+    }
+
     uint currentTime = g_system->getMillis();
     for (EventHandler *timeEvent : _header->_timeHandlers) {
         double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
         uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
         bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
-        bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _animationStart;
+        bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
         if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
-            debugC(5, kDebugScript, "Movie::processTimeEventHandlers(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - _animationStart);
+            debugC(5, kDebugScript, "Movie::processTimeEventHandlers(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - _startTime);
             timeEvent->execute();
         }
     }
-    _lastProcessedTime = currentTime - _animationStart;
+    _lastProcessedTime = currentTime - _startTime;
 }
 
 void Movie::readStill(Chunk &chunk) {

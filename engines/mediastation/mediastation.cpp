@@ -124,16 +124,23 @@ Common::Error MediaStationEngine::run() {
 
     uint32 currentTime = g_system->getMillis();
 	while (true) {
-		// _screen->update();
-
 		// PROCESS EVENTS.
-		currentTime = g_system->getMillis();
 		Common::ErrorCode status = processEvents();
 		if (status == Common::kNoError) {
 			return status;
 		}
 
-		g_system->delayMillis(50);
+		for (Asset *asset : _assetsPlaying) {
+			asset->process();
+			if (!asset->isPlaying()) {
+				_assetsPlaying.erase(asset);
+			}
+		}
+		// How can we check which assets should be playing? And how can we
+		// trigger timers on them?
+
+    	g_engine->_screen->update();
+		g_system->delayMillis(10);
 	}
 
 	return Common::kNoError;

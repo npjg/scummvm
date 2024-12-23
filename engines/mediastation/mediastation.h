@@ -65,7 +65,7 @@ public:
 	Common::HashMap<uint32, Variable *> _variables;
     Common::HashMap<uint, Asset *> _assetsByChunkReference;
 	Graphics::Screen *_screen = nullptr;
-	Asset *_assetPlaying = nullptr;
+	Common::Array<Asset *> _assetsPlaying;
 
 protected:
 	Common::Error run() override;

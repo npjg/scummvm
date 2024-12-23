@@ -19,37 +19,31 @@
  *
  */
 
-#ifndef MEDIASTATION_ASSET_H
-#define MEDIASTATION_ASSET_H
+#ifndef MEDIASTATION_TIMER_H
+#define MEDIASTATION_TIMER_H
+
+#include "mediastation/assetheader.h"
 
 namespace MediaStation {
 
-class AssetHeader;
-class Bitmap;
-class Sound;
-class Timer;
-class Movie;
-class Sprite;
-class Path;
+class Timer {
+public:
+    Timer(AssetHeader *asset);
+    ~Timer();
 
-struct Asset {
-	Asset(AssetHeader *header);
-    ~Asset();
-
-    void process();
     void play();
-    bool isPlaying();
+    void process();
+    bool isPlaying() const { return _isPlaying; }
 
-	AssetHeader *header;
-    union {
-        Bitmap *bitmap;
-        Sound *sound;
-        Timer *timer;
-        Sprite *sprite;
-        // Font *font;
-        Movie *movie;
-        Path *path;
-    } a;
+private:
+    AssetHeader *_header = nullptr;
+
+    bool _isPlaying = false;
+    uint _startTime = 0;
+    uint _lastProcessedTime = 0;
+    uint _duration = 0;
+
+    void processTimeEventHandlers();
 };
 
 } // End of namespace MediaStation
