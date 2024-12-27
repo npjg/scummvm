@@ -19,51 +19,23 @@
  *
  */
 
-#include "graphics/managed_surface.h"
+#ifndef MEDIASTATION_CANVAS_H
+#define MEDIASTATION_CANVAS_H
 
-#include "mediastation/chunk.h"
 #include "mediastation/assetheader.h"
-
-#ifndef MEDIASTATION_BITMAP_H
-#define MEDIASTATION_BITMAP_H
 
 namespace MediaStation {
 
-class BitmapHeader {
+class Canvas : public Asset {
 public:
-    enum class CompressionType {
-        UNCOMPRESSED = 0,
-        RLE_COMPRESSED = 1,
-        UNK1 = 6,
-        UNCOMPRESSED_2 = 7,
-    };
+    Canvas(AssetHeader *header) : Asset(header) {};
+    virtual ~Canvas() override = default;
 
-    BitmapHeader(Chunk &chunk);
-    ~BitmapHeader();
-
-    bool isCompressed();
-
-    Common::Point *dimensions;
-    CompressionType compression_type;
-    uint unk2;
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
 };
 
-class Bitmap {
-public:
-    BitmapHeader *_bitmapHeader;
-    AssetHeader *_assetHeader;
-
-    Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader, AssetHeader *assetHeader = nullptr);
-    ~Bitmap();
-
-    uint16 width();
-    uint16 height();
-    Graphics::ManagedSurface surface;
-
-private:
-    void decompress(Chunk &chunk);
-};
-
-}
+} // End of namespace MediaStation
 
 #endif

@@ -20,7 +20,7 @@
  */
 
 #include "mediastation/datum.h"
-#include "mediastation/assets/bitmap.h"
+#include "mediastation/bitmap.h"
 #include "mediastation/debugchannels.h"
 
 namespace MediaStation {
@@ -43,13 +43,12 @@ BitmapHeader::~BitmapHeader() {
 }
 
 bool BitmapHeader::isCompressed() {
-    return (compression_type != BitmapHeader::CompressionType::UNCOMPRESSED) || 
+    return (compression_type != BitmapHeader::CompressionType::UNCOMPRESSED) && 
         (compression_type != BitmapHeader::CompressionType::UNCOMPRESSED_2);
 }
 
-Bitmap::Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader, AssetHeader *assetHeader) :
-    _bitmapHeader(bitmapHeader),
-    _assetHeader(assetHeader)
+Bitmap::Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader) :
+    _bitmapHeader(bitmapHeader)
 {
     // The header must be constructed beforehand.
     uint16 width = _bitmapHeader->dimensions->x;
@@ -70,8 +69,6 @@ Bitmap::Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader, AssetHeader *assetHeade
 }
 
 Bitmap::~Bitmap() {
-    // The bitmap doesn't own the asset header, so we don't need to delete it here.
-    _assetHeader = nullptr;
     delete _bitmapHeader;
     _bitmapHeader = nullptr;
 }

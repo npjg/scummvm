@@ -7,11 +7,16 @@ MODULE_OBJS = \
 	chunk.o \
 	context.o \
 	contextparameters.o \
-	assets/bitmap.o \
+	bitmap.o \
+	assets/image.o \
+	assets/palette.o \
 	assets/sound.o \
 	assets/movie.o \
 	assets/sprite.o \
 	assets/path.o \
+	assets/hotspot.o \
+	assets/timer.o \
+	assets/canvas.o \
 	mediascript/eventhandler.o \
 	mediascript/codechunk.o \
 	mediascript/function.o \
@@ -22,6 +27,13 @@ MODULE_OBJS = \
 	datum.o \
 	datafile.o \
 	metaengine.o
+
+# Add warning flags
+CXXFLAGS += -Werror \
+	-Wno-error=unused-but-set-variable \
+	-Wno-error=unused-variable \
+	-Wno-error=unused-value \
+	-Wno-error=unused-private-field
 
 # This module can be built as a plugin
 ifeq ($(ENABLE_MEDIASTATION), DYNAMIC_PLUGIN)

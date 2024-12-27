@@ -19,26 +19,32 @@
  *
  */
 
-#include "mediastation/asset.h"
+#include "graphics/managed_surface.h"
+
+#include "mediastation/chunk.h"
+#include "mediastation/subfile.h"
+#include "mediastation/bitmap.h"
 #include "mediastation/assetheader.h"
+
+#ifndef MEDIASTATION_IMAGE_H
+#define MEDIASTATION_IMAGE_H
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
-}
+class Image : public Asset {
+public:
+    Image(AssetHeader *header) : Asset(header) {};
+    virtual ~Image() override;
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
-}
+    virtual void play() override;
+    virtual void stop() override;
 
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
-}
+    virtual void readChunk(Chunk &chunk) override;
 
-AssetType Asset::type() const {
-    return _header->_type;
-}
+private:
+    Bitmap *_bitmap = nullptr;
+};
 
 } // End of namespace MediaStation
+
+#endif

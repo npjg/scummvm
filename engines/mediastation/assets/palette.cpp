@@ -19,26 +19,20 @@
  *
  */
 
-#include "mediastation/asset.h"
-#include "mediastation/assetheader.h"
+#include "mediastation/mediastation.h"
+#include "mediastation/assets/palette.h"
+#include "mediastation/debugchannels.h"
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
+void Palette::play() {
+    assert(_header != nullptr);
+    g_engine->setPaletteFromHeader(_header);
 }
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-AssetType Asset::type() const {
-    return _header->_type;
+void Palette::stop() {
+    // TODO: Remove this palette. But it needs to be replaced with another, right?
 }
 
 } // End of namespace MediaStation
+

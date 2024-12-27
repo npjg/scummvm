@@ -22,6 +22,7 @@
 #ifndef MEDIASTATION_H
 #define MEDIASTATION_H
 
+#include "audio/mixer.h"
 #include "common/scummsys.h"
 #include "common/system.h"
 #include "common/error.h"
@@ -58,21 +59,21 @@ public:
 	};
 	bool isFirstGenerationEngine();
 	Common::ErrorCode processEvents();
-	void setPalette(Asset *palette);
+	void setPaletteFromHeader(AssetHeader *header);
 
     Common::HashMap<uint, Asset *> _assets;
     Common::HashMap<uint, Function *> _functions;
 	Common::HashMap<uint32, Variable *> _variables;
     Common::HashMap<uint, Asset *> _assetsByChunkReference;
-	Graphics::Screen *_screen = nullptr;
 	Common::Array<Asset *> _assetsPlaying;
+	Graphics::Screen *_screen = nullptr;
+	Audio::Mixer *_mixer = nullptr;
 
 protected:
 	Common::Error run() override;
 
 private:
 	Context *loadContext(uint32 contextId);
-	void setPaletteFromHeader(AssetHeader *header);
 
 	Common::Event e;
 	const ADGameDescription *_gameDescription;

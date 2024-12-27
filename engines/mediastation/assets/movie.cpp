@@ -147,14 +147,7 @@ MovieFrame::~MovieFrame() {
     delete _footer;
 }
 
-Movie::Movie(AssetHeader *header) : _header(header) {
-
-}
-
 Movie::~Movie() {
-    // The Movie doesn't own the header, so it doesn't need to be deleted here.
-    // Just set it null.
-    _header = nullptr;
     for (MovieFrame *frame : _stills) {
         delete frame;
     }
@@ -163,14 +156,80 @@ Movie::~Movie() {
         delete frame;
     }
     _frames.clear();
-    for (Sound *sound : _sounds) {
-        delete sound;
-    }
-    _sounds.clear();
+    //for (Sound *sound : _sounds) {
+    //    delete sound;
+    //}
+    //_sounds.clear();
     for (MovieFrameFooter *footer : _footers) {
         delete footer;
     }
     _footers.clear();
+}
+
+void Movie::play() {
+    if (_isPlaying) {
+        error("Movie::play(): Attempted to play a movie that is already playing");
+        return;
+    }
+
+    // SET ANIMATION VARIABLES.
+    _isPlaying = true;
+    _startTime = g_system->getMillis();
+    _lastProcessedTime = 0;
+
+    // GET THE DURATION OF THE MOVIE.
+    _duration = 0;
+    for (MovieFrame *frame : _frames) {
+        if (frame->endInMilliseconds() > _duration) {
+            _duration = frame->endInMilliseconds();
+        }
+    }
+
+    // RUN THE MOVIE START EVENT HANDLER.
+    EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
+    if (startEvent != nullptr) {
+        debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
+        startEvent->execute();
+    }
+}
+
+void Movie::stop() {
+    // RESET ANIMATION VARIABLES.
+    _isPlaying = false;
+    _startTime = 0;
+    _lastProcessedTime = 0;
+
+    // RUN THE MOVIE STOPPED EVENT HANDLER.
+    EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieStopped);
+    if (endEvent != nullptr) {
+        debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
+        endEvent->execute();
+    }
+}
+
+void Movie::process() {
+    processTimeEventHandlers();
+    drawNextFrame();
+}
+
+void Movie::processTimeEventHandlers() {
+    if (!_isPlaying) {
+        warning("Movie::processTimeEventHandlers(): Attempted to process time event handlers while movie is not playing");
+        return;
+    }
+
+    uint currentTime = g_system->getMillis();
+    for (EventHandler *timeEvent : _header->_timeHandlers) {
+        double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
+        uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
+        bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
+        bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
+        if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
+            debugC(5, kDebugScript, "Movie::processTimeEventHandlers(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - _startTime);
+            timeEvent->execute();
+        }
+    }
+    _lastProcessedTime = currentTime - _startTime;
 }
 
 bool Movie::drawNextFrame() {
@@ -220,73 +279,8 @@ bool Movie::drawNextFrame() {
     return true;
 }
 
-void Movie::play() {
-    if (_isPlaying) {
-        error("Movie::play(): Attempted to play a movie that is already playing");
-        return;
-    }
-
-    // SET ANIMATION VARIABLES.
-    _isPlaying = true;
-    _startTime = g_system->getMillis();
-    _lastProcessedTime = 0;
-
-    // GET THE DURATION OF THE MOVIE.
-    _duration = 0;
-    for (MovieFrame *frame : _frames) {
-        if (frame->endInMilliseconds() > _duration) {
-            _duration = frame->endInMilliseconds();
-        }
-    }
-
-    // RUN THE MOVIE START EVENT HANDLER.
-    EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
-    if (startEvent != nullptr) {
-        debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
-        startEvent->execute();
-    }
-}
-
-void Movie::process() {
-    processTimeEventHandlers();
-    drawNextFrame();
-}
-
-void Movie::stop() {
-    // RESET ANIMATION VARIABLES.
-    _isPlaying = false;
-    _startTime = 0;
-    _lastProcessedTime = 0;
-
-    // RUN THE MOVIE STOPPED EVENT HANDLER.
-    EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieStopped);
-    if (endEvent != nullptr) {
-        debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
-        endEvent->execute();
-    }
-}
-
-void Movie::processTimeEventHandlers() {
-    if (!_isPlaying) {
-        warning("Movie::processTimeEventHandlers(): Attempted to process time event handlers while movie is not playing");
-        return;
-    }
-
-    uint currentTime = g_system->getMillis();
-    for (EventHandler *timeEvent : _header->_timeHandlers) {
-        double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
-        uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
-        bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
-        bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
-        if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
-            debugC(5, kDebugScript, "Movie::processTimeEventHandlers(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - _startTime);
-            timeEvent->execute();
-        }
-    }
-    _lastProcessedTime = currentTime - _startTime;
-}
-
-void Movie::readStill(Chunk &chunk) {
+void Movie::readChunk(Chunk &chunk) {
+    // Individual chunks are "stills" and are stored in the first subfile.
     uint sectionType = Datum(chunk).u.i;
     switch ((SectionType)sectionType) {
         case SectionType::FRAME: {
@@ -385,9 +379,11 @@ void Movie::readSubfile(Subfile &subfile, Chunk &chunk) {
         debugC(5, kDebugLoading, "Movie::readSubfile(): (Frameset %d of %d) Reading audio chunk... (0x%lx)", i, chunkCount, chunk.pos());
         bool isAudioChunk = (chunk.id = _header->_audioChunkReference);
         if (isAudioChunk) {
-            Sound *sound = new Sound(_header->_soundEncoding);
-            sound->readChunk(chunk);
-            _sounds.push_back(sound);
+            // TODO: Actually read the audio chunk.
+            //Sound *sound = new Sound(_header->_soundEncoding);
+            //sound->readChunk(chunk);
+            //_sounds.push_back(sound);
+            chunk.skip(chunk.length);
             chunk = subfile.nextChunk();
         } else {
             debugC(5, kDebugLoading, "Movie::readSubfile(): (Frameset %d of %d) No audio chunk to read. (0x%lx)", i, chunkCount, chunk.pos());
@@ -398,11 +394,11 @@ void Movie::readSubfile(Subfile &subfile, Chunk &chunk) {
         bool isHeaderChunk = (chunk.id == _header->_chunkReference);
         if (isHeaderChunk) {
             if (chunk.length != 0x04) {
-                error("Movie::readSubfile(): Expected movie header chunk of size 0x04, got 0x%x", chunk.length);
+                error("Movie::readSubfile(): Expected movie header chunk of size 0x04, got 0x%x (@0x%lx)", chunk.length, chunk.pos());
             }
             chunk.skip(chunk.length);
         } else {
-            error("Movie::readSubfile(): Expected header chunk, got %s", tag2str(chunk.id));
+            error("Movie::readSubfile(): Expected header chunk, got %s (@0x%lx)", tag2str(chunk.id), chunk.pos());
         }
     }
 

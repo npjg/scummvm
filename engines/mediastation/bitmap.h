@@ -19,26 +19,50 @@
  *
  */
 
-#include "mediastation/asset.h"
+#include "graphics/managed_surface.h"
+
+#include "mediastation/chunk.h"
 #include "mediastation/assetheader.h"
+
+#ifndef MEDIASTATION_BITMAP_H
+#define MEDIASTATION_BITMAP_H
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
+class BitmapHeader {
+public:
+    enum class CompressionType {
+        UNCOMPRESSED = 0,
+        RLE_COMPRESSED = 1,
+        UNK1 = 6,
+        UNCOMPRESSED_2 = 7,
+    };
+
+    BitmapHeader(Chunk &chunk);
+    ~BitmapHeader();
+
+    bool isCompressed();
+
+    Common::Point *dimensions;
+    CompressionType compression_type;
+    uint unk2;
+};
+
+class Bitmap {
+public:
+    BitmapHeader *_bitmapHeader;
+
+    Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader);
+    ~Bitmap();
+
+    uint16 width();
+    uint16 height();
+    Graphics::ManagedSurface surface;
+
+private:
+    void decompress(Chunk &chunk);
+};
+
 }
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-AssetType Asset::type() const {
-    return _header->_type;
-}
-
-} // End of namespace MediaStation
+#endif

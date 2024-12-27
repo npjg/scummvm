@@ -19,26 +19,23 @@
  *
  */
 
-#include "mediastation/asset.h"
+#ifndef MEDIASTATION_PALETTE_H
+#define MEDIASTATION_PALETTE_H
+
 #include "mediastation/assetheader.h"
+#include "mediastation/asset.h"
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
-}
+class Palette : public Asset {
+public:
+    Palette(AssetHeader *header) : Asset(header) {};
+    ~Palette() = default;
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-AssetType Asset::type() const {
-    return _header->_type;
-}
+    virtual void play() override;
+    virtual void stop() override;
+};
 
 } // End of namespace MediaStation
+
+#endif

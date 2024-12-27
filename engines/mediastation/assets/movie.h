@@ -20,7 +20,7 @@
  */
 
 #include "mediastation/assetheader.h"
-#include "mediastation/assets/bitmap.h"
+#include "mediastation/bitmap.h"
 #include "mediastation/assets/sound.h"
 
 #ifndef MEDIASTATION_MOVIE_H
@@ -81,7 +81,7 @@ private:
     MovieFrameFooter *_footer;
 };
 
-class Movie {
+class Movie : public Asset {
 private:
     enum class SectionType {
         ROOT = 0x06a8,
@@ -90,30 +90,22 @@ private:
     };
 
 public:
-    Movie(AssetHeader *asset);
-    ~Movie();
+    Movie(AssetHeader *header) : Asset(header) {};
+    virtual ~Movie() override;
 
-    void play();
-    void stop();
-    void readStill(Chunk &chunk);
-    void readSubfile(Subfile &subfile, Chunk &chunk);
-    void process();
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
 
-    bool isPlaying() const { return _isPlaying; }
-
-    Common::Array<MovieFrame *> _frames;
-    Common::Array<MovieFrame *> _stills;
+    virtual void readChunk(Chunk &chunk) override;
+    virtual void readSubfile(Subfile &subfile, Chunk &chunk) override;
 
 private:
+    Common::Array<MovieFrame *> _frames;
+    Common::Array<MovieFrame *> _stills;
     Common::Array<MovieFrameFooter *> _footers;
-    Common::Array<Sound *> _sounds;
+    byte *_audioSamples = nullptr;
     AssetHeader::SoundEncoding _soundEncoding;
-    AssetHeader *_header = nullptr;
-
-    bool _isPlaying = false;
-    uint _startTime = 0;
-    uint _lastProcessedTime = 0;
-    uint _duration = 0;
 
     bool drawNextFrame();
     void processTimeEventHandlers();

@@ -24,9 +24,15 @@
 #include "mediastation/datum.h"
 #include "mediastation/debugchannels.h"
 
-#include "mediastation/assets/bitmap.h"
+#include "mediastation/bitmap.h"
+#include "mediastation/assets/canvas.h"
+#include "mediastation/assets/palette.h"
+#include "mediastation/assets/image.h"
+#include "mediastation/assets/path.h"
 #include "mediastation/assets/movie.h"
 #include "mediastation/assets/sprite.h"
+#include "mediastation/assets/hotspot.h"
+#include "mediastation/assets/timer.h"
 
 namespace MediaStation {
 
@@ -133,20 +139,8 @@ void Context::readAssetInFirstSubfile(Chunk &chunk) {
     if (asset == nullptr) {
         error("Context::readAssetInFirstSubfile(): Asset for chunk \"%s\" (0x%x) does not exist or has not been read yet in this title. (@0x%lx)", tag2str(chunk.id), chunk.id, chunk.pos());
     }
-    debugC(5, kDebugLoading, "\nContext::readAssetInFirstSubfile(): Got asset with chunk ID %s in first subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->header->_type, chunk.pos());
-
-    if (AssetType::IMAGE == asset->header->_type) {
-        BitmapHeader *bitmapHeader = new BitmapHeader(chunk);
-        asset->a.bitmap = new Bitmap(chunk, bitmapHeader, asset->header);
-    } else if (AssetType::SOUND == asset->header->_type) {
-        asset->a.sound->readChunk(chunk);
-    } else if (AssetType::MOVIE == asset->header->_type) {
-        asset->a.movie->readStill(chunk);
-    } else if (AssetType::SPRITE == asset->header->_type) {
-        asset->a.sprite->readFrame(chunk);
-    } else {
-        error("Context::readAssetInFirstSubfile(): Unknown asset data in first subfile 0x%x (@0x%lx)", asset->header->_type, chunk.pos());
-    }
+    debugC(5, kDebugLoading, "\nContext::readAssetInFirstSubfile(): Got asset with chunk ID %s in first subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->type(), chunk.pos());
+    asset->readChunk(chunk);
 }
 
 void Context::readAssetFromLaterSubfile(Subfile &subfile) {
@@ -155,16 +149,8 @@ void Context::readAssetFromLaterSubfile(Subfile &subfile) {
     if (asset == nullptr) {
         error("Context::readAssetFromLaterSubfile(): Asset for chunk \"%s\" (0x%x) does not exist or has not been read yet in this title. (@0x%lx)", tag2str(chunk.id), chunk.id, chunk.pos());
     }
-    debugC(5, kDebugLoading, "\nContext::readAssetFromLaterSubfile(): Got asset with chunk ID %s in later subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->header->_type, chunk.pos());
-
-    if (AssetType::MOVIE == asset->header->_type) {
-        asset->a.movie->readSubfile(subfile, chunk);
-    } else if (AssetType::SOUND == asset->header->_type) {
-        asset->a.sound->readSubfile(subfile, chunk, asset->header->_chunkCount);
-    } else {
-        error("Context::readAssetFromLaterSubfile(): Unknown asset data in first subfile 0x%x (@0x%lx)", asset->header->_type, chunk.pos());
-    }
-
+    debugC(5, kDebugLoading, "\nContext::readAssetFromLaterSubfile(): Got asset with chunk ID %s in later subfile (type: 0x%x) (@0x%lx)", tag2str(chunk.id), asset->type(), chunk.pos());
+    asset->readSubfile(subfile, chunk);
 }
 
 bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
@@ -202,14 +188,56 @@ bool Context::readHeaderSection(Subfile &subfile, Chunk &chunk) {
         }
 
         case SectionType::ASSET_HEADER: {
+            Asset *asset = nullptr;
             AssetHeader *header = new AssetHeader(chunk);
-            Asset *asset = new Asset(header);
-            if (header->_type == AssetType::SCREEN) {
-                if (_screenAsset != nullptr) {
-                    error("Context::readHeaderSection(): Got multiple screen assets in the same context");
-                }
-                _screenAsset = header;
+            switch (header->_type) {
+                case AssetType::IMAGE:
+                    asset = new Image(header);
+                    break;
+
+                case AssetType::MOVIE:
+                    asset = new Movie(header);
+                    break;
+
+                case AssetType::SOUND:
+                    asset = new Sound(header);
+                    break;
+
+                case AssetType::PALETTE:
+                    asset = new Palette(header);
+                    break;
+
+                case AssetType::PATH:
+                    asset = new Path(header);
+                    break;
+
+                case AssetType::TIMER: 
+                    asset = new Timer(header);
+                    break;
+
+                case AssetType::HOTSPOT:
+                    asset = new Hotspot(header);
+                    break;
+
+                case AssetType::SPRITE:
+                    asset = new Sprite(header);
+                    break;
+
+                case AssetType::CANVAS:
+                    asset = new Canvas(header);
+                    break;
+
+                case AssetType::SCREEN:
+                    if (_screenAsset != nullptr) {
+                        error("Context::readHeaderSection(): Got multiple screen assets in the same context");
+                    }
+                    _screenAsset = header;
+                    break;
+
+                default:
+                    error("Context::readHeaderSection(): No class for asset type 0x%x (@0x%lx)", header->_type, chunk.pos());
             }
+
             if (g_engine->_assets.contains(header->_id)) {
                 error("Context::readHeaderSection(): Asset with ID 0x%d was already defined in this title", header->_id);
             }

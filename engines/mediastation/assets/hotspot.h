@@ -19,26 +19,23 @@
  *
  */
 
-#include "mediastation/asset.h"
+#ifndef MEDIASTATION_HOTSPOT_H
+#define MEDIASTATION_HOTSPOT_H
+
 #include "mediastation/assetheader.h"
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
-}
+class Hotspot : public Asset {
+public:
+    Hotspot(AssetHeader *header) : Asset(header) {};
+    virtual ~Hotspot() override = default;
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
-}
-
-AssetType Asset::type() const {
-    return _header->_type;
-}
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
+};
 
 } // End of namespace MediaStation
+
+#endif

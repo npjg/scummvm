@@ -26,27 +26,29 @@
 #include "audio/audiostream.h"
 #include "audio/decoders/raw.h"
 
+#include "mediastation/asset.h"
 #include "mediastation/chunk.h"
 #include "mediastation/subfile.h"
 #include "mediastation/assetheader.h"
 
 namespace MediaStation {
 
-class Sound {
+class Sound : public Asset {
 public:
     // For standalone Sound assets.
     Sound(AssetHeader *header);
+
     // For sounds that are part of a movie.
-    Sound(AssetHeader::SoundEncoding encoding);
+    // TODO: Since these aren't Assets they should be handled elsewhere.
+    //Sound(AssetHeader::SoundEncoding encoding);
     ~Sound();
 
-    void readSubfile(Subfile &subFile, Chunk &chunk, uint totalChunks);
-    void readChunk(Chunk& chunk);
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
 
-    AssetHeader *_header;
-    AssetHeader::SoundEncoding _encoding;
-
-    void play();
+    virtual void readChunk(Chunk& chunk) override;
+    virtual void readSubfile(Subfile &subFile, Chunk &chunk) override;
 
     // All Media Station audio is signed 16-bit little-endian mono at 22050 Hz.
     // Some defaults must be overridden in the flags.
@@ -54,12 +56,8 @@ public:
     static const byte FLAGS = Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN;
 
 private:
-    void decodeImaAdpcm();
-    Audio::SoundHandle _soundHandle;
-    Common::Array<Audio::SeekableAudioStream *> _streams;
-
-    Audio::QueuingAudioStream *_queue;
-	Audio::Mixer *_mixer;
+    AssetHeader::SoundEncoding _encoding;
+    byte *_samples = nullptr;
 };
 
 } // End of namespace MediaStation

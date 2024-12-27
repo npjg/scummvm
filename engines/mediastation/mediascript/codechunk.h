@@ -25,7 +25,6 @@
 #include "common/array.h"
 #include "common/stream.h"
 
-#include "mediastation/asset.h"
 #include "mediastation/mediascript/variable.h"
 #include "mediastation/mediascript/operand.h"
 

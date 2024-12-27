@@ -26,24 +26,14 @@
 
 namespace MediaStation {
 
-class Timer {
+class Timer : public Asset {
 public:
-    Timer(AssetHeader *asset);
-    ~Timer();
+    Timer(AssetHeader *header) : Asset(header) {};
+    virtual ~Timer() override = default;
 
-    void play();
-    void process();
-    bool isPlaying() const { return _isPlaying; }
-
-private:
-    AssetHeader *_header = nullptr;
-
-    bool _isPlaying = false;
-    uint _startTime = 0;
-    uint _lastProcessedTime = 0;
-    uint _duration = 0;
-
-    void processTimeEventHandlers();
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
 };
 
 } // End of namespace MediaStation

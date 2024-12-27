@@ -56,33 +56,30 @@ uint32 SpriteFrame::index() {
     return _bitmapHeader->_index;
 }
 
-Sprite::Sprite(AssetHeader *header) : _header(header) {
-
-}
-
 Sprite::~Sprite() {
-    // The Sprite doesn't own the header, so it doesn't need to be deleted here.
-    // Just set it null.
-    _header = nullptr;
     for (SpriteFrame *frame : _frames) {
         delete frame;
     }
 }
 
-void Sprite::readFrame(Chunk &chunk) {
+void Sprite::play() {
+    error("Sprite::play(): Not implemented");
+}
+
+void Sprite::stop() {
+    error("Sprite::stop(): Not implemented");
+}
+
+void Sprite::process() {
+    error("Sprite::process(): Not implemented");
+}
+
+void Sprite::readChunk(Chunk &chunk) {
+    // Reads one frame from the sprite.
     debugC(5, kDebugLoading, "Sprite::readFrame(): Reading sprite frame (@0x%lx)", chunk.pos());
     SpriteFrameHeader *header = new SpriteFrameHeader(chunk);
     SpriteFrame *frame = new SpriteFrame(chunk, header);
     _frames.push_back(frame);
-}
-
-void Sprite::spatialShow() {
-    // How to handle showing sprite frames as well as movie frames? Seems like
-    // we can't have this be just in the movie frame handler then...
-}
-
-void Sprite::movieReset() {
-    // TODO: Does this play from the start right away? Or do we wait until later?
 }
 
 } // End of namespace MediaStation

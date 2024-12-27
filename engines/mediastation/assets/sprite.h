@@ -23,7 +23,7 @@
 #define MEDIASTATION_SPRITE_H
 
 #include "mediastation/assetheader.h"
-#include "mediastation/assets/bitmap.h"
+#include "mediastation/bitmap.h"
 
 namespace MediaStation {
 
@@ -50,18 +50,19 @@ private:
     SpriteFrameHeader *_bitmapHeader;
 };
 
-class Sprite {
+class Sprite : public Asset {
 public:
-    Sprite(AssetHeader *asset);
+    Sprite(AssetHeader *header) : Asset(header) {};
     ~Sprite();
 
-    void readFrame(Chunk &chunk);
-    void spatialShow();
-    void movieReset();
-    Common::Array<SpriteFrame *> _frames;
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
+
+    virtual void readChunk(Chunk &chunk) override;
 
 private:
-    AssetHeader *_header;
+    Common::Array<SpriteFrame *> _frames;
 };
 
 } // End of namespace MediaStation

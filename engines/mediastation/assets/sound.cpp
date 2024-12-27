@@ -26,43 +26,30 @@
 
 namespace MediaStation {
 
-Sound::Sound(AssetHeader *header) : _header(header) {
+Sound::Sound(AssetHeader *header) : Asset(header) {
     if (_header != nullptr) {
         _encoding = _header->_soundEncoding;
     }
-    _mixer = g_system->getMixer();
-}
-
-Sound::Sound(AssetHeader::SoundEncoding encoding) {
-    _encoding = encoding;
-    _mixer = g_system->getMixer();
 }
 
 Sound::~Sound() {
-    // TODO: Will this actually destroy the underlying buffers that we copied
-    // the data into?
-    // The sound doesn't own the header, so we don't need to delete it here.
-    _header = nullptr;
-    for (Audio::SeekableAudioStream *stream : _streams) {
-        delete stream;
-    }
+    delete _samples;
+    _samples = nullptr;
+    //for (Audio::SeekableAudioStream *stream : _streams) {
+    //    delete stream;
+    //}
 }
 
-void Sound::readSubfile(Subfile &subfile, Chunk &chunk, uint totalChunks) {
-    if (_streams.size() != 0) {
-        warning("Sound::readSubfile(): Some audio has already been read.");
-    }
-    uint32 expectedChunkId = chunk.id;
+void Sound::play() {
+    // TODO: Actually play the sound.
+}
 
-    readChunk(chunk);
-    for (uint i = 0; i < totalChunks; i++) {
-        chunk = subfile.nextChunk();
-        if (chunk.id != expectedChunkId) {
-            // TODO: Make this show the chunk IDs as strings, not numbers.
-            error("Sound::readSubfile(): Expected chunk %s, got %s", tag2str(expectedChunkId), tag2str(chunk.id));
-        }
-        readChunk(chunk);
-    }
+void Sound::stop() {
+    // TODO: Stop the sound.
+}
+
+void Sound::process() {
+    // TODO: Process more playing.
 }
 
 void Sound::readChunk(Chunk &chunk) {
@@ -73,15 +60,15 @@ void Sound::readChunk(Chunk &chunk) {
 
     switch(_encoding) {
         case AssetHeader::SoundEncoding::PCM_S16LE_MONO_22050: {
-            Audio::SeekableAudioStream *stream = Audio::makeRawStream(buffer, chunk.length, Sound::RATE, Sound::FLAGS, DisposeAfterUse::NO);
-            _streams.push_back(stream);
+            // Audio::SeekableAudioStream *stream = Audio::makeRawStream(buffer, chunk.length, Sound::RATE, Sound::FLAGS, DisposeAfterUse::NO);
+            //_streams.push_back(stream);
             break;
         }
 
         case AssetHeader::SoundEncoding::IMA_ADPCM_S16LE_MONO_22050: {
             // TODO: Support ADPCM decoding.
-            Audio::SeekableAudioStream *stream = nullptr; // Audio::makeADPCMStream(buffer, chunk.length, DisposeAfterUse::NO, Audio::ADPCMType::kADPCMMSIma, Sound::RATE, 1, 4);
-            _streams.push_back(stream);
+            // Audio::SeekableAudioStream *stream = nullptr; // Audio::makeADPCMStream(buffer, chunk.length, DisposeAfterUse::NO, Audio::ADPCMType::kADPCMMSIma, Sound::RATE, 1, 4);
+            //_streams.push_back(stream);
             break;
         }
 
@@ -93,18 +80,22 @@ void Sound::readChunk(Chunk &chunk) {
     debugC(5, kDebugLoading, "Sound::readChunk(): Finished reading audio chunk (@0x%lx)", chunk.pos());
 }
 
-void Sound::play() {
-    if (_streams.size() == 0) {
-        warning("Sound::play(): No audio streams to play");
-    }
+void Sound::readSubfile(Subfile &subfile, Chunk &chunk) {
+    //if (_streams.size() != 0) {
+    //    warning("Sound::readSubfile(): Some audio has already been read.");
+    //}
+    uint32 totalChunks = _header->_chunkCount;
+    uint32 expectedChunkId = chunk.id;
 
-    _queue = Audio::makeQueuingAudioStream(Sound::RATE, false);
-    for (Audio::SeekableAudioStream *stream : _streams) {
-        _queue->queueAudioStream(stream, DisposeAfterUse::NO);
+    readChunk(chunk);
+    for (uint i = 0; i < totalChunks; i++) {
+        chunk = subfile.nextChunk();
+        if (chunk.id != expectedChunkId) {
+            // TODO: Make this show the chunk IDs as strings, not numbers.
+            error("Sound::readSubfile(): Expected chunk %s, got %s", tag2str(expectedChunkId), tag2str(chunk.id));
+        }
+        readChunk(chunk);
     }
-
-    _mixer->stopHandle(_soundHandle);
-	_mixer->playStream(Audio::Mixer::kSFXSoundType, &_soundHandle, _queue, -1, Audio::Mixer::kMaxChannelVolume, 0, DisposeAfterUse::NO, false, false);
 }
 
 }

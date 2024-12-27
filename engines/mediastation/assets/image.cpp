@@ -19,26 +19,30 @@
  *
  */
 
-#include "mediastation/asset.h"
-#include "mediastation/assetheader.h"
+#include "mediastation/assets/image.h"
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
+Image::~Image() {
+    delete _bitmap;
+    _bitmap = nullptr;
 }
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
+void Image::play() {
+    _isPlaying = true;
+
+    // TODO: Blit on screen.
 }
 
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
+void Image::stop() {
+    _isPlaying = false;
+
+    // TODO: Remove the image from on screen.
 }
 
-AssetType Asset::type() const {
-    return _header->_type;
+void Image::readChunk(Chunk &chunk) {
+    BitmapHeader *bitmapHeader = new BitmapHeader(chunk);
+    _bitmap = new Bitmap(chunk, bitmapHeader);
 }
 
 } // End of namespace MediaStation

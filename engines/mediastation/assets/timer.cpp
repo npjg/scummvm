@@ -26,14 +26,6 @@
 
 namespace MediaStation {
 
-Timer::Timer(AssetHeader *header) : _header(header) {
-
-}
-
-Timer::~Timer() {
-    _header = nullptr;
-}
-
 void Timer::play() {
     if (_isPlaying) {
         warning("Timer::play(): Attempted to play a timer that is already playing");
@@ -60,7 +52,18 @@ void Timer::play() {
     }    
 }
 
-void Timer::processTimeEventHandlers() {
+void Timer::stop() {
+    if (!_isPlaying) {
+        warning("Timer::stop(): Attempted to stop a timer that is not playing");
+        return;
+    }
+
+    _isPlaying = false;
+    _startTime = 0;
+    _lastProcessedTime = 0;
+}
+
+void Timer::process() {
     if (!_isPlaying) {
         warning("Timer::processTimeEventHandlers(): Attempted to process time event handlers while not playing");
         return;
@@ -75,8 +78,6 @@ void Timer::processTimeEventHandlers() {
         _lastProcessedTime = 0;
         return;
     }
-
-    uint currentTime = g_system->getMillis();
     for (EventHandler *timeEvent : _header->_timeHandlers) {
         double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
         uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;

@@ -23,22 +23,24 @@
 #define MEDIASTATION_PATH_H
 
 #include "mediastation/assetheader.h"
-#include "mediastation/assets/bitmap.h"
+#include "mediastation/asset.h"
 
 namespace MediaStation {
 
-class Path {
+class Path : public Asset {
 public:
-    Path(AssetHeader *asset);
-    ~Path();
+    Path(AssetHeader *header) : Asset(header) {};
+    virtual ~Path() override;
 
-    void play();
+    virtual void play() override;
+    virtual void stop() override;
+    virtual void process() override;
+
     void setDuration(uint durationInMilliseconds);
     double percentComplete();
 
 private:
     uint32 _percentComplete = 0;
-    AssetHeader *_header = nullptr;
 };
 
 } // End of namespace MediaStation

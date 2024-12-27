@@ -126,7 +126,7 @@ Operand CodeChunk::executeNextStatement() {
                     }
 
                     // CALL THE METHOD.
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Calling method %d on asset 0x%x", methodId, selfObject.getAsset());
+                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Calling method %d on asset %d", methodId, selfObject.getAssetId());
                     // TODO: Where do we get the method from? And can we define
                     // our own methods? Or are only the built-in methods
                     // supported?
@@ -309,8 +309,9 @@ Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
                 case 3: {
                     uint dollarSignVariable = args[0].getInteger();
                     double percentComplete = args[1].getDouble();
+                    // TODO: Verify that this is a pelette!
                     Asset *asset = args[2].getAsset();
-                    g_engine->setPalette(asset);
+                    asset->play();
                     break;
                 }
 
@@ -333,7 +334,7 @@ Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
 Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> args) {
     Asset *selfAsset = self.getAsset();
     assert (selfAsset != nullptr);
-    AssetType selfAssetType = selfAsset->header->_type;
+    AssetType selfAssetType = selfAsset->type();
 
     switch ((BuiltInFunction)id) {
         case BuiltInFunction::spatialShow: {
@@ -341,7 +342,7 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
 
             // TODO: Show the image or sprite.
 
-            warning("Can't handle spatial show yet");
+            error("Can't handle spatial show yet");
             return Operand();
         }
 
@@ -365,47 +366,45 @@ Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Oper
 
         case BuiltInFunction::timePlay: {
             assert(args.empty());
-
-            switch (selfAssetType) {
-                case AssetType::MOVIE: {
-                    selfAsset->a.movie->play();
-                    g_engine->_assetsPlaying.push_back(selfAsset);
-                    break;
-                }
-
-                case AssetType::SOUND: {
-                    error("Sound not supported yet");
-                    break;
-                }
-
-                case AssetType::PATH: {
-                    selfAsset->a.path->play();
-                    break;
-                }
-
-                default: {
-                    error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::timePlay) Attempt to call timePlay on unsupported asset type %d", selfAssetType);
+            // Check if this asset is already in the array!
+            for (Asset *asset : g_engine->_assetsPlaying) {
+                if (asset == selfAsset) {
+                    return Operand();
                 }
             }
+
+            g_engine->_assetsPlaying.push_back(selfAsset);
+            selfAsset->play();
 
             // This function never returns a value.
             return Operand();
         }
 
         case BuiltInFunction::setDuration: {
-            assert(selfAssetType == AssetType::PATH);
+            Path *pathAsset = nullptr;
+            if (selfAssetType == AssetType::PATH) {
+                pathAsset = dynamic_cast<Path *>(selfAsset);
+                assert(pathAsset != nullptr);
+            } else {
+                error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::setDuration) Can only set duration on paths, not asset type 0x%x", selfAssetType);
+            }
             assert(args.size() == 1);
 
             uint durationInMilliseconds = (uint)(args[0].getDouble() * 1000);
-            selfAsset->a.path->setDuration(durationInMilliseconds);
+            pathAsset->setDuration(durationInMilliseconds);
             return Operand();
         }
 
         case BuiltInFunction::percentComplete: {
-            assert(selfAssetType == AssetType::PATH);
-            assert(args.size() == 0);
+            Path *pathAsset = nullptr;
+            if (selfAssetType == AssetType::PATH) {
+                pathAsset = dynamic_cast<Path *>(selfAsset);
+                assert(pathAsset != nullptr);
+            } else {
+                error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::setDuration) Can only get percent complete on paths, not asset type 0x%x", selfAssetType);
+            }
 
-            double percentComplete = selfAsset->a.path->percentComplete();
+            double percentComplete = pathAsset->percentComplete();
             Operand returnValue(Operand::Type::Float1);
             returnValue.putDouble(percentComplete);
             return returnValue;

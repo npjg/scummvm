@@ -19,26 +19,20 @@
  *
  */
 
-#include "mediastation/asset.h"
-#include "mediastation/assetheader.h"
+#include "mediastation/assets/hotspot.h"
 
 namespace MediaStation {
 
-Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
+void Hotspot::play() {
+
 }
 
-void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
+void Hotspot::stop() {
+
 }
 
-void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
-}
+void Hotspot::process() {
 
-AssetType Asset::type() const {
-    return _header->_type;
 }
 
 } // End of namespace MediaStation

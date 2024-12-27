@@ -24,14 +24,8 @@
 
 namespace MediaStation {
 
-
-Path::Path(AssetHeader *header) : _header(header) {
-
-}
-
 Path::~Path() {
-    // We don't own the header so we don't need to delete it.
-    _header = nullptr;
+    _percentComplete = 0;
 }
 
 void Path::play() {
@@ -79,6 +73,14 @@ void Path::play() {
 
     // CLEAN UP.
     _percentComplete = 0;
+}
+
+void Path::stop() {
+    // TODO: Handle this case.
+}
+
+void Path::process() {
+    // TODO: Handle this case.
 }
 
 void Path::setDuration(uint durationInMilliseconds) {

@@ -45,9 +45,12 @@ MediaStationEngine::MediaStationEngine(OSystem *syst, const ADGameDescription *g
 	_randomSource("MediaStation"),
 	_boot(nullptr) {
 	g_engine = this;
+	_mixer = g_system->getMixer();
 }
 
 MediaStationEngine::~MediaStationEngine() {
+	_mixer = nullptr;
+
 	delete _screen;
 	_screen = nullptr;
 
@@ -99,7 +102,8 @@ Common::Error MediaStationEngine::run() {
 	_boot = new Boot(bootStmFilepath);
 
 	// LOAD THE ROOT CONTEXT.
-	Context *root = nullptr;
+	// This is because we might have assets that always need to be loaded.
+	Context *root = nullptr; 
 	uint32 rootContextId = _boot->getRootContextId();
 	if (rootContextId != 0) {
 		root = loadContext(rootContextId);
@@ -133,7 +137,7 @@ Common::Error MediaStationEngine::run() {
 		for (Asset *asset : _assetsPlaying) {
 			asset->process();
 			if (!asset->isPlaying()) {
-				_assetsPlaying.erase(asset);
+				// _assetsPlaying.erase(asset);
 			}
 		}
 		// How can we check which assets should be playing? And how can we
@@ -170,6 +174,7 @@ Common::ErrorCode MediaStationEngine::processEvents() {
 			}
 		}
 	}
+	return Common::kUserCanceled; //Common::kNoError;
 }
 
 Context *MediaStationEngine::loadContext(uint32 contextId) {
@@ -204,11 +209,6 @@ Context *MediaStationEngine::loadContext(uint32 contextId) {
 
 	// SET THE VARIABLES.
 	return context;
-}
-
-void MediaStationEngine::setPalette(Asset *palette) {
-	assert(palette != nullptr);
-	setPaletteFromHeader(palette->header);
 }
 
 void MediaStationEngine::setPaletteFromHeader(AssetHeader *header) {

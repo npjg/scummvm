@@ -22,34 +22,42 @@
 #ifndef MEDIASTATION_ASSET_H
 #define MEDIASTATION_ASSET_H
 
+#include "common/func.h"
+
+#include "mediastation/subfile.h"
+#include "mediastation/chunk.h"
+
 namespace MediaStation {
 
+enum class AssetType;
 class AssetHeader;
-class Bitmap;
-class Sound;
-class Timer;
-class Movie;
-class Sprite;
-class Path;
 
-struct Asset {
-	Asset(AssetHeader *header);
-    ~Asset();
+class Asset {
+public:
+	Asset(AssetHeader *header) : _header(header) {};
+    virtual ~Asset();
 
-    void process();
-    void play();
-    bool isPlaying();
+    virtual void play() = 0;
+    virtual void stop() = 0;
+    // Called to have the asset do any processing, like drawing new frames,
+    // handling time-based event handlers, and such. Some assets don't have any 
+    // processing to do.
+    virtual void process() { return; };
+    virtual bool isPlaying() const { return _isPlaying; }
 
-	AssetHeader *header;
-    union {
-        Bitmap *bitmap;
-        Sound *sound;
-        Timer *timer;
-        Sprite *sprite;
-        // Font *font;
-        Movie *movie;
-        Path *path;
-    } a;
+    //typedef Operand (*Method)(const Common::Array<Operand> &);
+    //virtual Common::HashMap<uint32, Method> getMethodMap() const;
+
+    virtual void readChunk(Chunk &chunk);
+    virtual void readSubfile(Subfile &subfile, Chunk &chunk);
+    AssetType type() const;
+
+protected:
+	AssetHeader *_header = nullptr;
+    bool _isPlaying = false;
+    uint _startTime = 0;
+    uint _lastProcessedTime = 0;
+    uint _duration = 0;
 };
 
 } // End of namespace MediaStation
