@@ -30,6 +30,7 @@
 #include "mediastation/chunk.h"
 #include "mediastation/subfile.h"
 #include "mediastation/assetheader.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -43,8 +44,7 @@ public:
     //Sound(AssetHeader::SoundEncoding encoding);
     ~Sound();
 
-    virtual void play() override;
-    virtual void stop() override;
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
     virtual void process() override;
 
     virtual void readChunk(Chunk& chunk) override;

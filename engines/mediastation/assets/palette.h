@@ -24,6 +24,7 @@
 
 #include "mediastation/assetheader.h"
 #include "mediastation/asset.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -32,8 +33,7 @@ public:
     Palette(AssetHeader *header) : Asset(header) {};
     ~Palette() = default;
 
-    virtual void play() override;
-    virtual void stop() override;
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
 };
 
 } // End of namespace MediaStation

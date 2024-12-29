@@ -26,9 +26,29 @@
 
 namespace MediaStation {
 
-void Timer::play() {
+Operand Timer::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        case BuiltInFunction::timePlay: {
+            assert(args.size() == 0);
+            timePlay();
+            return Operand();
+        }
+
+        case BuiltInFunction::timeStop: {
+            assert(args.size() == 0);
+            timeStop();
+            return Operand();
+        }
+
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
+}
+
+void Timer::timePlay() {
     if (_isPlaying) {
-        warning("Timer::play(): Attempted to play a timer that is already playing");
+        error("Timer::play(): Attempted to play a timer that is already playing");
         return;
     }
 
@@ -36,6 +56,7 @@ void Timer::play() {
     _isPlaying = true;
     _startTime = g_system->getMillis();
     _lastProcessedTime = 0;
+    g_engine->addPlayingAsset(this);
 
     // GET THE DURATION OF THE TIMER.
     // TODO: Is there a better way to find out what the max time is? Do we have to look
@@ -52,7 +73,7 @@ void Timer::play() {
     }    
 }
 
-void Timer::stop() {
+void Timer::timeStop() {
     if (!_isPlaying) {
         warning("Timer::stop(): Attempted to stop a timer that is not playing");
         return;
@@ -65,7 +86,7 @@ void Timer::stop() {
 
 void Timer::process() {
     if (!_isPlaying) {
-        warning("Timer::processTimeEventHandlers(): Attempted to process time event handlers while not playing");
+        error("Timer::processTimeEventHandlers(): Attempted to process time event handlers while not playing");
         return;
     }
 
@@ -78,16 +99,18 @@ void Timer::process() {
         _lastProcessedTime = 0;
         return;
     }
+    debugC(7, kDebugScript, "** Timer %d: ON TIME Event Handlers **", _header->_id);
     for (EventHandler *timeEvent : _header->_timeHandlers) {
         double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
         uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
         bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
         bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
         if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
-            debugC(5, kDebugScript, "Timer::processTimeEventHandlers(): Running On Time handler for time %d ms (movie time: %d ms)", timeEventInMilliseconds, currentTime - _startTime);
-            timeEvent->execute();
+            debugC(5, kDebugScript, " -- On Time %d ms (real time: %d ms) --", timeEventInMilliseconds, currentTime - _startTime);
+            timeEvent->execute(_header->_id);
         }
     }
+    debugC(7, kDebugScript, "** Timer %d: End ON TIME Event Handlers **", _header->_id);
     _lastProcessedTime = currentTime - _startTime;
 }
 

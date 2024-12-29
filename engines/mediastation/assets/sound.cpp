@@ -40,12 +40,12 @@ Sound::~Sound() {
     //}
 }
 
-void Sound::play() {
-    // TODO: Actually play the sound.
-}
-
-void Sound::stop() {
-    // TODO: Stop the sound.
+Operand Sound::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
 }
 
 void Sound::process() {

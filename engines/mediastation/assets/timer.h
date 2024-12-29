@@ -23,6 +23,7 @@
 #define MEDIASTATION_TIMER_H
 
 #include "mediastation/assetheader.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -31,9 +32,13 @@ public:
     Timer(AssetHeader *header) : Asset(header) {};
     virtual ~Timer() override = default;
 
-    virtual void play() override;
-    virtual void stop() override;
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
     virtual void process() override;
+
+private:
+    // Method implementations.
+    void timePlay();
+    void timeStop();
 };
 
 } // End of namespace MediaStation

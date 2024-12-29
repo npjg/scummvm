@@ -22,7 +22,9 @@
 #ifndef MEDIASTATION_HOTSPOT_H
 #define MEDIASTATION_HOTSPOT_H
 
+#include "mediastation/asset.h"
 #include "mediastation/assetheader.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -31,9 +33,7 @@ public:
     Hotspot(AssetHeader *header) : Asset(header) {};
     virtual ~Hotspot() override = default;
 
-    virtual void play() override;
-    virtual void stop() override;
-    virtual void process() override;
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
 };
 
 } // End of namespace MediaStation

@@ -22,6 +22,7 @@
 #include "mediastation/assetheader.h"
 #include "mediastation/bitmap.h"
 #include "mediastation/assets/sound.h"
+#include "mediastation/mediascript/builtinfunctions.h"
 
 #ifndef MEDIASTATION_MOVIE_H
 #define MEDIASTATION_MOVIE_H
@@ -93,12 +94,11 @@ public:
     Movie(AssetHeader *header) : Asset(header) {};
     virtual ~Movie() override;
 
-    virtual void play() override;
-    virtual void stop() override;
-    virtual void process() override;
-
     virtual void readChunk(Chunk &chunk) override;
     virtual void readSubfile(Subfile &subfile, Chunk &chunk) override;
+
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
+    virtual void process() override;
 
 private:
     Common::Array<MovieFrame *> _frames;
@@ -107,6 +107,11 @@ private:
     byte *_audioSamples = nullptr;
     AssetHeader::SoundEncoding _soundEncoding;
 
+    // Method implementations. These should be called from callMethod.
+    void timePlay();
+    void timeStop();
+
+    // Internal helper functions.
     bool drawNextFrame();
     void processTimeEventHandlers();
 };

@@ -157,19 +157,19 @@ public:
     ChunkReference _audioChunkReference = 0;
     ChunkReference _animationChunkReference = 0;
     Common::Rect *_boundingBox = nullptr;
-    Common::Array<Common::Point *> *_mouseActiveArea;
+    Common::Array<Common::Point *> *_mouseActiveArea = nullptr;
     uint32 _zIndex = 0;
     uint32 _assetReference = 0;
     uint32 _startup = 0;
     bool _transparency = false;
     bool _hasOwnSubfile = false;
     uint32 _cursorResourceId = 0;
-    uint32 _frameRate = 0;
+    uint32 _frameRate = 10; // This is the default for sprites, which are the only ones that use this field.
     uint32 _loadType = 0;
     uint32 _totalChunks = 0;
     uint32 _rate = 0;
-    bool _editable = 0;
-    Graphics::Palette *_palette = 0;
+    bool _editable = 0; 
+    Graphics::Palette *_palette = nullptr;
     bool _getOffstageEvents = 0;
     uint32 _x = 0; // Image only.
     uint32 _y = 0; // Image only.
@@ -178,7 +178,6 @@ public:
     SoundEncoding _soundEncoding;
     uint32 _chunkCount = 0;
 
-    
     // PATH FIELDS.
     uint32 _dissolveFactor = 0;
     Common::Point *_startPoint = nullptr;

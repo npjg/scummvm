@@ -28,16 +28,12 @@ Image::~Image() {
     _bitmap = nullptr;
 }
 
-void Image::play() {
-    _isPlaying = true;
-
-    // TODO: Blit on screen.
-}
-
-void Image::stop() {
-    _isPlaying = false;
-
-    // TODO: Remove the image from on screen.
+Operand Image::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
 }
 
 void Image::readChunk(Chunk &chunk) {

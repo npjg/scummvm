@@ -25,13 +25,12 @@
 
 namespace MediaStation {
 
-void Palette::play() {
-    assert(_header != nullptr);
-    g_engine->setPaletteFromHeader(_header);
-}
-
-void Palette::stop() {
-    // TODO: Remove this palette. But it needs to be replaced with another, right?
+Operand Palette::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
 }
 
 } // End of namespace MediaStation

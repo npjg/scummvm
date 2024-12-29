@@ -59,13 +59,14 @@ public:
 	};
 	bool isFirstGenerationEngine();
 	Common::ErrorCode processEvents();
-	void setPaletteFromHeader(AssetHeader *header);
+
+	void setPalette(Asset *palette);
+	void addPlayingAsset(Asset *assetToAdd);
 
     Common::HashMap<uint, Asset *> _assets;
     Common::HashMap<uint, Function *> _functions;
 	Common::HashMap<uint32, Variable *> _variables;
     Common::HashMap<uint, Asset *> _assetsByChunkReference;
-	Common::Array<Asset *> _assetsPlaying;
 	Graphics::Screen *_screen = nullptr;
 	Audio::Mixer *_mixer = nullptr;
 
@@ -73,12 +74,14 @@ protected:
 	Common::Error run() override;
 
 private:
-	Context *loadContext(uint32 contextId);
-
 	Common::Event e;
 	const ADGameDescription *_gameDescription;
 	Common::RandomSource _randomSource;
 	Boot *_boot = nullptr;
+	Common::Array<Asset *> _assetsPlaying;
+
+	Context *loadContext(uint32 contextId);
+	void setPaletteFromHeader(AssetHeader *header);
 };
 
 extern MediaStationEngine *g_engine;

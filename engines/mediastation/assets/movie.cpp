@@ -145,6 +145,7 @@ uint32 MovieFrame::keyframeEndInMilliseconds() {
 
 MovieFrame::~MovieFrame() {
     delete _footer;
+    _footer = nullptr;
 }
 
 Movie::~Movie() {
@@ -166,7 +167,22 @@ Movie::~Movie() {
     _footers.clear();
 }
 
-void Movie::play() {
+Operand Movie::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        case BuiltInFunction::timePlay: {
+            assert(args.empty());
+            timePlay();
+
+            return Operand();
+        }
+
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
+}
+
+void Movie::timePlay() {
     if (_isPlaying) {
         error("Movie::play(): Attempted to play a movie that is already playing");
         return;
@@ -176,6 +192,7 @@ void Movie::play() {
     _isPlaying = true;
     _startTime = g_system->getMillis();
     _lastProcessedTime = 0;
+    g_engine->addPlayingAsset(this);
 
     // GET THE DURATION OF THE MOVIE.
     _duration = 0;
@@ -189,11 +206,11 @@ void Movie::play() {
     EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
     if (startEvent != nullptr) {
         debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
-        startEvent->execute();
+        startEvent->execute(_header->_id);
     }
 }
 
-void Movie::stop() {
+void Movie::timeStop() {
     // RESET ANIMATION VARIABLES.
     _isPlaying = false;
     _startTime = 0;
@@ -203,11 +220,12 @@ void Movie::stop() {
     EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieStopped);
     if (endEvent != nullptr) {
         debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
-        endEvent->execute();
+        endEvent->execute(_header->_id);
     }
 }
 
 void Movie::process() {
+    debugC(5, kDebugGraphics, "Movie %d: Redrawing", _header->_id);
     processTimeEventHandlers();
     drawNextFrame();
 }
@@ -226,7 +244,7 @@ void Movie::processTimeEventHandlers() {
         bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
         if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
             debugC(5, kDebugScript, "Movie::processTimeEventHandlers(): Running On Time handler for movie time %d ms (real movie time: %d ms)", timeEventInMilliseconds, currentTime - _startTime);
-            timeEvent->execute();
+            timeEvent->execute(_header->_id);
         }
     }
     _lastProcessedTime = currentTime - _startTime;
@@ -246,8 +264,8 @@ bool Movie::drawNextFrame() {
         // RUN THE MOVIE STOPPED EVENT HANDLER.
         EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieEnd);
         if (endEvent != nullptr) {
-            debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
-            endEvent->execute();
+            debugC(5, kDebugScript, "Movie::drawNextFrame(): Executing movie end event handler");
+            endEvent->execute(_header->_id);
         }
         return false;
     }
@@ -275,7 +293,7 @@ bool Movie::drawNextFrame() {
 
     uint frameBlitEnd = g_system->getMillis() - _startTime;
     uint elapsedTime = frameBlitEnd - movieTime;
-    debugC(8, kDebugGraphics, "Movie::play(): Finished frame blitting in %d ms (current movie time: %d ms)", elapsedTime, frameBlitEnd);
+    debugC(8, kDebugGraphics, "Movie::drawNextFrame(): Finished frame blitting in %d ms (current movie time: %d ms)", elapsedTime, frameBlitEnd);
     return true;
 }
 

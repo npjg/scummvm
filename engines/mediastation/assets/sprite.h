@@ -22,8 +22,10 @@
 #ifndef MEDIASTATION_SPRITE_H
 #define MEDIASTATION_SPRITE_H
 
+#include "mediastation/asset.h"
 #include "mediastation/assetheader.h"
 #include "mediastation/bitmap.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -38,7 +40,8 @@ public:
 
 class SpriteFrame : public Bitmap {
 public:
-    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header) : Bitmap(chunk, header) {}
+    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header);
+    ~SpriteFrame();
 
     uint32 left();
     uint32 top();
@@ -47,7 +50,7 @@ public:
     uint32 index();
 
 private:
-    SpriteFrameHeader *_bitmapHeader;
+    SpriteFrameHeader *_bitmapHeader = nullptr;
 };
 
 class Sprite : public Asset {
@@ -55,14 +58,21 @@ public:
     Sprite(AssetHeader *header) : Asset(header) {};
     ~Sprite();
 
-    virtual void play() override;
-    virtual void stop() override;
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
     virtual void process() override;
 
     virtual void readChunk(Chunk &chunk) override;
 
 private:
     Common::Array<SpriteFrame *> _frames;
+
+    // Method implementations.
+    void spatialShow();
+    void timePlay();
+
+    // Helper functions.
+    bool drawNextFrame();
+    void drawFirstFrame();
 };
 
 } // End of namespace MediaStation

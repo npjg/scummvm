@@ -28,7 +28,35 @@ Path::~Path() {
     _percentComplete = 0;
 }
 
-void Path::play() {
+Operand Path::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        case BuiltInFunction::timePlay: {
+            assert(args.size() == 0);
+            timePlay();
+            return Operand();
+        }
+
+        case BuiltInFunction::setDuration: {
+            assert(args.size() == 1);
+            uint durationInMilliseconds = (uint)(args[0].getDouble() * 1000);
+            setDuration(durationInMilliseconds);
+            return Operand();
+        }
+
+        case BuiltInFunction::percentComplete: {
+            assert(args.size() == 0);
+            Operand returnValue(Operand::Type::Float1);
+            returnValue.putDouble(percentComplete());
+            return returnValue;
+        }
+
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
+}
+
+void Path::timePlay() {
     // TODO: Check that itʻs zero before we reset it, since this function isn't re-entrant!
     _percentComplete = 0;
 
@@ -45,14 +73,14 @@ void Path::play() {
     EventHandler *startEventHandler = nullptr; // TODO: Haven't seen a path start event in the wild yet, don't know its ID.
     if (startEventHandler != nullptr) {
         debugC(5, kDebugScript, "Path::play(): Running PathStart event handler");
-        startEventHandler->execute();
+        startEventHandler->execute(_header->_id);
     }
 
     // STEP THE PATH.
     EventHandler *pathStepHandler = _header->_eventHandlers[EventHandler::Type::Step];
     for (uint i = 0; i < totalSteps; i++) {
         _percentComplete = (double)(i + 1) / totalSteps;
-        debugC(5, kDebugGraphics, "Path::play(): Step %d of %d (%d%% complete)", i, totalSteps, _percentComplete);
+        debugC(5, kDebugGraphics, "Path::play(): Step %d of %d (%d%% complete)", i, totalSteps, _percentComplete * 100);
         // TODO: Actually step the path. It seems they mostly just use this for
         // palette animation in the On Step event handler, so nothing is actually drawn on the screen now.
 
@@ -60,7 +88,7 @@ void Path::play() {
         // TODO: Is this supposed to come after or before we step the path?
         if (pathStepHandler != nullptr) {
             debugC(5, kDebugScript, "Path::play(): Running PathStep event handler");
-            pathStepHandler->execute();
+            pathStepHandler->execute(_header->_id);
         }
     }
 
@@ -68,15 +96,11 @@ void Path::play() {
     EventHandler *endEventHandler = _header->_eventHandlers[EventHandler::Type::PathEnd];
     if (endEventHandler != nullptr) {
         debugC(5, kDebugScript, "Path::play(): Running PathEnd event handler");
-        endEventHandler->execute();
+        endEventHandler->execute(_header->_id);
     }
 
     // CLEAN UP.
     _percentComplete = 0;
-}
-
-void Path::stop() {
-    // TODO: Handle this case.
 }
 
 void Path::process() {
@@ -91,7 +115,7 @@ void Path::setDuration(uint durationInMilliseconds) {
 
 
 double Path::percentComplete() {
-    debugC(5, kDebugScript, "Path::percentComplete(): Returning percent complete %d%%", _percentComplete);
+    debugC(5, kDebugScript, "Path::percentComplete(): Returning percent complete %d%%", _percentComplete * 100);
     return _percentComplete;
 }
 

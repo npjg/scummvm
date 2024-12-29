@@ -24,6 +24,7 @@
 
 #include "mediastation/assetheader.h"
 #include "mediastation/asset.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -32,15 +33,17 @@ public:
     Path(AssetHeader *header) : Asset(header) {};
     virtual ~Path() override;
 
-    virtual void play() override;
-    virtual void stop() override;
     virtual void process() override;
 
-    void setDuration(uint durationInMilliseconds);
-    double percentComplete();
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
 
 private:
     uint32 _percentComplete = 0;
+
+    // Method implementations.
+    void timePlay();
+    void setDuration(uint durationInMilliseconds);
+    double percentComplete();
 };
 
 } // End of namespace MediaStation

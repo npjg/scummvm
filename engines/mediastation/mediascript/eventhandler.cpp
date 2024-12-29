@@ -39,11 +39,36 @@ EventHandler::EventHandler(Chunk &chunk): _code(nullptr) {
     _code = new CodeChunk(chunk);
 }
 
-Operand EventHandler::execute() {
+Operand EventHandler::execute(uint assetId) {
+    switch (_argumentType) {
+        case EventHandler::ArgumentType::Null: {
+            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (no argument) **********", assetId, (uint)_type);
+            break;
+        }
+
+        case EventHandler::ArgumentType::AsciiCode: {
+            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (ASCII code = %d) **********", assetId, (uint)_type, _argumentValue.u.i);
+            break;
+        }
+
+        case EventHandler::ArgumentType::Context: {
+            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (context = %d) **********", assetId, (uint)_type, _argumentValue.u.i);
+            break;
+        }
+
+        case EventHandler::ArgumentType::Time: 
+        case EventHandler::ArgumentType::Unk1: {
+            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (time = %f) **********", assetId, (uint)_type, _argumentValue.u.f);
+            break;
+        }
+    }
+
     // The only argument that can be provided to an event handler is the
     // _argumentValue.
     // So if we are here, we can execute it directly.
-    return _code->execute();
+    Operand returnValue = _code->execute();
+    debugC(8, kDebugScript, "********** END EVENT HANDLER **********");
+    return returnValue;
 }
 
 EventHandler::~EventHandler() {

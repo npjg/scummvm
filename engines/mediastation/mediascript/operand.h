@@ -24,12 +24,12 @@
 
 #include "common/array.h"
 
-#include "mediastation/asset.h"
 #include "mediastation/mediascript/variable.h"
 
 namespace MediaStation {
 
 class Function;
+class Asset;
 
 class Operand {
 public:

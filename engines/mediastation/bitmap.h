@@ -43,7 +43,7 @@ public:
 
     bool isCompressed();
 
-    Common::Point *dimensions;
+    Common::Point *dimensions = nullptr;
     CompressionType compression_type;
     uint unk2;
 };

@@ -120,7 +120,7 @@ Common::Error MediaStationEngine::run() {
 		EventHandler *entryEvent = activeScreen->_screenAsset->_eventHandlers.getValOrDefault(EventHandler::Type::Entry);
 		if (entryEvent != nullptr) {
 			debugC(5, kDebugScript, "Executing context entry event handler");
-			entryEvent->execute();
+			entryEvent->execute(activeScreen->_screenAsset->_id);
 		} else {
 			debugC(5, kDebugScript, "No context entry event handler");
 		}
@@ -134,14 +134,15 @@ Common::Error MediaStationEngine::run() {
 			return status;
 		}
 
-		for (Asset *asset : _assetsPlaying) {
-			asset->process();
-			if (!asset->isPlaying()) {
-				// _assetsPlaying.erase(asset);
+		// PROCESS ANY ASSETS CURRENTLY PLAYING.
+		for (auto it = _assetsPlaying.begin(); it != _assetsPlaying.end(); ) {
+			(*it)->process();
+			if (!(*it)->isPlaying()) {
+				it = _assetsPlaying.erase(it);
+			} else {
+				++it;
 			}
 		}
-		// How can we check which assets should be playing? And how can we
-		// trigger timers on them?
 
     	g_engine->_screen->update();
 		g_system->delayMillis(10);
@@ -211,6 +212,11 @@ Context *MediaStationEngine::loadContext(uint32 contextId) {
 	return context;
 }
 
+void MediaStationEngine::setPalette(Asset *palette) {
+	assert(palette != nullptr);
+	setPaletteFromHeader(palette->getHeader());
+}
+
 void MediaStationEngine::setPaletteFromHeader(AssetHeader *header) {
 	assert(header != nullptr);
 	if (header->_palette != nullptr) {
@@ -218,6 +224,18 @@ void MediaStationEngine::setPaletteFromHeader(AssetHeader *header) {
 	} else {
 		warning("MediaStationEngine::setPaletteFromHeader(): Asset %d does not have a palette. Current palette will be unchanged.", header->_id);
 	}
+}
+
+
+void MediaStationEngine::addPlayingAsset(Asset *assetToAdd) {
+	// If we're already marking the asset as played, we don't need to mark it
+	// played again.
+	for (Asset *asset : g_engine->_assetsPlaying) {
+		if (asset == assetToAdd) {
+			return;
+		}
+	}
+	g_engine->_assetsPlaying.push_back(assetToAdd);
 }
 
 } // End of namespace MediaStation

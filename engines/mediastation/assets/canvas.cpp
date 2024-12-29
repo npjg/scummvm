@@ -23,12 +23,17 @@
 
 namespace MediaStation {
 
-void Canvas::play() {
+Operand Canvas::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        case BuiltInFunction::clearToPalette: {
+            error("Canvas::callMethod(): BuiltInFunction::clearToPalette is not implemented yet");
+        }
 
-}
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
 
-void Canvas::stop() {
-
+    }
 }
 
 } // End of namespace MediaStation

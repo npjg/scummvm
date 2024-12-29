@@ -26,6 +26,8 @@
 
 #include "mediastation/subfile.h"
 #include "mediastation/chunk.h"
+#include "mediastation/mediascript/builtinfunctions.h"
+#include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
 
@@ -37,26 +39,26 @@ public:
 	Asset(AssetHeader *header) : _header(header) {};
     virtual ~Asset();
 
-    virtual void play() = 0;
-    virtual void stop() = 0;
+    virtual void process() { return; };
+    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) = 0;
     // Called to have the asset do any processing, like drawing new frames,
     // handling time-based event handlers, and such. Some assets don't have any 
     // processing to do.
-    virtual void process() { return; };
     virtual bool isPlaying() const { return _isPlaying; }
-
-    //typedef Operand (*Method)(const Common::Array<Operand> &);
-    //virtual Common::HashMap<uint32, Method> getMethodMap() const;
 
     virtual void readChunk(Chunk &chunk);
     virtual void readSubfile(Subfile &subfile, Chunk &chunk);
     AssetType type() const;
 
+    AssetHeader *getHeader() const { return _header; }
+
 protected:
 	AssetHeader *_header = nullptr;
     bool _isPlaying = false;
+    bool _isVisible = false;
     uint _startTime = 0;
     uint _lastProcessedTime = 0;
+    // TODO: Rename this to indicate the time is in milliseconds.
     uint _duration = 0;
 };
 

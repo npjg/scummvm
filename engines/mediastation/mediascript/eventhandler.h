@@ -96,7 +96,7 @@ public:
     EventHandler(Chunk &chunk);
     ~EventHandler();
 
-    Operand execute();
+    Operand execute(uint assetId);
     EventHandler::Type _type;
     EventHandler::ArgumentType _argumentType;
     Datum _argumentValue;

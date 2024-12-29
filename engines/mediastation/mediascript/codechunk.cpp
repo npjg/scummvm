@@ -40,7 +40,7 @@ Operand CodeChunk::execute(Common::Array<Operand> *args) {
     _args = args;
     Operand returnValue;
     while (_bytecode->pos() < _bytecode->size()) {
-        debugC(5, kDebugScript, "CodeChunk::execute(): Getting next statement");
+        debugC(8, kDebugScript, "-------- Statement --------");
         returnValue = executeNextStatement();
     }
 
@@ -60,25 +60,27 @@ Operand CodeChunk::executeNextStatement() {
     }
 
     InstructionType instructionType = InstructionType(Datum(*_bytecode).u.i);
-    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): instructionType = %d", (uint)instructionType);
+    debugC(8, kDebugScript, " instructionType = %d", (uint)instructionType);
     switch (instructionType) {
         case InstructionType::EMPTY: {
-            debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): Reached end of bytecode");
             return Operand();
         }
 
         case InstructionType::FUNCTION_CALL: {
             Opcode opcode = Opcode(Datum(*_bytecode).u.i);
-            debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): opcode = %d", (uint)opcode);
+            debugC(8, kDebugScript, "  *** Opcode %d ***", (uint)opcode);
             switch (opcode) {
                 case Opcode::AssignVariable: {
                     uint32 id = Datum(*_bytecode).u.i;
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::AssignVariable) id = %d", id);
+                    debugC(8, kDebugScript, "   id = %d", id);
                     VariableScope scope = VariableScope(Datum(*_bytecode).u.i);
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::AssignVariable) scope = %d", (uint)scope);
+                    debugC(8, kDebugScript, "   scope = %d", (uint)scope);
                     Operand newValue = executeNextStatement();
                     // TODO: Actually assign the variable!
                     // Operand variable = getVariable(id, scope);
+                    
+                    // TODO: Print the new variable value!
+                    debugC(5, kDebugScript, "SCRIPT: [ %d (scope: %d) ] = [ %d ]", (uint)scope, id, 0);
                     putVariable(id, scope, newValue);
                     return Operand();
                 }
@@ -86,17 +88,18 @@ Operand CodeChunk::executeNextStatement() {
                 case Opcode::CallRoutine: {
                     // READ WHAT WE NEED TO CALL THE ROUTINE.
                     uint functionId = Datum(*_bytecode).u.i;
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallRoutine) functionId = %d", functionId);
+                    debugC(8, kDebugScript, "   functionId = %d", functionId);
                     uint32 parameterCount = Datum(*_bytecode).u.i;
+                    debugC(8, kDebugScript, "   parameterCount = %d", parameterCount);
                     Common::Array<Operand> args;
                     for (uint i = 0; i < parameterCount; i++) {
-                        debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallRoutine) Reading argument %d of %d", (i + 1), parameterCount);
+                        debugC(8, kDebugScript, "   -- Argument %d of %d --", (i + 1), parameterCount);
                         Operand arg = executeNextStatement();
                         args.push_back(arg);
                     }
 
                     // CALL THE ROUTINE.
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallRoutine) Calling routine %d", functionId);
+                    debugC(8, kDebugScript, "   Calling routine");
                     Operand returnValue;
                     Function *function = g_engine->_functions.getValOrDefault(functionId);
                     if (function != nullptr) {
@@ -104,40 +107,42 @@ Operand CodeChunk::executeNextStatement() {
                     } else {
                         returnValue = callBuiltInFunction(functionId, args);
                     }
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallRoutine) Returned from called routine");
+                    debugC(8, kDebugScript, "  *** RETURNED FROM ROUTINE ***");
                     return returnValue;
                 }
 
                 case Opcode::CallMethod: {
                     // READ WHAT WE NEED TO CALL THE METHOD.
                     uint32 methodId = Datum(*_bytecode).u.i;
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Got method ID %d", methodId);
+                    debugC(8, kDebugScript, "   methodId = %d", methodId);
                     uint32 parameterCount = Datum(*_bytecode).u.i;
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Getting self object");
+                    debugC(8, kDebugScript, "   parameterCount = %d", parameterCount);
                     Operand selfObject = executeNextStatement();
+                    debugC(8, kDebugScript, "   selfObject = [ %d ]", selfObject.getAssetId());
                     if (selfObject.getType() != Operand::Type::AssetId) {
                         error("CodeChunk::executeNextStatement(): (Opcode::CallMethod) Attempt to call method on operand that is not an asset (type 0x%x)", selfObject.getType());
                     }
                     Common::Array<Operand> args;
                     for (uint i = 0; i < parameterCount; i++) {
-                        debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Reading argument %d of %d", (i + 1), parameterCount);
+                        debugC(8, kDebugScript, "   -- Argument %d of %d --", (i + 1), parameterCount);
                         Operand arg = executeNextStatement();
                         args.push_back(arg);
                     }
 
                     // CALL THE METHOD.
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Calling method %d on asset %d", methodId, selfObject.getAssetId());
+                    // TODO: Resolve asset IDs to names in this decompilation.
+                    debugC(5, kDebugScript, "SCRIPT: @[ %d ].[ %d ]()", selfObject.getAssetId(), methodId);
                     // TODO: Where do we get the method from? And can we define
                     // our own methods? Or are only the built-in methods
                     // supported?
                     Operand returnValue = callBuiltInMethod(methodId, selfObject, args);
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Returned from called method");
+                    debugC(8, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Returned from called method");
                     return returnValue;
                 }
 
                 case Opcode::DeclareVariables: {
                     uint32 localVariableCount = Datum(*_bytecode).u.i;
-                    debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::DeclareVariables) Declaring %d local variables", localVariableCount);
+                    debugC(5, kDebugScript, "   Declaring %d local variables", localVariableCount);
                     _locals.resize(localVariableCount);
                     return Operand();
                 }
@@ -159,11 +164,12 @@ Operand CodeChunk::executeNextStatement() {
 
         case (InstructionType::OPERAND): {
             Operand::Type operandType = Operand::Type(Datum(*_bytecode).u.i);
+            debugC(8, kDebugScript, "  *** Operand %d ***", (uint)operandType);
             Operand operand(operandType);
             switch (operandType) {
                 case Operand::Type::AssetId: {
                     uint32 assetId = Datum(*_bytecode).u.i;
-                    debugC(5, kDebugScript, "CodeChunk::getNextStatement(): (Operand::Type::AssetId) Got asset ID 0x%x", assetId);
+                    debugC(8, kDebugScript, "   assetId = %d", assetId);
                     operand.putAsset(assetId);
                     return operand;
                 }
@@ -172,6 +178,7 @@ Operand CodeChunk::executeNextStatement() {
                 case Operand::Type::Literal2:
                 case Operand::Type::DollarSignVariable: {
                     int literal = Datum(*_bytecode).u.i;
+                    debugC(8, kDebugScript, "   literal = %d", literal);
                     operand.putInteger(literal);
                     return operand;
                 }
@@ -179,6 +186,7 @@ Operand CodeChunk::executeNextStatement() {
                 case Operand::Type::Float1:
                 case Operand::Type::Float2: {
                     double d = Datum(*_bytecode).u.f;
+                    debugC(8, kDebugScript, "   double = %f", d);
                     operand.putDouble(d);
                     return operand;
                 }
@@ -192,9 +200,9 @@ Operand CodeChunk::executeNextStatement() {
 
         case (InstructionType::VARIABLE_REF): {
             uint32 id = Datum(*_bytecode).u.i;
-            debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (InstructionType::VariableRef) id = %d", id);
+            debugC(8, kDebugScript, "   id = %d", id);
             VariableScope scope = VariableScope(Datum(*_bytecode).u.i);
-            debugC(5, kDebugScript, "CodeChunk::executeNextStatement(): (InstructionType::VariableRef) scope = %d", (uint)scope);
+            debugC(8, kDebugScript, "   scope = %d", (uint)scope);
             Operand variable = getVariable(id, scope);
             return variable;
         }
@@ -297,7 +305,7 @@ void CodeChunk::putVariable(uint32 id, VariableScope scope, Operand value) {
     }
 }
 
-Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
+Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> &args) {
     switch ((BuiltInFunction)id) {
         case BuiltInFunction::effectTransition: {
             switch (args.size()) {
@@ -309,9 +317,10 @@ Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
                 case 3: {
                     uint dollarSignVariable = args[0].getInteger();
                     double percentComplete = args[1].getDouble();
-                    // TODO: Verify that this is a pelette!
+
+                    // TODO: Verify that this is a palette!
                     Asset *asset = args[2].getAsset();
-                    asset->play();
+                    g_engine->setPalette(asset);
                     break;
                 }
 
@@ -331,89 +340,11 @@ Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> args) {
     }
 }
 
-Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> args) {
+Operand CodeChunk::callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> &args) {
     Asset *selfAsset = self.getAsset();
     assert (selfAsset != nullptr);
-    AssetType selfAssetType = selfAsset->type();
-
-    switch ((BuiltInFunction)id) {
-        case BuiltInFunction::spatialShow: {
-            assert(args.empty());
-
-            // TODO: Show the image or sprite.
-
-            error("Can't handle spatial show yet");
-            return Operand();
-        }
-
-        case BuiltInFunction::mouseActivate: {
-            assert (selfAssetType == AssetType::HOTSPOT);
-            assert(args.empty());
-
-            // TODO: Activate the mouse.
-
-            return Operand();
-        }
-
-        case BuiltInFunction::mouseDeactivate: {
-            assert (selfAssetType == AssetType::HOTSPOT);
-            assert (args.empty());
-
-            // TODO: Deactivate the mouse.
-
-            return Operand();
-        }
-
-        case BuiltInFunction::timePlay: {
-            assert(args.empty());
-            // Check if this asset is already in the array!
-            for (Asset *asset : g_engine->_assetsPlaying) {
-                if (asset == selfAsset) {
-                    return Operand();
-                }
-            }
-
-            g_engine->_assetsPlaying.push_back(selfAsset);
-            selfAsset->play();
-
-            // This function never returns a value.
-            return Operand();
-        }
-
-        case BuiltInFunction::setDuration: {
-            Path *pathAsset = nullptr;
-            if (selfAssetType == AssetType::PATH) {
-                pathAsset = dynamic_cast<Path *>(selfAsset);
-                assert(pathAsset != nullptr);
-            } else {
-                error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::setDuration) Can only set duration on paths, not asset type 0x%x", selfAssetType);
-            }
-            assert(args.size() == 1);
-
-            uint durationInMilliseconds = (uint)(args[0].getDouble() * 1000);
-            pathAsset->setDuration(durationInMilliseconds);
-            return Operand();
-        }
-
-        case BuiltInFunction::percentComplete: {
-            Path *pathAsset = nullptr;
-            if (selfAssetType == AssetType::PATH) {
-                pathAsset = dynamic_cast<Path *>(selfAsset);
-                assert(pathAsset != nullptr);
-            } else {
-                error("CodeChunk::callBuiltInMethod(): (BuiltInFunction::setDuration) Can only get percent complete on paths, not asset type 0x%x", selfAssetType);
-            }
-
-            double percentComplete = pathAsset->percentComplete();
-            Operand returnValue(Operand::Type::Float1);
-            returnValue.putDouble(percentComplete);
-            return returnValue;
-        }
-
-        default: {
-            error("CodeChunk::callBuiltInMethod(): Got unknown method ID %d", id);
-        }
-    }
+    Operand returnValue = selfAsset->callMethod((BuiltInFunction)id, args);
+    return returnValue;
 }
 
 CodeChunk::~CodeChunk() {

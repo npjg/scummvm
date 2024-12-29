@@ -23,16 +23,24 @@
 
 namespace MediaStation {
 
-void Hotspot::play() {
+Operand Hotspot::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
+    switch (methodId) {
+        case BuiltInFunction::mouseActivate: {
+            assert(args.empty());
+            warning("Hotspot::callMethod(): BuiltInFunction::mouseActivate is not implemented");
+            return Operand();
+        }
 
-}
+        case BuiltInFunction::mouseDeactivate: {
+            assert(args.empty());
+            warning("Hotspot::callMethod(): BuiltInFunction::mouseDeactivate is not implemented");
+            return Operand();
+        }
 
-void Hotspot::stop() {
-
-}
-
-void Hotspot::process() {
-
+        default: {
+            error("Got unimplemented method ID %d", methodId);
+        }
+    }
 }
 
 } // End of namespace MediaStation
