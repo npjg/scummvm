@@ -82,7 +82,6 @@ void OSystem_Switch::initBackend() {
 	ConfMan.registerDefault("filtering", true);
 	ConfMan.registerDefault("output_rate", 48000);
 	ConfMan.registerDefault("touchpad_mouse_mode", false);
-	ConfMan.registerDefault("gm_device", "null");
 
 	ConfMan.setBool("fullscreen", true);
 	ConfMan.setInt("joystick_num", 0);
@@ -122,28 +121,6 @@ bool OSystem_Switch::hasFeature(Feature f) {
 		return false;
 	return (f == kFeatureTouchpadMode ||
 		OSystem_SDL::hasFeature(f));
-}
-
-void OSystem_Switch::setFeatureState(Feature f, bool enable) {
-	switch (f) {
-	case kFeatureTouchpadMode:
-		ConfMan.setBool("touchpad_mouse_mode", enable);
-		break;
-	default:
-		OSystem_SDL::setFeatureState(f, enable);
-		break;
-	}
-}
-
-bool OSystem_Switch::getFeatureState(Feature f) {
-	switch (f) {
-	case kFeatureTouchpadMode:
-		return ConfMan.getBool("touchpad_mouse_mode");
-		break;
-	default:
-		return OSystem_SDL::getFeatureState(f);
-		break;
-	}
 }
 
 void OSystem_Switch::logMessage(LogMessageType::Type type, const char *message) {

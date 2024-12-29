@@ -34,11 +34,11 @@
 #include "sci/graphics/view.h"
 #include "sci/graphics/palette.h"
 #include "sci/graphics/scifx.h"
-#include "sci/graphics/gfxdrivers.h"
+#include "sci/graphics/drivers/gfxdriver.h"
 
 namespace Sci {
 
-GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _resMan(resMan) {
+GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _resMan(resMan), _hiresGlyphBuffer(nullptr) {
 
 	// Scale the screen, if needed
 	_upscaledHires = GFX_SCREEN_UPSCALED_DISABLED;
@@ -54,22 +54,6 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 	_curPaletteMapValue = 0;
 	_paletteModsEnabled = false;
 
-	// King's Quest 6 has hires content in the Windows version which we also
-	// allow to be optionally enabled in the DOS version.
-	if (g_sci->getGameId() == GID_KQ6) {
-		if ((g_sci->getPlatform() == Common::kPlatformWindows) ||
-			(g_sci->getPlatform() == Common::kPlatformDOS && g_sci->forceHiresGraphics())) {
-			_upscaledHires = GFX_SCREEN_UPSCALED_640x440;
-		}
-	}
-
-	// Korean versions of games use hi-res font on upscaled version of the game.
-	if ((g_sci->getLanguage() == Common::KO_KOR) && (getSciVersion() <= SCI_VERSION_1_1))
-		_upscaledHires = GFX_SCREEN_UPSCALED_640x400;
-	// Japanese versions of games use hi-res font on upscaled version of the game.
-	if ((g_sci->getLanguage() == Common::JA_JPN) && (getSciVersion() <= SCI_VERSION_1_1))
-		_upscaledHires = GFX_SCREEN_UPSCALED_640x400;
-
 	if (g_sci->getPlatform() == Common::kPlatformMacintosh) {
 		if (getSciVersion() <= SCI_VERSION_01) {
 			// Macintosh SCI0 games used 480x300, while the scripts were running at 320x200
@@ -78,7 +62,7 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 			_height = 300; // regular visual, priority and control map are 480x300 (this is different than other upscaled SCI games)
 		} else {
 			// Macintosh SCI1/1.1 games use hi-res native fonts if hi-res graphics are enabled
-			if (g_sci->hasMacFonts() && g_sci->forceHiresGraphics()) {
+			if (g_sci->hasMacFonts() && g_sci->useHiresGraphics()) {
 				_upscaledHires = GFX_SCREEN_UPSCALED_640x400;
 			}
 		}
@@ -119,22 +103,11 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 			_upscaledWidthMapping[i] = (i * 3) >> 1;
 		break;
 	case GFX_SCREEN_UPSCALED_640x400:
-		// Police Quest 2 and Quest For Glory on PC9801 (Japanese)
 		// Mac SCI1/1.1 with hi-res Mac fonts
-		// Korean fan translations
 		_displayWidth = _scriptWidth * 2;
 		_displayHeight = _scriptHeight * 2;
 		for (int i = 0; i <= _scriptHeight; i++)
 			_upscaledHeightMapping[i] = i * 2;
-		for (int i = 0; i <= _scriptWidth; i++)
-			_upscaledWidthMapping[i] = i * 2;
-		break;
-	case GFX_SCREEN_UPSCALED_640x440:
-		// used by King's Quest 6 on Windows
-		_displayWidth = 640;
-		_displayHeight = 440;
-		for (int i = 0; i <= _scriptHeight; i++)
-			_upscaledHeightMapping[i] = (i * 11) / 5;
 		for (int i = 0; i <= _scriptWidth; i++)
 			_upscaledWidthMapping[i] = i * 2;
 		break;
@@ -155,7 +128,7 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 		// We add 2 to the height of the icon bar to add a buffer between the screen and the
 		// icon bar (as did the original interpreter).
 		switch (g_sci->getGameId()) {
-		case GID_KQ6: 
+		case GID_KQ6:
 			extraHeight = 26 + 2;
 			break;
 		case GID_FREDDYPHARKAS:
@@ -170,41 +143,12 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 		}
 	}
 
-	bool enablePaletteMods = ConfMan.hasKey("palette_mods") && ConfMan.getBool("palette_mods");
-	bool requestRGB = enablePaletteMods || (ConfMan.hasKey("rgb_rendering") && ConfMan.getBool("rgb_rendering"));
-
-	_gfxDrv = nullptr;
-	if (getSciVersion() <= SCI_VERSION_0_LATE || getSciVersion() == SCI_VERSION_1_EGA_ONLY) {
-		switch (renderMode) {
-		case Common::kRenderCGA:
-			_gfxDrv = new SCI0_CGADriver(false, requestRGB);
-			break;
-		case Common::kRenderCGA_BW:
-			_gfxDrv = new SCI0_CGABWDriver(0xffffff, requestRGB);
-			break;
-		case Common::kRenderHercA:
-		case Common::kRenderHercG:
-			_gfxDrv = new SCI0_HerculesDriver(renderMode == Common::kRenderHercG ? 0x66ff66 : 0xffbf66, requestRGB, false);
-			break;
-		default:
-			break;
-		}
-	} else {
-		switch (renderMode) {
-		case Common::kRenderEGA:
-			_gfxDrv = new SCI1_EGADriver(requestRGB);
-			break;
-		case Common::kRenderVGAGrey:
-			_gfxDrv = new SCI1_VGAGreyScaleDriver(requestRGB);
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (_gfxDrv == nullptr)
-		_gfxDrv = new GfxDefaultDriver(_displayWidth, _displayHeight + extraHeight, requestRGB);
+	_gfxDrv = SciGfxDriver::create(renderMode, _displayWidth, _displayHeight + extraHeight);
 	assert(_gfxDrv);
+
+	// Buffer for rendering a single two-byte character
+	if (_gfxDrv->driverBasedTextRendering())
+		_hiresGlyphBuffer = new byte[16 * 16]();
 
 	_displayPixels = _displayWidth * _displayHeight;
 
@@ -213,7 +157,7 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 	_priorityScreen = (byte *)calloc(_pixels, 1);
 	_controlScreen = (byte *)calloc(_pixels, 1);
 	_displayScreen = (byte *)calloc(_displayPixels, 1);
-	
+
 	// Create a Surface for _displayPixels so that we can draw to it from interfaces
 	// that only draw to Surfaces. Currently that's just Graphics::Font.
 	Graphics::PixelFormat format8 = Graphics::PixelFormat::createFormatCLUT8();
@@ -244,7 +188,7 @@ GfxScreen::GfxScreen(ResourceManager *resMan, Common::RenderMode renderMode) : _
 	}
 
 	// Set up palette mods if requested
-	if (enablePaletteMods)
+	if (ConfMan.hasKey("palette_mods") && ConfMan.getBool("palette_mods"))
 		setupCustomPaletteMods(this);
 
 	// Initialize the actual screen
@@ -265,6 +209,7 @@ GfxScreen::~GfxScreen() {
 	free(_displayScreen);
 	free(_paletteMapScreen);
 	delete[] _backupScreen;
+	delete[] _hiresGlyphBuffer;
 	delete _gfxDrv;
 }
 
@@ -321,11 +266,14 @@ void GfxScreen::copyRectToScreen(const Common::Rect &rect) {
  * This copies a rect to screen w/o scaling adjustment and is only meant to be
  * used on hires graphics used in upscaled hires mode.
  */
-void GfxScreen::copyDisplayRectToScreen(const Common::Rect &rect) {
-	if (!_upscaledHires)
-		error("copyDisplayRectToScreen: not in upscaled hires mode");
+void GfxScreen::copyHiResRectToScreen(const byte *srcBuffer, int pitch, int x, int y, int w, int h, const byte *colorMap) {
+	if (!_gfxDrv->supportsHiResGraphics())
+		error("%s(): Hires graphics display is not supported by the active gfx driver", __FUNCTION__);
 
-	displayRect(rect, rect.left, rect.top);
+	_gfxDrv->setFlags(GfxDriver::kHiResMode);
+	_gfxDrv->setColorMap(colorMap);
+	_gfxDrv->copyRectToScreen(srcBuffer, 0, 0, pitch, x, y, w, h, nullptr, nullptr);
+	_gfxDrv->clearFlags(GfxDriver::kHiResMode);
 }
 
 void GfxScreen::copyRectToScreen(const Common::Rect &rect, int16 x, int16 y) {
@@ -526,20 +474,48 @@ void GfxScreen::putMacChar(const Graphics::Font *commonFont, int16 x, int16 y, u
 	commonFont->drawChar(&_displayScreenSurface, chr, x, y, color);
 }
 
-// We put hires hangul chars onto upscaled background, so we need to adjust
-// coordinates. Caller gives use low-res ones.
 void GfxScreen::putHangulChar(Graphics::FontKorean *commonFont, int16 x, int16 y, uint16 chr, byte color) {
-	byte *displayPtr = _displayScreen + y * _displayWidth * 2 + x * 2;
+	// We put hires Hangul chars onto upscaled background, so we need to adjust coordinates. Caller coordinates are
+	// low-res ones. Same magic as for the Japanese SJIS characters...
+	memset(_hiresGlyphBuffer, 0xff, 256);
 	// we don't use outline, so color 0 is actually not used
-	commonFont->drawChar(displayPtr, chr, _displayWidth, 1, color, 0, -1, -1);
+	uint16 charWidth = commonFont->getCharWidth(chr);
+	commonFont->drawChar(_hiresGlyphBuffer, chr, charWidth, 1, color, 0, -1, -1);
+	_gfxDrv->drawTextFontGlyph(_hiresGlyphBuffer, charWidth, x << 1, y << 1, charWidth, commonFont->getFontHeight(), 0xff, _paletteModsEnabled ? _paletteMods : nullptr, _paletteMapScreen);
 }
 
-// We put hires kanji chars onto upscaled background, so we need to adjust
-// coordinates. Caller gives use low-res ones.
 void GfxScreen::putKanjiChar(Graphics::FontSJIS *commonFont, int16 x, int16 y, uint16 chr, byte color) {
-	byte *displayPtr = _displayScreen + y * _displayWidth * 2 + x * 2;
+	// We put hires SJIS ROM chars onto upscaled background, so we need to adjust coordinates. Caller coordinates are
+	// low-res ones.
+
+	// The PC-98 gfx driver's normal blitting opcode will scale everything up by 2. So that opcode does not get used for
+	// the hires glyphs.
+
+	// SCI0 PC-98 interpreters don't actually render SJIS ROM glyphs via the gfx driver. The QFG interpreter copies the
+	// glyph data directly into the video mem planes. For QFG, the glyph data gets xored with 0xff and copied into all 4
+	// planes. So it will be black text on white background. Also, the interpreter divides the x-coordinate by 4 to find
+	// the right position in the vmem planes. It does not do any bit shifting to fix the x-coordinate. So the text will
+	// be aligned on byte boundaries in vmem which equals 4 pixel boundaries in lowres. We make that bounds adjustment
+	// in the driver, since the layout relies on it. PQ2 on the other hand uses the PC-98 text mode for text print
+	// instead of rendering it in graphics mode (many PC-98 games do that). In an emulator you can easily recognize
+	// it, since the mouse cursor will move underneath the text. The use of the text mode has a similar effect to
+	// x-coordinates as what happens with QFG: In text mode, the coordinates can only be set as text columns and lines,
+	// so the coordinates have to be divided and lose some precision ('& ~3' for x, and '& ~7' for y).
+
+	// SCI1 PC-98 (KQ5/SQ4) has a gfx driver opcode to render the glyphs via the PC-98 GRCG. In the 16 colors drivers it
+	// uses a unique way to do that: The first 5 lines and the last 5 lines of the glyph get scaled 2x horizontally
+	// (= basically fat print), the middle 6 lines are drawn normally. It's the same for KQ5 and SQ4. This is also
+	// implemented in our on-top rendering in the driver. Unlike SCI0, the SCI1 gfx opcode for the text glyph rendering
+	// is actually able to properly x-shift the glyph data to the right x coordinate. However, my impression is that
+	// Sierra just fixed the x-bounds in the game scripts here.
+
+	memset(_hiresGlyphBuffer, 0xff, 256);
+	// This is for the PC-98 text mode colors which are outside of the normal palette. Also, these colors get modified
+	// for PQ2, see PC98Gfx16ColorsDriver::remapTextColor().
+	color = _gfxDrv->remapTextColor(color);
 	// we don't use outline, so color 0 is actually not used
-	commonFont->drawChar(displayPtr, chr, _displayWidth, 1, color, 0, -1, -1);
+	commonFont->drawChar(_hiresGlyphBuffer, chr, 16, 1, color, 0, -1, -1);
+	_gfxDrv->drawTextFontGlyph(_hiresGlyphBuffer, 16, x << 1, y << 1, 16, 16, 0xff, _paletteModsEnabled ? _paletteMods : nullptr, _paletteMapScreen);
 }
 
 int GfxScreen::bitsGetDataSize(Common::Rect rect, byte mask) {
@@ -565,13 +541,6 @@ int GfxScreen::bitsGetDataSize(Common::Rect rect, byte mask) {
 	if (mask & GFX_SCREEN_MASK_CONTROL) {
 		byteCount += pixels; // _controlScreen
 	}
-	if (mask & GFX_SCREEN_MASK_DISPLAY) {
-		if (!_upscaledHires)
-			error("bitsGetDataSize() called w/o being in upscaled hires mode");
-		byteCount += pixels; // _displayScreen (coordinates actually are given to us for hires displayScreen)
-		if (_paletteMapScreen)
-			byteCount += pixels; // _paletteMapScreen
-	}
 	return byteCount;
 }
 
@@ -590,13 +559,6 @@ void GfxScreen::bitsSave(Common::Rect rect, byte mask, byte *memoryPtr) {
 	}
 	if (mask & GFX_SCREEN_MASK_CONTROL) {
 		bitsSaveScreen(rect, _controlScreen, _width, memoryPtr);
-	}
-	if (mask & GFX_SCREEN_MASK_DISPLAY) {
-		if (!_upscaledHires)
-			error("bitsSave() called w/o being in upscaled hires mode");
-		bitsSaveScreen(rect, _displayScreen, _displayWidth, memoryPtr);
-		if (_paletteMapScreen)
-			bitsSaveScreen(rect, _paletteMapScreen, _displayWidth, memoryPtr);
 	}
 }
 
@@ -655,19 +617,6 @@ void GfxScreen::bitsRestore(const byte *memoryPtr) {
 	if (mask & GFX_SCREEN_MASK_CONTROL) {
 		bitsRestoreScreen(rect, memoryPtr, _controlScreen, _width);
 	}
-	if (mask & GFX_SCREEN_MASK_DISPLAY) {
-		if (!_upscaledHires)
-			error("bitsRestore() called w/o being in upscaled hires mode");
-		bitsRestoreScreen(rect, memoryPtr, _displayScreen, _displayWidth);
-		if (_paletteMapScreen)
-			bitsRestoreScreen(rect, memoryPtr, _paletteMapScreen, _displayWidth);
-
-		// WORKAROUND - we are not sure what sierra is doing. If we don't do this here, portraits won't get fully removed
-		//  from screen. Some lowres showBits() call is used for that and it's not covering the whole area
-		//  We would need to find out inside the kq6 windows interpreter, but this here works already and seems not to have
-		//  any side-effects. The whole hires is hacked into the interpreter, so maybe this is even right.
-		copyDisplayRectToScreen(rect);
-	}
 }
 
 void GfxScreen::bitsRestoreScreen(Common::Rect rect, const byte *&memoryPtr, byte *screen, uint16 screenWidth) {
@@ -704,7 +653,7 @@ void GfxScreen::bitsRestoreDisplayScreen(Common::Rect rect, const byte *&memoryP
 
 void GfxScreen::setShakePos(uint16 shakeXOffset, uint16 shakeYOffset) {
 	if (!_upscaledHires)
-		g_system->setShakePos(shakeXOffset, shakeYOffset);
+		_gfxDrv->setShakePos(shakeXOffset, shakeYOffset);
 	else
 		g_system->setShakePos(_upscaledWidthMapping[shakeXOffset], _upscaledHeightMapping[shakeYOffset]);
 }
@@ -844,7 +793,7 @@ void GfxScreen::debugShowMap(int mapNo) {
 }
 
 void GfxScreen::scale2x(const SciSpan<const byte> &src, SciSpan<byte> &dst, int16 srcWidth, int16 srcHeight, byte bytesPerPixel) {
-	assert(bytesPerPixel == 1 || bytesPerPixel == 2);
+	assert(bytesPerPixel == 1 || bytesPerPixel == 2 || bytesPerPixel == 3 || bytesPerPixel == 4);
 	const int newWidth = srcWidth * 2;
 	const int pitch = newWidth * bytesPerPixel;
 	const byte *srcPtr = src.getUnsafeDataAt(0, srcWidth * srcHeight * bytesPerPixel);
@@ -865,17 +814,48 @@ void GfxScreen::scale2x(const SciSpan<const byte> &src, SciSpan<byte> &dst, int1
 	} else if (bytesPerPixel == 2) {
 		for (int y = 0; y < srcHeight; y++) {
 			for (int x = 0; x < srcWidth; x++) {
+				const uint16 color = *(const uint16 *)srcPtr;
+				*(uint16 *)(dstPtr + 0) = color;
+				*(uint16 *)(dstPtr + 2) = color;
+				*(uint16 *)(dstPtr + pitch + 0) = color;
+				*(uint16 *)(dstPtr + pitch + 2) = color;
+				srcPtr += 2;
+				dstPtr += 4;
+			}
+			dstPtr += pitch;
+		}
+	} else if (bytesPerPixel == 3) {
+		for (int y = 0; y < srcHeight; y++) {
+			for (int x = 0; x < srcWidth; x++) {
 				const byte color = *srcPtr++;
 				const byte color2 = *srcPtr++;
+				const byte color3 = *srcPtr++;
 				dstPtr[0] = color;
 				dstPtr[1] = color2;
-				dstPtr[2] = color;
-				dstPtr[3] = color2;
+				dstPtr[2] = color3;
+				dstPtr[3] = color;
+				dstPtr[4] = color2;
+				dstPtr[5] = color3;
 				dstPtr[pitch] = color;
 				dstPtr[pitch + 1] = color2;
-				dstPtr[pitch + 2] = color;
-				dstPtr[pitch + 3] = color2;
-				dstPtr += 4;
+				dstPtr[pitch + 2] = color3;
+				dstPtr[pitch + 3] = color;
+				dstPtr[pitch + 4] = color2;
+				dstPtr[pitch + 5] = color3;
+				dstPtr += 6;
+			}
+			dstPtr += pitch;
+		}
+	} else if (bytesPerPixel == 4) {
+		for (int y = 0; y < srcHeight; y++) {
+			for (int x = 0; x < srcWidth; x++) {
+				const uint32 color = *(const uint32 *)srcPtr;
+				*(uint32 *)(dstPtr + 0) = color;
+				*(uint32 *)(dstPtr + 4) = color;
+				*(uint32 *)(dstPtr + pitch + 0) = color;
+				*(uint32 *)(dstPtr + pitch + 4) = color;
+				srcPtr += 4;
+				dstPtr += 8;
 			}
 			dstPtr += pitch;
 		}
@@ -896,10 +876,6 @@ void GfxScreen::adjustBackUpscaledCoordinates(int16 &y, int16 &x) {
 	case GFX_SCREEN_UPSCALED_640x400:
 		x /= 2;
 		y /= 2;
-		break;
-	case GFX_SCREEN_UPSCALED_640x440:
-		x /= 2;
-		y = (y * 5) / 11;
 		break;
 	default:
 		break;
@@ -930,7 +906,7 @@ void GfxScreen::grabPalette(byte *buffer, uint start, uint num) const {
 
 void GfxScreen::setPalette(const byte *buffer, uint start, uint num, bool update) {
 	assert(start + num <= 256);
-	_gfxDrv->setPalette(buffer, start, num, update, _paletteModsEnabled ? _paletteMods : nullptr, _paletteMapScreen);	
+	_gfxDrv->setPalette(buffer, start, num, update, _paletteModsEnabled ? _paletteMods : nullptr, _paletteMapScreen);
 }
 
 

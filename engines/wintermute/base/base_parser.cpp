@@ -69,6 +69,9 @@ int32 BaseParser::getObject(char **buf, const TokenDesc *tokens, char **name, ch
 	// skip comment lines.
 	while (**buf == ';') {
 		*buf = strchr(*buf, '\n');
+		if (! *buf) {
+			return PARSERR_EOF;
+		}
 		_parserLine++;
 		skipCharacters(buf, _whiteSpace);
 	}
@@ -156,7 +159,7 @@ char *BaseParser::getSubText(char **buf, char open, char close) {
 	char theChar;
 	long skip = 1;
 
-	if (open == close) {          // we cant nest identical delimiters
+	if (open == close) {          // we can't nest identical delimiters
 		open = 0;
 	}
 	while ((theChar = **buf) != 0) {

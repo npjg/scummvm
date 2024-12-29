@@ -98,6 +98,18 @@ static const ADExtraGuiOptionsMap optionsList[] = {
 		}
 	},
 
+	{
+		GAMEOPTION_APPLE2E_CURSOR,
+		{
+			_s("Use checkered cursor"),
+			_s("Use the checkered cursor from later Apple II models"),
+			"apple2e_cursor",
+			false,
+			0,
+			0
+		}
+	},
+
 	AD_EXTRA_GUI_OPTIONS_TERMINATOR
 };
 
@@ -154,7 +166,7 @@ public:
 	int getAutosaveSlot() const override { return 15; }
 	int getMaximumSaveSlot() const override { return 15; }
 	SaveStateList listSaves(const char *target) const override;
-	void removeSaveState(const char *target, int slot) const override;
+	bool removeSaveState(const char *target, int slot) const override;
 
 	Common::Error createInstance(OSystem *syst, Engine **engine, const AdlGameDescription *adlGd) const override;
 	Common::KeymapArray initKeymaps(const char *target) const override;
@@ -273,9 +285,9 @@ SaveStateList AdlMetaEngine::listSaves(const char *target) const {
 	return saveList;
 }
 
-void AdlMetaEngine::removeSaveState(const char *target, int slot) const {
+bool AdlMetaEngine::removeSaveState(const char *target, int slot) const {
 	Common::String fileName = Common::String::format("%s.s%02d", target, slot);
-	g_system->getSavefileManager()->removeSavefile(fileName);
+	return g_system->getSavefileManager()->removeSavefile(fileName);
 }
 
 Engine *HiRes1Engine_create(OSystem *syst, const AdlGameDescription *gd);

@@ -29,9 +29,6 @@ SpiffGenerator::SpiffGenerator(int seed) {
 	_seed = seed;
 }
 
-SpiffGenerator::~SpiffGenerator() {
-}
-
 MapFile *SpiffGenerator::generateMap(int water, int tileset, int mapSize, int energy, int terrain) {
 	_totalMapSizeG = mapSize;
 	_energyAmountG = (2 + energy) * _totalMapSizeG * _totalMapSizeG;
@@ -91,7 +88,7 @@ MapFile *SpiffGenerator::generateMap(int water, int tileset, int mapSize, int en
 			mif._cornerMap[newX][newY] = levelMap[_mapCorner[x][y]];
 			switch (_mapMiddle[x][y]) {
 			case HUB:
-				t = '\xFF';
+				t = 0xff;
 				break;
 			case SMALLPOOL:
 				t = 'S';

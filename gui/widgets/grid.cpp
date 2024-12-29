@@ -28,6 +28,7 @@
 
 #include "gui/gui-manager.h"
 #include "gui/widgets/grid.h"
+#include "gui/launcher.h"
 
 #include "gui/ThemeEval.h"
 
@@ -50,6 +51,7 @@ void GridItemWidget::updateThumb() {
 	const Graphics::ManagedSurface *gfx = _grid->filenameToSurface(_activeEntry->thumbPath);
 	_thumbGfx.free();
 	if (gfx) {
+		// TODO: Use a reference instead of copying the surface
 		_thumbGfx.copyFrom(*gfx);
 		_thumbAlpha = _thumbGfx.detectAlpha();
 	}
@@ -263,7 +265,7 @@ void GridItemWidget::handleMouseDown(int x, int y, int button, int clickCount) {
 
 #pragma mark -
 
-GridItemTray::GridItemTray(GuiObject *boss, int x, int y, int w, int h, int entryID, GridWidget *grid)
+GridItemTray::GridItemTray(GuiObject *boss, int x, int y, int w, int h, int entryID, GridWidget *grid, LauncherDialog *launcher)
 	: Dialog(x, y, w, h), CommandSender(boss) {
 
 	_entryID = entryID;
@@ -285,6 +287,8 @@ GridItemTray::GridItemTray(GuiObject *boss, int x, int y, int w, int h, int entr
 	_loadButton = new PicButtonWidget(this, trayPaddingX, trayPaddingY + buttonHeight + buttonSpacingY,
 									  buttonWidth, buttonHeight,
 									  _("Saves"), kLoadButtonCmd);
+	if (launcher)
+		_loadButton->setEnabled(launcher->canLoadSavegames(entryID));
 	_editButton = new PicButtonWidget(this, trayPaddingX + buttonWidth + buttonSpacingX, trayPaddingY + buttonHeight + buttonSpacingY,
 									  buttonWidth, buttonHeight,
 									  _("Edit"), kEditButtonCmd);
@@ -399,9 +403,10 @@ Graphics::ManagedSurface *loadSurfaceFromFile(const Common::String &name, int re
 
 #pragma mark -
 
-GridWidget::GridWidget(GuiObject *boss, const Common::String &name)
+GridWidget::GridWidget(GuiObject *boss, const Common::String &name, LauncherDialog *launcher)
 	: ContainerWidget(boss, name), CommandSender(boss) {
 
+	_launcher = launcher;
 	_thumbnailHeight = 0;
 	_thumbnailWidth = 0;
 	_flagIconHeight = 0;
@@ -714,7 +719,10 @@ void GridWidget::reloadThumbnails() {
 					surf = loadSurfaceFromFile(path);
 				} else {
 					const Graphics::ManagedSurface *scSurf = _loadedSurfaces[path];
-					_loadedSurfaces[entry->thumbPath] = new Graphics::ManagedSurface(*scSurf);
+					// TODO: Use SharedPtr instead of duplicating the surface
+					Graphics::ManagedSurface *thSurf = new Graphics::ManagedSurface();
+					thSurf->copyFrom(*scSurf);
+					_loadedSurfaces[entry->thumbPath] = thSurf;
 				}
 			}
 
@@ -723,7 +731,10 @@ void GridWidget::reloadThumbnails() {
 				_loadedSurfaces[entry->thumbPath] = scSurf;
 
 				if (path != entry->thumbPath) {
-					_loadedSurfaces[path] = new Graphics::ManagedSurface(*scSurf);
+					// TODO: Use SharedPtr instead of duplicating the surface
+					Graphics::ManagedSurface *thSurf = new Graphics::ManagedSurface();
+					thSurf->copyFrom(*scSurf);
+					_loadedSurfaces[path] = thSurf;
 				}
 
 				if (surf != scSurf) {
@@ -1070,8 +1081,7 @@ void GridWidget::reflowLayout() {
 		_platformIconsAlpha.clear();
 		_languageIconsAlpha.clear();
 		_extraIconsAlpha.clear();
-		if (_disabledIconOverlay)
-			_disabledIconOverlay->free();
+		delete _disabledIconOverlay;
 		reloadThumbnails();
 		loadFlagIcons();
 		loadPlatformIcons();
@@ -1080,10 +1090,7 @@ void GridWidget::reflowLayout() {
 		Graphics::ManagedSurface *gfx = new Graphics::ManagedSurface(_thumbnailWidth, _thumbnailHeight, g_system->getOverlayFormat());
 		uint32 disabledThumbnailColor = gfx->format.ARGBToColor(153, 0, 0, 0);  // 60% opacity black
 		gfx->fillRect(Common::Rect(0, 0, _thumbnailWidth, _thumbnailHeight), disabledThumbnailColor);
-		if (gfx)
-			_disabledIconOverlay = gfx;
-		else
-			_disabledIconOverlay = nullptr;
+		_disabledIconOverlay = gfx;
 	}
 
 	_trayHeight = kLineHeight * 3;
@@ -1109,16 +1116,10 @@ void GridWidget::reflowLayout() {
 	markAsDirty();
 }
 
-void GridWidget::openTray(int x, int y, int entryId) {
-	GridItemTray *tray = new GridItemTray(this, x - _gridXSpacing / 3, y, _gridItemWidth + 2 * (_gridXSpacing / 3), _trayHeight, entryId, this);
-	tray->runModal();
-	delete tray;
-}
-
 void GridWidget::openTrayAtSelected() {
 	if (_selectedEntry) {
 		GridItemTray *tray = new GridItemTray(this, _x + _selectedEntry->x - _gridXSpacing / 3, _y + _selectedEntry->y + _selectedEntry->h - _scrollPos,
-								_gridItemWidth + 2 * (_gridXSpacing / 3), _trayHeight, _selectedEntry->entryID, this);
+											  _gridItemWidth + 2 * (_gridXSpacing / 3), _trayHeight, _selectedEntry->entryID, this, _launcher);
 		tray->runModal();
 		delete tray;
 	}

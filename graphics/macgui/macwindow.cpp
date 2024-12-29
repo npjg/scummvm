@@ -82,7 +82,7 @@ void MacWindow::disableBorder() {
 }
 
 const Font *MacWindow::getTitleFont() {
-	return _wm->_fontMan->getFont(Graphics::MacFont(kMacFontChicago, 12));
+	return _wm->_fontMan->getFont(Graphics::MacFont(kMacFontSystem, 12));
 }
 
 void MacWindow::setActive(bool active) {
@@ -202,7 +202,7 @@ uint32 MacWindow::getBorderFlags() const {
 	uint32 flags = 0;
 	if (_active)
 		flags |= kWindowBorderActive;
-	if (!_title.empty())
+	if (!_title.empty() && _borderType != 0x02 && _borderType != 0x03 && _borderType != 0x0a && _borderType != 0x0b)
 		flags |= kWindowBorderTitle;
 	if (_hasScrollBar)
 		flags |= kWindowBorderScrollbar;
@@ -322,7 +322,7 @@ bool MacWindow::isTitleVisible() {
 }
 
 void MacWindow::drawPattern() {
-	byte *pat = _wm->getPatterns()[_pattern - 1];
+	const byte *pat = _wm->getPatterns()[_pattern - 1];
 	for (int y = 0; y < _composeSurface->h; y++) {
 		for (int x = 0; x < _composeSurface->w; x++) {
 			if (_wm->_pixelformat.bytesPerPixel == 1) {

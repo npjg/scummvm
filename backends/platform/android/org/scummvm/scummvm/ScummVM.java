@@ -22,7 +22,8 @@ import javax.microedition.khronos.egl.EGLDisplay;
 import javax.microedition.khronos.egl.EGLSurface;
 import javax.microedition.khronos.opengles.GL10;
 
-public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
+public abstract class ScummVM implements SurfaceHolder.Callback,
+	   CompatHelpers.SystemInsets.SystemInsetsListener, Runnable {
 	public static final int SHOW_ON_SCREEN_MENU = 1;
 	public static final int SHOW_ON_SCREEN_INPUT_MODE = 2;
 
@@ -43,14 +44,16 @@ public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
 	private int _sample_rate = 0;
 	private int _buffer_size = 0;
 
+	private boolean _assetsUpdated;
 	private String[] _args;
 
 	private native void create(AssetManager asset_manager,
 	                           EGL10 egl,
-							   EGLDisplay egl_display,
+	                           EGLDisplay egl_display,
 	                           AudioTrack audio_track,
-							   int sample_rate,
-							   int buffer_size);
+	                           int sample_rate,
+	                           int buffer_size,
+	                           boolean assetsUpdated);
 	private native void destroy();
 	private native void setSurface(int width, int height, int bpp);
 	private native int main(String[] args);
@@ -68,6 +71,10 @@ public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
 
 	final public native String getNativeVersionInfo();
 
+	// CompatHelpers.WindowInsets.SystemInsetsListener interface
+	@Override
+	final public native void systemInsetsUpdated(int[] gestureInsets, int[] systemInsets, int[] cutoutInsets);
+
 	// Callbacks from C++ peer instance
 	abstract protected void getDPI(float[] values);
 	abstract protected void displayMessageOnOSD(String msg);
@@ -79,7 +86,6 @@ public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
 	abstract protected void setWindowCaption(String caption);
 	abstract protected void showVirtualKeyboard(boolean enable);
 	abstract protected void showOnScreenControls(int enableMask);
-	abstract protected Bitmap getBitmapResource(int resource);
 	abstract protected void setTouchMode(int touchMode);
 	abstract protected int getTouchMode();
 	abstract protected void setOrientation(int orientation);
@@ -147,6 +153,10 @@ public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
 		setSurface(0, 0, 0);
 	}
 
+	final public void setAssetsUpdated(boolean assetsUpdated) {
+		_assetsUpdated = assetsUpdated;
+	}
+
 	final public void setArgs(String[] args) {
 		_args = args;
 	}
@@ -169,7 +179,8 @@ public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
 		}
 
 		create(_asset_manager, _egl, _egl_display,
-				_audio_track, _sample_rate, _buffer_size);
+				_audio_track, _sample_rate, _buffer_size,
+				_assetsUpdated);
 
 		int res = main(_args);
 
@@ -322,7 +333,7 @@ public abstract class ScummVM implements SurfaceHolder.Callback, Runnable {
 
 	private void deinitAudio() {
 		if (_audio_track != null)
-			_audio_track.stop();
+			_audio_track.release();
 
 		_audio_track = null;
 		_buffer_size = 0;

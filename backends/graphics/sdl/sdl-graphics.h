@@ -91,6 +91,8 @@ public:
 	 */
 	virtual bool notifyMousePosition(Common::Point &mouse);
 
+	Common::RotationMode getRotationMode() const override;
+
 	virtual bool showMouse(bool visible) override;
 	bool lockMouse(bool lock) override;
 
@@ -208,14 +210,15 @@ private:
 
 #if defined(USE_IMGUI) && SDL_VERSION_ATLEAST(2, 0, 0)
 public:
-	void setImGuiCallbacks(const ImGuiCallbacks &callbacks) override { _imGuiCallbacks = callbacks; }
+	void setImGuiCallbacks(const ImGuiCallbacks &callbacks) override;
 
 protected:
 	ImGuiCallbacks _imGuiCallbacks;
 	bool _imGuiReady = false;
 	bool _imGuiInited = false;
+	SDL_Renderer *_imGuiSDLRenderer = nullptr;
 
-	void initImGui(void *glContext);
+	void initImGui(SDL_Renderer *renderer, void *glContext);
 	void renderImGui();
 	void destroyImGui();
 #endif

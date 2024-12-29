@@ -42,22 +42,18 @@ struct AgiPicture {
 	AgiPicture() { reset(); }
 };
 
-// AGI picture version
 enum AgiPictureVersion {
-	AGIPIC_C64,
-	AGIPIC_V1,
-	AGIPIC_V15,
-	AGIPIC_V2,
-	AGIPIC_256
+	AGIPIC_C64,     // Winnie (Apple II, C64, CoCo)
+	AGIPIC_V1,      // Currently unused
+	AGIPIC_V15,     // Troll (DOS)
+	AGIPIC_PREAGI,  // Winnie (DOS, Amiga), Mickey (DOS)
+	AGIPIC_V2       // AGIv2, AGIv3
 };
 
 enum AgiPictureFlags {
 	kPicFNone      = (1 << 0),
-	kPicFCircle    = (1 << 1),
-	kPicFStep      = (1 << 2),
-	kPicFf3Stop    = (1 << 3),
-	kPicFf3Cont    = (1 << 4),
-	kPicFTrollMode = (1 << 5)
+	kPicFf3Stop    = (1 << 1), // Troll, certain pictures
+	kPicFTrollMode = (1 << 2)  // Troll, drawing the Troll
 };
 
 class AgiBase;
@@ -70,27 +66,35 @@ class PictureMgr {
 public:
 	PictureMgr(AgiBase *agi, GfxMgr *gfx);
 
-	int16 getResourceNr() { return _resourceNr; };
+	int16 getResourceNr() const { return _resourceNr; };
 
 private:
-	void draw_xCorner(bool skipOtherCoords = false);
+	void putVirtPixel(int x, int y);
+	void xCorner(bool skipOtherCoords = false);
 	void yCorner(bool skipOtherCoords = false);
+	void plotPattern(int x, int y);
 	void plotBrush();
+	void plotPattern_PreAGI(byte x, byte y);
+	void plotBrush_PreAGI();
 
 	byte getNextByte();
+	bool getNextParamByte(byte &b);
 	byte getNextNibble();
 
-public:
-	void putVirtPixel(int x, int y);
+	bool getNextXCoordinate(byte &x);
+	bool getNextYCoordinate(byte &y);
+	bool getNextCoordinates(byte &x, byte &y);
 
-	int decodePicture(int16 resourceNr, bool clearScreen, bool agi256 = false, int16 pic_width = _DEFAULT_WIDTH, int16 pic_height = _DEFAULT_HEIGHT);
-	int decodePicture(byte *data, uint32 length, int clear, int pic_width = _DEFAULT_WIDTH, int pic_height = _DEFAULT_HEIGHT);
-	int unloadPicture(int picNr);
-	void drawPicture();
+public:
+	void decodePicture(int16 resourceNr, bool clearScreen, bool agi256 = false, int16 width = _DEFAULT_WIDTH, int16 height = _DEFAULT_HEIGHT);
+	void decodePictureFromBuffer(byte *data, uint32 length, bool clearScreen, int16 width = _DEFAULT_WIDTH, int16 height = _DEFAULT_HEIGHT);
+
 private:
+	void drawPicture();
 	void drawPictureC64();
 	void drawPictureV1();
 	void drawPictureV15();
+	void drawPicturePreAGI();
 	void drawPictureV2();
 	void drawPictureAGI256();
 
@@ -103,35 +107,25 @@ private:
 	void draw_LineShort();
 	void draw_LineAbsolute();
 
-	int  draw_FillCheck(int16 x, int16 y);
+	bool draw_FillCheck(int16 x, int16 y);
 	void draw_Fill(int16 x, int16 y);
 	void draw_Fill();
 
 public:
-	void showPic(); // <-- for regular AGI games
-	void showPic(int16 x, int16 y, int16 pic_width, int16 pic_height); // <-- for preAGI games
-	void showPicWithTransition();
-
-	void plotPattern(int x, int y);     // public because it's used directly by preagi
-
-	void setPattern(uint8 code, uint8 num);
+	void showPicture(int16 x = 0, int16 y = 0, int16 width = _DEFAULT_WIDTH, int16 height = _DEFAULT_HEIGHT);
+	void showPictureWithTransition();
 
 	void setPictureVersion(AgiPictureVersion version);
-	void setPictureData(uint8 *data, int len = 4096);
 
 	void setPictureFlags(int flags) { _flags = flags; }
-
-	void clear();
 
 	void setOffset(int offX, int offY) {
 		_xOffset = offX;
 		_yOffset = offY;
 	}
 
-	void setDimensions(int w, int h) {
-		_width = w;
-		_height = h;
-	}
+	void setMaxStep(int maxStep) { _maxStep = maxStep; }
+	int getMaxStep() const { return _maxStep; }
 
 private:
 	int16  _resourceNr;
@@ -150,11 +144,13 @@ private:
 	uint8 _minCommand;
 
 	AgiPictureVersion _pictureVersion;
-	int16 _width, _height;
-	int16 _xOffset, _yOffset;
+	int16 _width;
+	int16 _height;
+	int16 _xOffset;
+	int16 _yOffset;
 
 	int _flags;
-	int _currentStep;
+	int _maxStep; // Max opcodes to draw, zero for all. Used by preagi (Mickey)
 };
 
 } // End of namespace Agi

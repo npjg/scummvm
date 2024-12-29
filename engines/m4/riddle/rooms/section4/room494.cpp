@@ -32,9 +32,7 @@ namespace Riddle {
 namespace Rooms {
 
 void Room494::preload() {
-	Room::preload();
-
-	_G(kernel).letter_box_y = 30;
+	_G(kernel).letter_box_y = LETTERBOX_Y;
 	_G(player).walker_type = WALKER_ALT;
 	_G(player).shadow_type = SHADOW_ALT;
 	_G(player).walker_in_this_scene = false;
@@ -51,7 +49,7 @@ void Room494::init() {
 	RemoveSystemHotkey(KEY_F2);
 	AddSystemHotkey(KEY_ESCAPE, escapeFn);
 	AddSystemHotkey(KEY_F3, escapeFn);
-	_machine1 = _machine2 = 0;
+	_machine1 = _machine2 = nullptr;
 	_selectedBtn1 = _selectedBtn2 = -1;
 	midi_stop();
 
@@ -70,7 +68,7 @@ void Room494::init() {
 }
 
 void Room494::daemon() {
-	int selectedBtn = getSelectedButton();
+	const int selectedBtn = getSelectedButton();
 	bool btnClicked = false;
 
 	switch (_G(kernel).trigger) {
@@ -159,7 +157,7 @@ void Room494::daemon() {
 			_selectedBtn2 = -1;
 		}
 
-		_selectState = 0;
+		_selectState = false;
 		btnClicked = true;
 	}
 
@@ -219,6 +217,7 @@ void Room494::pre_parser() {
 }
 
 void Room494::escapeFn(void *, void *) {
+	//TODO room 494 escapeFn
 	warning("TODO: room 494 escapeFn");
 }
 
@@ -232,8 +231,8 @@ int Room494::getSelectedButton() const {
 		{ 494, 323, 547, 370 }
 	};
 
-	int x = _G(MouseState).CursorColumn;
-	int y = _G(MouseState).CursorRow;
+	const int x = _G(MouseState).CursorColumn;
+	const int y = _G(MouseState).CursorRow;
 
 	for (int i = 0; i < 6; ++i) {
 		if (BUTTONS[i].contains(x, y))

@@ -26,7 +26,6 @@
 #include "backends/graphics3d/openglsdl/openglsdl-graphics3d.h"
 #include "backends/graphics3d/opengl/surfacerenderer.h"
 #include "backends/graphics3d/opengl/tiledsurface.h"
-#include "backends/graphics3d/opengl/texture.h"
 #include "backends/graphics3d/opengl/framebuffer.h"
 #include "backends/events/sdl/sdl-events.h"
 
@@ -39,6 +38,7 @@
 #include "graphics/blit.h"
 #include "graphics/opengl/context.h"
 #include "graphics/opengl/system_headers.h"
+#include "graphics/opengl/texture.h"
 
 #ifdef USE_PNG
 #include "image/png.h"
@@ -394,7 +394,7 @@ void OpenGLSdlGraphics3dManager::createOrUpdateScreen() {
 #endif
 
 	_surfaceRenderer = OpenGL::createBestSurfaceRenderer();
-	_overlayFormat = OpenGL::TextureGL::getRGBAPixelFormat();
+	_overlayFormat = OpenGL::Texture::getRGBAPixelFormat();
 
 	if (renderToFrameBuffer) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -554,7 +554,7 @@ bool OpenGLSdlGraphics3dManager::createOrUpdateGLContext(uint gameWidth, uint ga
 
 #ifdef USE_IMGUI
 					// Setup Dear ImGui
-					initImGui(_glContext);
+					initImGui(nullptr, _glContext);
 #endif
 				}
 			}
@@ -624,7 +624,7 @@ void OpenGLSdlGraphics3dManager::drawOverlay() {
 }
 
 OpenGL::FrameBuffer *OpenGLSdlGraphics3dManager::createFramebuffer(uint width, uint height) {
-#if !USE_FORCED_GLES2
+#if !USE_FORCED_GLES2 || defined(USE_GLAD)
 	if (_antialiasing && OpenGLContext.framebufferObjectMultisampleSupported) {
 		return new OpenGL::MultiSampleFrameBuffer(width, height, _antialiasing);
 	} else
@@ -866,5 +866,34 @@ bool OpenGLSdlGraphics3dManager::saveScreenshot(const Common::Path &filename) co
 	return Image::writeBMP(out, data);
 #endif
 }
+
+#if defined(USE_IMGUI) && SDL_VERSION_ATLEAST(2, 0, 0)
+void *OpenGLSdlGraphics3dManager::getImGuiTexture(const Graphics::Surface &image, const byte *palette, int palCount) {
+	// Create a OpenGL texture identifier
+	GLuint image_texture;
+	glGenTextures(1, &image_texture);
+	glBindTexture(GL_TEXTURE_2D, image_texture);
+
+	// Setup filtering parameters for display
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+	// Upload pixels into texture
+	Graphics::Surface *s = image.convertTo(Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0));
+	glPixelStorei(GL_UNPACK_ALIGNMENT, s->format.bytesPerPixel);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, s->w, s->h, 0, GL_RGB, GL_UNSIGNED_BYTE, s->getPixels());
+	s->free();
+	delete s;
+	return (void *)(intptr_t)image_texture;
+}
+
+void OpenGLSdlGraphics3dManager::freeImGuiTexture(void *texture) {
+	GLuint textureID = (intptr_t)texture;
+	glDeleteTextures(1, &textureID);
+}
+#endif
 
 #endif

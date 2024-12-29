@@ -386,7 +386,10 @@ void Ultima8Engine::pauseEngineIntern(bool pause) {
 			midiPlayer->pause(pause);
 	}
 
-	_avatarMoverProcess->resetMovementFlags();
+	// This will normally be non-null except in the case of
+	// a fatal error on startup (eg missing files)
+	if (_avatarMoverProcess)
+		_avatarMoverProcess->resetMovementFlags();
 }
 
 bool Ultima8Engine::hasFeature(EngineFeature f) const {
@@ -585,7 +588,8 @@ Common::Error Ultima8Engine::startupGame() {
 	if (saveSlot == -1 && ConfMan.hasKey("lastSave"))
 		saveSlot = ConfMan.getInt("lastSave");
 
-	newGame(saveSlot);
+	if (!newGame(saveSlot))
+		return Common::kNoGameDataFoundError;
 
 	debug(1, "-- Game Initialized --");
 	return Common::kNoError;
@@ -771,7 +775,7 @@ void Ultima8Engine::changeVideoMode(int width, int height) {
 
 void Ultima8Engine::handleEvent(const Common::Event &event) {
 	// Handle the fact that we can get 2 modals stacking.
-	// We want the focussed one preferrably.
+	// We want the focussed one preferably.
 	Gump *modal = dynamic_cast<ModalGump *>(_desktopGump->GetFocusChild());
 	if (!modal)
 		modal = _desktopGump->FindGump<ModalGump>();
@@ -848,11 +852,11 @@ void Ultima8Engine::handleEvent(const Common::Event &event) {
 	}
 
 	case Common::EVENT_CUSTOM_ENGINE_ACTION_START:
-		MetaEngine::pressAction((KeybindingAction)event.customType);
+		handleActionDown((KeybindingAction)event.customType);
 		break;
 
 	case Common::EVENT_CUSTOM_ENGINE_ACTION_END:
-		MetaEngine::releaseAction((KeybindingAction)event.customType);
+		handleActionUp((KeybindingAction)event.customType);
 		break;
 
 	case Common::EVENT_QUIT:
@@ -869,6 +873,30 @@ void Ultima8Engine::handleDelayedEvents() {
 	//uint32 now = g_system->getMillis();
 
 	_mouse->handleDelayedEvents();
+}
+
+void Ultima8Engine::handleActionDown(KeybindingAction action) {
+	if (!isAvatarInStasis()) {
+		if (_avatarMoverProcess && _avatarMoverProcess->onActionDown(action)) {
+			moveKeyEvent();
+			return;
+		}
+	}
+
+	Common::String methodName = MetaEngine::getMethod(action, true);
+	if (!methodName.empty())
+		g_debugger->executeCommand(methodName);
+}
+
+void Ultima8Engine::handleActionUp(KeybindingAction action) {
+	if (_avatarMoverProcess && _avatarMoverProcess->onActionUp(action)) {
+		moveKeyEvent();
+		return;
+	}
+
+	Common::String methodName = MetaEngine::getMethod(action, false);
+	if (!methodName.empty())
+		g_debugger->executeCommand(methodName);
 }
 
 void Ultima8Engine::writeSaveInfo(Common::WriteStream *ws) {
@@ -920,7 +948,7 @@ Common::Error Ultima8Engine::loadGameState(int slot) {
 	if (result.getCode() == Common::kNoError)
 		ConfMan.setInt("lastSave", slot);
 	else
-		ConfMan.set("lastSave", "");
+		ConfMan.setInt("lastSave", -1);
 
 	ConfMan.flushToDisk();
 
@@ -934,7 +962,7 @@ Common::Error Ultima8Engine::saveGameState(int slot, const Common::String &desc,
 		if (result.getCode() == Common::kNoError)
 			ConfMan.setInt("lastSave", slot);
 		else
-			ConfMan.set("lastSave", "");
+			ConfMan.setInt("lastSave", -1);
 	}
 
 	ConfMan.flushToDisk();
@@ -1097,7 +1125,8 @@ bool Ultima8Engine::newGame(int saveSlot) {
 
 	setupCoreGumps();
 
-	_game->startGame();
+	if (!_game->startGame())
+		return false;
 
 	debug(1, "Create Camera...");
 	CameraProcess::SetCameraProcess(new CameraProcess(kMainActorId));
@@ -1136,7 +1165,7 @@ bool Ultima8Engine::newGame(int saveSlot) {
 	_game->startInitialUsecode(saveSlot);
 
 	if (saveSlot == -1)
-		ConfMan.set("lastSave", "");
+		ConfMan.setInt("lastSave", -1);
 
 	return true;
 }

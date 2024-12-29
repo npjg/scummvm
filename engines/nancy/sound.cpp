@@ -289,8 +289,9 @@ void SoundManager::loadSound(const SoundDescription &description, SoundEffectDes
 
 	Channel &chan = _channels[description.channelID];
 
-	delete chan.stream;
+	delete chan.streamForMixer;
 	chan.stream = nullptr;
+	chan.streamForMixer = nullptr;
 
 	chan.name = description.name;
 	chan.playCommands = description.playCommands;
@@ -309,7 +310,17 @@ void SoundManager::loadSound(const SoundDescription &description, SoundEffectDes
 	Common::Path path(description.name + (g_nancy->getGameType() == kGameTypeVampire ? ".dwd" : ".his"));
 	Common::SeekableReadStream *file = SearchMan.createReadStreamForMember(path);
 	if (file) {
-		_channels[description.channelID].stream = makeHISStream(file, DisposeAfterUse::YES, description.samplesPerSec);
+		uint numLoops = chan.numLoops;
+		if (chan.playCommands & kPlayRandomTime) {
+			// We want to add randomized time delays between repeats, which is not doable with
+			// a simple LoopingAudioStream. The delays are added in soundEffectMaintenance();
+			numLoops = 1;
+
+			// Decrement the number of loops since we start playing immediately after
+			--chan.numLoops;
+		}
+		chan.stream = makeHISStream(file, DisposeAfterUse::YES, description.samplesPerSec);
+		chan.streamForMixer = Audio::makeLoopingAudioStream(chan.stream, numLoops);
 	}
 }
 
@@ -371,19 +382,9 @@ void SoundManager::playSound(uint16 channelID) {
 		}
 	}
 
-	uint numLoops = chan.numLoops;
-	if (chan.playCommands & kPlayRandomTime) {
-		// We want to add randomized time delays between repeats, which is not doable with
-		// a simple LoopingAudioStream. The delays are added in soundEffectMaintenance();
-		numLoops = 1;
-
-		// Decrement the number of loops since we start playing immediately after
-		--chan.numLoops;
-	}
-
 	_mixer->playStream(	chan.type,
 						&chan.handle,
-						Audio::makeLoopingAudioStream(chan.stream, numLoops),
+						chan.streamForMixer,
 						channelID,
 						(int)chan.volume * 255 / 100,
 						0, DisposeAfterUse::NO);
@@ -467,8 +468,9 @@ void SoundManager::stopSound(uint16 channelID) {
 	// Persistent sounds only stop playing but do not get unloaded
 	if (!chan.isPersistent) {
 		chan.name = Common::String();
-		delete chan.stream;
+		delete chan.streamForMixer;
 		chan.stream = nullptr;
+		chan.streamForMixer = nullptr;
 		delete chan.effectData;
 		chan.effectData = nullptr;
 		chan.position.set(0, 0, 0);
@@ -687,7 +689,7 @@ void SoundManager::initSoundChannels() {
 }
 
 SoundManager::Channel::~Channel() {
-	delete stream;
+	delete streamForMixer;
 	delete effectData;
 }
 

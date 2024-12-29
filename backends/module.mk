@@ -185,7 +185,6 @@ endif
 # derive from the SDL backend, and they all need the following files.
 ifdef SDL_BACKEND
 MODULE_OBJS += \
-	events/sdl/legacy-sdl-events.o \
 	events/sdl/sdl-events.o \
 	graphics/sdl/sdl-graphics.o \
 	graphics/surfacesdl/surfacesdl-graphics.o \
@@ -211,7 +210,6 @@ MODULE_OBJS += \
 	graphics/openglsdl/openglsdl-graphics.o \
 	graphics3d/opengl/framebuffer.o \
 	graphics3d/opengl/surfacerenderer.o \
-	graphics3d/opengl/texture.o \
 	graphics3d/opengl/tiledsurface.o \
 	graphics3d/openglsdl/openglsdl-graphics3d.o
 endif
@@ -309,7 +307,6 @@ MODULE_OBJS += \
 	graphics3d/android/texture.o \
 	graphics3d/opengl/framebuffer.o \
 	graphics3d/opengl/surfacerenderer.o \
-	graphics3d/opengl/texture.o \
 	graphics3d/opengl/tiledsurface.o \
 	mutex/pthread/pthread-mutex.o
 endif
@@ -371,6 +368,7 @@ MODULE_OBJS += \
 	graphics/atari/atari-cursor.o \
 	graphics/atari/atari-graphics.o \
 	graphics/atari/atari-graphics-asm.o \
+	graphics/atari/atari-pendingscreenchanges.o \
 	graphics/atari/atari-screen.o \
 	mixer/atari/atari-mixer.o
 endif
@@ -388,17 +386,6 @@ MODULE_OBJS += \
 	plugins/ds/ds-provider.o
 endif
 
-ifeq ($(BACKEND),dingux)
-MODULE_OBJS += \
-	events/dinguxsdl/dinguxsdl-events.o
-endif
-
-ifeq ($(BACKEND),gph)
-MODULE_OBJS += \
-	events/gph/gph-events.o \
-	graphics/gph/gph-graphics.o
-endif
-
 ifdef IPHONE
 MODULE_OBJS += \
 	mutex/pthread/pthread-mutex.o \
@@ -407,7 +394,6 @@ MODULE_OBJS += \
 	graphics3d/ios/ios-graphics3d.o \
 	graphics3d/opengl/framebuffer.o \
 	graphics3d/opengl/surfacerenderer.o \
-	graphics3d/opengl/texture.o \
 	graphics3d/opengl/tiledsurface.o
 endif
 
@@ -499,17 +485,27 @@ endif
 ifdef USE_IMGUI
 MODULE_OBJS += \
 	imgui/imgui.o \
+	imgui/imgui_demo.o \
 	imgui/imgui_draw.o \
 	imgui/imgui_fonts.o \
 	imgui/imgui_tables.o \
 	imgui/imgui_widgets.o \
+	imgui/imgui_utils.o \
+	imgui/components/imgui_logger.o \
 	imgui/misc/freetype/imgui_freetype.o
 endif
 
 ifdef USE_SDL2
 ifdef USE_IMGUI
+ifdef USE_OPENGL
 MODULE_OBJS += \
-	imgui/backends/imgui_impl_opengl3.o \
+	imgui/backends/imgui_impl_opengl3.o
+endif
+ifdef USE_IMGUI_SDLRENDERER2
+MODULE_OBJS += \
+	imgui/backends/imgui_impl_sdlrenderer2.o
+endif
+MODULE_OBJS += \
 	imgui/backends/imgui_impl_sdl2.o
 endif
 endif

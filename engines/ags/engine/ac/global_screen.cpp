@@ -133,8 +133,10 @@ void TintScreen(int red, int grn, int blu) {
 void FadeOut(int sppd) {
 	EndSkippingUntilCharStops();
 
-	if (_GP(play).fast_forward)
+	if (_GP(play).fast_forward) {
+		_GP(play).screen_is_faded_out = 1;
 		return;
+	}
 
 	// FIXME: we have to sync audio here explicitly, because FadeOut
 	// does not call any game update function while it works
@@ -145,11 +147,9 @@ void FadeOut(int sppd) {
 
 void fadeout_impl(int spdd) {
 	if (_GP(play).screen_is_faded_out == 0) {
-		_G(gfxDriver)->FadeOut(spdd, _GP(play).fade_to_red, _GP(play).fade_to_green, _GP(play).fade_to_blue);
-	}
-
-	if (_GP(game).color_depth > 1)
+		_G(gfxDriver)->FadeOut(spdd, _GP(play).fade_to_red, _GP(play).fade_to_green, _GP(play).fade_to_blue, RENDER_SHOT_SKIP_ON_FADE);
 		_GP(play).screen_is_faded_out = 1;
+	}
 }
 
 void SetScreenTransition(int newtrans) {
@@ -183,9 +183,14 @@ void SetFadeColor(int red, int green, int blue) {
 void FadeIn(int sppd) {
 	EndSkippingUntilCharStops();
 
-	if (_GP(play).fast_forward)
+	if (_GP(play).fast_forward) {
+		_GP(play).screen_is_faded_out = 0;
 		return;
+	}
 
+	// Update drawables, prepare them for the transition-in
+	// in case this is called after the game state change but before any update was run
+	SyncDrawablesState();
 	// FIXME: we have to sync audio here explicitly, because FadeIn
 	// does not call any game update function while it works
 	sync_audio_playback();

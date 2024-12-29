@@ -50,7 +50,7 @@
 #include "audio/softsynth/emumidi.h"
 #include "gui/message.h"
 #include "backends/fs/fs-factory.h"
-#ifdef __ANDROID__
+#ifdef ANDROID_BACKEND
 #include "backends/fs/android/android-fs-factory.h"
 #endif
 
@@ -110,10 +110,10 @@ protected:
 
 	void generateSamples(int16 *buf, int len) override;
 
-	Common::Path getSoundFontPath() const;
-
 public:
 	MidiDriver_FluidSynth(Audio::Mixer *mixer);
+
+	static Common::Path getSoundFontPath(bool *exists = nullptr);
 
 	int open() override;
 	void close() override;
@@ -280,13 +280,18 @@ static long SoundFontMemLoader_tell(void *handle) {
 
 #endif // USE_FLUIDLITE
 
-Common::Path MidiDriver_FluidSynth::getSoundFontPath() const {
+Common::Path MidiDriver_FluidSynth::getSoundFontPath(bool *exists) {
 	Common::Path path = ConfMan.getPath("soundfont");
-	if (path.empty())
+	if (path.empty()) {
+		if (exists)
+			*exists = false;
 		return path;
+	}
 
 	Common::FSNode fileNode(path);
 	if (fileNode.exists()) {
+		if (exists)
+			*exists = true;
 		// Return the full system path to the soundfont
 		return Common::Path(g_system->getFilesystemFactory()->getSystemFullPath(path.toString(Common::Path::kNativeSeparator)), Common::Path::kNativeSeparator);
 	}
@@ -296,8 +301,11 @@ Common::Path MidiDriver_FluidSynth::getSoundFontPath() const {
 		Common::FSNode dirNode(ConfMan.getPath("soundfontpath"));
 		if (dirNode.exists() && dirNode.isDirectory()) {
 			fileNode = dirNode.getChild(path.baseName());
-			if (fileNode.exists())
+			if (fileNode.exists()) {
+				if (exists)
+					*exists = true;
 				return fileNode.getPath();
+			}
 		}
 	}
 
@@ -309,10 +317,15 @@ Common::Path MidiDriver_FluidSynth::getSoundFontPath() const {
 		if (!dir)
 			continue;
 		fileNode = dir->getFSNode().getChild(file.arcMember->getPathInArchive().toString(Common::Path::kNativeSeparator));
-		if (fileNode.exists())
+		if (fileNode.exists()) {
+			if (exists)
+				*exists = true;
 			return fileNode.getPath();
+		}
 	}
 
+	if (exists)
+		*exists = false;
 	return path;
 }
 
@@ -340,7 +353,7 @@ int MidiDriver_FluidSynth::open() {
 		return MERR_DEVICE_NOT_AVAILABLE;
 	}
 
-#if defined(__ANDROID__) && defined(FS_HAS_STREAM_SUPPORT)
+#if defined(ANDROID_BACKEND) && defined(FS_HAS_STREAM_SUPPORT)
 	// In Android, when using SAF we need to wrap IO to make it work
 	// We can only do this with FluidSynth 2.0
 	if (!isUsingInMemorySoundFontData &&
@@ -592,6 +605,7 @@ public:
 	}
 
 	MusicDevices getDevices() const override;
+	bool checkDevice(MidiDriver::DeviceHandle, int flags, bool quiet) const override;
 	Common::Error createInstance(MidiDriver **mididriver, MidiDriver::DeviceHandle = 0) const override;
 };
 
@@ -599,6 +613,17 @@ MusicDevices FluidSynthMusicPlugin::getDevices() const {
 	MusicDevices devices;
 	devices.push_back(MusicDevice(this, "", MT_GM));
 	return devices;
+}
+
+bool FluidSynthMusicPlugin::checkDevice(MidiDriver::DeviceHandle, int flags, bool quiet) const {
+#ifdef FS_HAS_STREAM_SUPPORT
+	if (flags & MDCK_SUPPLIED_SOUND_FONT)
+		return true;
+#endif
+
+	bool exists = false;
+	Common::Path sfPath = MidiDriver_FluidSynth::getSoundFontPath(&exists);
+	return !sfPath.empty() && exists;
 }
 
 Common::Error FluidSynthMusicPlugin::createInstance(MidiDriver **mididriver, MidiDriver::DeviceHandle) const {

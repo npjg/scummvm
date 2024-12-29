@@ -64,10 +64,8 @@ public:
 	 * @return a BaseImage containing the current screen-buffer.
 	 */
 	virtual BaseImage *takeScreenshot() = 0;
-	virtual bool saveScreenShot(const Common::String &filename, int sizeX = 0, int sizeY = 0);
 	virtual bool setViewport(int left, int top, int right, int bottom);
 	virtual bool setViewport(Rect32 *rect);
-	virtual Rect32 getViewPort() = 0;
 	virtual bool setScreenViewport();
 	virtual void setWindowed(bool windowed) = 0;
 
@@ -151,7 +149,7 @@ public:
 	/**
 	 * Create a Surface fit for use with the renderer.
 	 * As diverse implementations of BaseRenderer might have different solutions for storing surfaces
-	 * this allows for a common interface for creating surface-handles. (Mostly usefull to ease future
+	 * this allows for a common interface for creating surface-handles. (Mostly useful to ease future
 	 * implementation of hw-accelerated rendering, or readding 3D-support at some point).
 	 *
 	 * @return a surface that can be used with this renderer

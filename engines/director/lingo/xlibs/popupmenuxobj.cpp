@@ -46,7 +46,7 @@
  * --      to build the menu list for a PopUp menu.
  * --
  * --      - a menulist can be a continuous string
- * --          with items seperated by semicolons.
+ * --          with items separated by semicolons.
  * --          example: "item1;item2;item3"
  * --
  * --      - a menulist can be a set of strings, each
@@ -113,14 +113,14 @@
 
 namespace Director {
 
-const char *PopUpMenuXObj::xlibName = "PopMenu";
+const char *const PopUpMenuXObj::xlibName = "PopMenu";
 const XlibFileDesc PopUpMenuXObj::fileNames[] = {
 	{ "PopMenu",			nullptr },
 	{ "PopUp Menu XObj",	nullptr },
 	{ nullptr,				nullptr },
 };
 
-static MethodProto xlibMethods[] = {
+static const MethodProto xlibMethods[] = {
 	{ "new",				PopUpMenuXObj::m_new,			 2, 2,	200 },	// D2
 	{ "AppendMenu",			PopUpMenuXObj::m_appendMenu,	 1, 1,	200 },	// D2
 	{ "DisableItem",		PopUpMenuXObj::m_disableItem,	 1, 1,	200 },	// D2

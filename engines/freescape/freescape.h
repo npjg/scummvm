@@ -34,6 +34,7 @@
 #include "graphics/framelimiter.h"
 
 #include "freescape/area.h"
+#include "freescape/font.h"
 #include "freescape/gfx.h"
 #include "freescape/objects/entrance.h"
 #include "freescape/objects/geometricobject.h"
@@ -57,6 +58,48 @@ enum CameraMovement {
 	kRightMovement
 };
 
+enum FreescapeAction {
+	kActionNone,
+	kActionEscape,
+	kActionSave,
+	kActionLoad,
+	kActionToggleSound,
+	kActionMoveUp,
+	kActionMoveDown,
+	kActionMoveLeft,
+	kActionMoveRight,
+	kActionShoot,
+	kActionChangeAngle,
+	kActionChangeStepSize,
+	kActionToggleRiseLower,
+	kActionRiseOrFlyUp,
+	kActionLowerOrFlyDown,
+	kActionChangeMode,
+	kActionSkip,
+	kActionFaceForward,
+	kActionRotateUp,
+	kActionRotateDown,
+	kActionRotateLeft,
+	kActionRotateRight,
+	kActionTurnBack,
+	kActionInfoMenu,
+	kActionIncreaseStepSize,
+	kActionDecreaseStepSize,
+	kActionToggleFlyMode,
+	kActionToggleClipMode,
+	// Driller
+	kActionDeployDrillingRig,
+	kActionCollectDrillingRig,
+	// Total Eclipse
+	kActionRest,
+	// Castle
+	kActionRunMode,
+	kActionWalkMode,
+	kActionCrawlMode,
+	kActionSelectPrince,
+	kActionSelectPrincess,
+};
+
 typedef Common::HashMap<uint16, Area *> AreaMap;
 typedef Common::Array<byte *> ColorMap;
 typedef Common::HashMap<uint16, int32> StateVars;
@@ -66,6 +109,7 @@ enum {
 	kFreescapeDebugParser = 1 << 1,
 	kFreescapeDebugCode = 1 << 2,
 	kFreescapeDebugMedia = 1 << 4,
+	kFreescapeDebugGroup = 1 << 5,
 };
 
 enum GameStateControl {
@@ -101,6 +145,7 @@ private:
 	Common::EventManager *_delegate;
 
 	Common::KeyState _currentKeyDown;
+	Common::CustomEventType _currentActionDown;
 	uint32 _keyRepeatTime;
 };
 
@@ -143,18 +188,19 @@ public:
 	void drawFullscreenSurface(Graphics::Surface *surface);
 	virtual void loadBorder();
 	virtual void processBorder();
+	void waitInLoop(int maxWait);
 	void drawBorder();
 	void drawTitle();
 	virtual void drawBackground();
 	void clearBackground();
 	virtual void drawUI();
 	virtual void drawInfoMenu();
-	void drawBorderScreenAndWait(Graphics::Surface *surface);
+	void drawBorderScreenAndWait(Graphics::Surface *surface, int maxWait = INT_MAX);
 
 	virtual void drawCrossair(Graphics::Surface *surface);
 	Graphics::ManagedSurface *_border;
 	Graphics::ManagedSurface *_title;
-	Graphics::Surface *_background;
+	Graphics::ManagedSurface *_background;
 
 	Texture *_borderTexture;
 	Texture *_titleTexture;
@@ -197,11 +243,12 @@ public:
 
 	Common::Archive *_dataBundle;
 	void loadDataBundle();
-	Graphics::Surface *loadBundledImage(const Common::String &name);
+	Graphics::Surface *loadBundledImage(const Common::String &name, bool appendRenderMode = true);
 	byte *getPaletteFromNeoImage(Common::SeekableReadStream *stream, int offset);
 	Graphics::ManagedSurface *loadAndConvertNeoImage(Common::SeekableReadStream *stream, int offset, byte *palette = nullptr);
 	Graphics::ManagedSurface *loadAndCenterScrImage(Common::SeekableReadStream *stream);
 	void loadPalettes(Common::SeekableReadStream *file, int offset);
+	byte *loadPalette(Common::SeekableReadStream *file);
 	void swapPalette(uint16 areaID);
 	virtual byte *findCGAPalette(uint16 levelID);
 	const CGAPaletteEntry *_rawCGAPaletteByArea;
@@ -269,13 +316,14 @@ public:
 	bool _shootMode;
 	bool _noClipMode;
 	bool _invertY;
-	virtual void initKeymaps(Common::Keymap *engineKeyMap, const char *target);
+	virtual void initKeymaps(Common::Keymap *engineKeyMap, Common::Keymap *infoScreenKeyMap, const char *target);
 	EventManagerWrapper *_eventManager;
 	void processInput();
 	void resetInput();
 	void generateDemoInput();
 	virtual void pressedKey(const int keycode);
 	virtual void releasedKey(const int keycode);
+	Common::Point getNormalizedPosition(Common::Point position);
 	virtual bool onScreenControls(Common::Point mouse);
 	void move(CameraMovement direction, uint8 scale, float deltaTime);
 	void resolveCollisions(Math::Vector3d newPosition);
@@ -286,7 +334,7 @@ public:
 	void changeStepSize();
 
 	void changeAngle();
-	void rise();
+	bool rise();
 	void lower();
 	bool checkFloor(Math::Vector3d currentPosition);
 	bool tryStepUp(Math::Vector3d currentPosition);
@@ -338,26 +386,28 @@ public:
 
 	bool runCollisionConditions(Math::Vector3d const lastPosition, Math::Vector3d const newPosition);
 	Math::Vector3d _objExecutingCodeSize;
+	bool _executingGlobalCode;
 	virtual void executeMovementConditions();
 	bool executeObjectConditions(GeometricObject *obj, bool shot, bool collided, bool activated);
 	void executeEntranceConditions(Entrance *entrance);
 	void executeLocalGlobalConditions(bool shot, bool collided, bool timer);
-	void executeCode(FCLInstructionVector &code, bool shot, bool collided, bool timer, bool activated);
+	bool executeCode(FCLInstructionVector &code, bool shot, bool collided, bool timer, bool activated);
 
 	// Instructions
 	bool checkConditional(FCLInstruction &instruction, bool shot, bool collided, bool timer, bool activated);
 	bool checkIfGreaterOrEqual(FCLInstruction &instruction);
-	void executeExecute(FCLInstruction &instruction);
+	bool checkIfLessOrEqual(FCLInstruction &instruction);
+	void executeExecute(FCLInstruction &instruction, bool shot, bool collided, bool activated);
 	void executeIncrementVariable(FCLInstruction &instruction);
 	void executeDecrementVariable(FCLInstruction &instruction);
 	void executeSetVariable(FCLInstruction &instruction);
 	void executeGoto(FCLInstruction &instruction);
 	void executeIfThenElse(FCLInstruction &instruction);
-	void executeMakeInvisible(FCLInstruction &instruction);
+	virtual void executeMakeInvisible(FCLInstruction &instruction);
 	void executeMakeVisible(FCLInstruction &instruction);
 	void executeToggleVisibility(FCLInstruction &instruction);
-	void executeDestroy(FCLInstruction &instruction);
-	void executeRedraw(FCLInstruction &instruction);
+	virtual void executeDestroy(FCLInstruction &instruction);
+	virtual void executeRedraw(FCLInstruction &instruction);
 	void executeSound(FCLInstruction &instruction);
 	void executeDelay(FCLInstruction &instruction);
 	bool executeEndIfNotEqual(FCLInstruction &instruction);
@@ -401,7 +451,22 @@ public:
 
 	void playSoundZX(Common::Array<soundUnitZX> *data);
 	Common::HashMap<uint16, Common::Array<soundUnitZX>*> _soundsSpeakerFxZX;
-	int _nextSoundToPlay = 1;
+	int _soundIndexShoot;
+	int _soundIndexCollide;
+	int _soundIndexFall;
+	int _soundIndexClimb;
+	int _soundIndexMenu;
+	int _soundIndexStart;
+	int _soundIndexAreaChange;
+	int _soundIndexHit;
+
+	int _soundIndexNoShield;
+	int _soundIndexNoEnergy;
+	int _soundIndexFallen;
+	int _soundIndexTimeout;
+	int _soundIndexForceEndGame;
+	int _soundIndexCrushed;
+	int _soundIndexMissionComplete;
 
 	// Rendering
 	int _screenW, _screenH;
@@ -420,8 +485,6 @@ public:
 	Math::Vector3d _scaleVector;
 	float _nearClipPlane;
 	float _farClipPlane;
-	float _yminValue;
-	float _ymaxValue;
 
 	// Text messages and Fonts
 	void insertTemporaryMessage(const Common::String message, int deadline);
@@ -436,6 +499,8 @@ public:
 	Common::String _timeoutMessage;
 	Common::String _forceEndGameMessage;
 	Common::String _crushedMessage;
+	Common::String _outOfReachMessage;
+	Common::String _noEffectMessage;
 
 	void loadMessagesFixedSize(Common::SeekableReadStream *file, int offset, int size, int number);
 	virtual void loadMessagesVariableSize(Common::SeekableReadStream *file, int offset, int number);
@@ -443,15 +508,18 @@ public:
 	void drawFullscreenMessage(Common::String message, uint32 front, Graphics::Surface *surface);
 
 	// Font loading and rendering
-	void loadFonts(Common::SeekableReadStream *file, int offset, Common::BitArray &font);
+	void loadFonts(Common::SeekableReadStream *file, int offset);
 	void loadFonts(byte *font, int charNumber);
+	Common::Array<Graphics::ManagedSurface *> getChars(Common::SeekableReadStream *file, int offset, int charsNumber);
+	Common::Array<Graphics::ManagedSurface *> getCharsAmigaAtariInternal(int sizeX, int sizeY, int additional, int m1, int m2, Common::SeekableReadStream *file, int offset, int charsNumber);
+	Common::Array<Graphics::ManagedSurface *> getCharsAmigaAtari(Common::SeekableReadStream *file, int offset, int charsNumber);
 	Common::StringArray _currentAreaMessages;
 	Common::StringArray _currentEphymeralMessages;
-	Common::BitArray _font;
+	Font _font;
 	bool _fontLoaded;
 	virtual void drawStringInSurface(const Common::String &str, int x, int y, uint32 fontColor, uint32 backColor, Graphics::Surface *surface, int offset = 0);
 	virtual void drawStringInSurface(const Common::String &str, int x, int y, uint32 primaryFontColor, uint32 secondaryFontColor, uint32 backColor, Graphics::Surface *surface, int offset = 0);
-	Graphics::Surface *drawStringsInSurface(const Common::Array<Common::String> &lines);
+	Graphics::Surface *drawStringsInSurface(const Common::Array<Common::String> &lines, Graphics::Surface *surface);
 
 	// Game state
 	virtual void initGameState();
@@ -462,12 +530,15 @@ public:
 
 	StateVars _gameStateVars;
 	uint32 _gameStateBits;
+	void checkIfPlayerWasCrushed();
 	virtual bool checkIfGameEnded();
 	virtual void endGame();
+	int _endGameDelayTicks;
 	bool _endGameKeyPressed;
 	bool _endGamePlayerEndArea;
 	bool _forceEndGame;
 	bool _playerWasCrushed;
+	Common::HashMap<uint16, bool> _exploredAreas;
 	ObjectArray _sensors;
 	virtual void checkSensors();
 	virtual void drawSensorShoot(Sensor *sensor);
@@ -476,7 +547,7 @@ public:
 	bool hasFeature(EngineFeature f) const override;
 	bool canLoadGameStateCurrently(Common::U32String *msg = nullptr) override { return true; }
 	bool canSaveAutosaveCurrently() override { return false; }
-	bool canSaveGameStateCurrently(Common::U32String *msg = nullptr) override { return true; }
+	bool canSaveGameStateCurrently(Common::U32String *msg = nullptr) override { return _gameStateControl == kFreescapeGameStatePlaying && _currentArea; }
 	Common::Error loadGameStream(Common::SeekableReadStream *stream) override;
 	Common::Error saveGameStream(Common::WriteStream *stream, bool isAutosave = false) override;
 	virtual Common::Error saveGameStreamExtended(Common::WriteStream *stream, bool isAutosave = false);
@@ -506,6 +577,20 @@ public:
 
 	// Random
 	Common::RandomSource *_rnd;
+};
+
+enum GameReleaseFlags {
+	GF_AMIGA_RETAIL = (1 << 0),
+	GF_AMIGA_BUDGET = (1 << 1),
+	GF_ZX_RETAIL = (1 << 2),
+	GF_ZX_BUDGET = (1 << 3),
+	GF_ZX_DISC = (1 << 4),
+	GF_CPC_RETAIL = (1 << 5),
+	GF_CPC_RETAIL_ALT = (1 << 6),
+	GF_CPC_BUDGET = (1 << 7),
+	GF_CPC_VIRTUALWORLDS = (1 << 8),
+	GF_ATARI_RETAIL = (1 << 9),
+	GF_ATARI_BUDGET = (1 << 10)
 };
 
 extern FreescapeEngine *g_freescape;

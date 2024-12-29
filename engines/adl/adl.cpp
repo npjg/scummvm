@@ -120,8 +120,9 @@ bool AdlEngine::pollEvent(Common::Event &event) const {
 	return false;
 }
 
-Common::String AdlEngine::readString(Common::ReadStream &stream, byte until) const {
+Common::String AdlEngine::readString(Common::ReadStream &stream, byte until, const char *key) const {
 	Common::String str;
+	int keyLength = strlen(key);
 
 	while (1) {
 		byte b = stream.readByte();
@@ -132,8 +133,11 @@ Common::String AdlEngine::readString(Common::ReadStream &stream, byte until) con
 		if (b == until)
 			break;
 
+		if (keyLength)
+			b ^= key[str.size() % keyLength];
+
 		str += b;
-	};
+	}
 
 	return str;
 }
@@ -184,6 +188,7 @@ void AdlEngine::delay(uint32 ms) const {
 		pollEvent(event);
 		g_system->delayMillis(end - now < 16 ? end - now : 16);
 		now = g_system->getMillis();
+		g_system->updateScreen();
 	}
 }
 
@@ -290,6 +295,7 @@ byte AdlEngine::inputKey(bool showCursor) const {
 
 		_display->renderText();
 		g_system->delayMillis(16);
+		g_system->updateScreen();
 	}
 
 	_display->showCursor(false);
@@ -312,6 +318,7 @@ void AdlEngine::waitKey(uint32 ms, Common::KeyCode keycode) const {
 			return;
 
 		g_system->delayMillis(16);
+		g_system->updateScreen();
 	}
 }
 
@@ -437,6 +444,15 @@ Command &AdlEngine::getCommand(Commands &commands, uint idx) {
 	error("Command %d not found", idx);
 }
 
+void AdlEngine::removeMessage(uint idx) {
+		if (_messages[idx]) {
+			_messages[idx].reset();
+			return;
+		}
+
+		error("Message %d not found", idx);
+}
+
 void AdlEngine::checkInput(byte verb, byte noun) {
 	// Try room-local command list first
 	if (doOneCommand(_roomData.commands, verb, noun))
@@ -532,11 +548,13 @@ void AdlEngine::loadDroppedItemOffsets(Common::ReadStream &stream, byte count) {
 }
 
 void AdlEngine::drawPic(byte pic, Common::Point pos) const {
-	if (_roomData.pictures.contains(pic))
-		_graphics->drawPic(*_roomData.pictures[pic]->createReadStream(), pos);
-	else if (_pictures.contains(pic))
-		_graphics->drawPic(*_pictures[pic]->createReadStream(), pos);
-	else
+	if (_roomData.pictures.contains(pic)) {
+		Common::StreamPtr stream(_roomData.pictures[pic]->createReadStream());
+		_graphics->drawPic(*stream, pos);
+	} else if (_pictures.contains(pic)) {
+		Common::StreamPtr stream(_pictures[pic]->createReadStream());
+		_graphics->drawPic(*stream, pos);
+	} else
 		error("Picture %d not found", pic);
 }
 
@@ -573,6 +591,7 @@ bool AdlEngine::playTones(const Tones &tones, bool isMusic, bool allowSkip) cons
 		}
 
 		g_system->delayMillis(16);
+		g_system->updateScreen();
 	}
 
 	return false;

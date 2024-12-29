@@ -35,7 +35,7 @@
 #include "scumm/file_nes.h"
 
 // Includes some shared functionalities, which is required by multiple TU's.
-// Mark it as static in the header, so visibility for function is limited by the TU, and we can use it whereever required.
+// Mark it as static in the header, so visibility for function is limited by the TU, and we can use it wherever required.
 // This is being done, because it's necessary in detection, creating an instance, as well as in initiliasing the ScummEngine.
 #include "scumm/detection_steam.h"
 
@@ -527,7 +527,7 @@ static void detectGames(const Common::FSList &fslist, Common::List<DetectorResul
 			if (tmp)
 				md5str = computeStreamMD5AsString(*tmp, kMD5FileSizeLimit);
 			if (!md5str.empty()) {
-				int filesize = tmp->size();
+				int64 filesize = tmp->size();
 
 				d.md5 = md5str;
 				d.md5Entry = findInMD5Table(md5str.c_str());
@@ -554,7 +554,7 @@ static void detectGames(const Common::FSList &fslist, Common::List<DetectorResul
 					computeGameSettingsFromMD5(fslist, gfp, d.md5Entry, dr);
 
 					// Print some debug info.
-					debugC(1, kDebugGlobalDetection, "SCUMM detector found matching file '%s' with MD5 %s, size %d\n",
+					debugC(1, kDebugGlobalDetection, "SCUMM detector found matching file '%s' with MD5 %s, size %" PRId64 "\n",
 						file.c_str(), md5str.c_str(), filesize);
 
 					// Sanity check: We *should* have found a matching gameid/variant at this point.
@@ -862,14 +862,22 @@ static bool testGame(const GameSettings *g, const DescMap &fileMD5Map, const Com
 static Common::String customizeGuiOptions(const DetectorResult &res) {
 	Common::String guiOptions = res.game.guioptions;
 
-	int midiflags = res.game.midi;
-	// These games often have no detection entries of their own and therefore come with all the DOS audio options.
-	// We clear them here to avoid confusion and add the appropriate default sound option below. The games from
-	// version 5 onwards seem to have correct sound options in the detection tables.
-	if (res.game.version < 5 && (res.game.platform == Common::kPlatformAmiga || (res.game.platform == Common::kPlatformMacintosh && strncmp(res.extra, "Steam", 6)) || res.game.platform == Common::kPlatformC64))
-		midiflags = MDT_NONE;
-
 	static const uint mtypes[] = {MT_PCSPK, MT_CMS, MT_PCJR, MT_ADLIB, MT_C64, MT_AMIGA, MT_APPLEIIGS, MT_TOWNS, MT_PC98, MT_SEGACD, 0, 0, 0, 0, MT_MACINTOSH};
+	int midiflags = res.game.midi;
+
+	// These games often have no detection entries of their own and therefore come with all the DOS audio options.
+	// We clear them here to avoid confusion and add the appropriate default sound option below.
+	if (res.game.platform == Common::kPlatformAmiga || (res.game.platform == Common::kPlatformMacintosh && strncmp(res.extra, "Steam", 6)) || res.game.platform == Common::kPlatformC64) {
+		midiflags = MDT_NONE;
+		// Remove invalid types from options string
+		for (int i = 0; i < ARRAYSIZE(mtypes); ++i) {
+			if (!mtypes[i])
+				continue;
+			uint pos = guiOptions.findFirstOf(MidiDriver::musicType2GUIO(mtypes[i]));
+			if (pos != Common::String::npos)
+				guiOptions.erase(pos, 1);
+		}
+	}
 
 	for (int i = 0; i < ARRAYSIZE(mtypes); ++i) {
 		if (mtypes[i] && (midiflags & (1 << i)))
@@ -891,7 +899,7 @@ static Common::String customizeGuiOptions(const DetectorResult &res) {
 				guiOptions.erase(pos, 1);
 		}
 	}
-	
+
 	Common::String defaultRenderOption = "";
 	Common::String defaultSoundOption = "";
 

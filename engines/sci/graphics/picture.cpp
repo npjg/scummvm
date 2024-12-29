@@ -36,7 +36,18 @@ namespace Sci {
 //#define DEBUG_PICTURE_DRAW
 
 GfxPicture::GfxPicture(ResourceManager *resMan, GfxCoordAdjuster16 *coordAdjuster, GfxPorts *ports, GfxScreen *screen, GfxPalette *palette, GuiResourceId resourceId, bool EGAdrawingVisualize)
-	: _resMan(resMan), _coordAdjuster(coordAdjuster), _ports(ports), _screen(screen), _palette(palette), _resourceId(resourceId), _EGAdrawingVisualize(EGAdrawingVisualize) {
+	: _resMan(resMan),
+	_coordAdjuster(coordAdjuster),
+	_ports(ports), _screen(screen),
+	_palette(palette),
+	_resourceId(resourceId),
+	_resourceType(SCI_PICTURE_TYPE_REGULAR),
+	_mirroredFlag(false),
+	_addToFlag(false),
+	_EGApaletteNo(0),
+	_priority(0),
+	_EGAdrawingVisualize(EGAdrawingVisualize) {
+
 	assert(resourceId != -1);
 	initData(resourceId);
 }
@@ -215,7 +226,7 @@ void GfxPicture::drawCelData(const SciSpan<const byte> &inbuffer, int headerPos,
 		// Change clearcolor to white, if we dont add to an existing picture. That way we will paint everything on screen
 		// but white and that won't matter because the screen is supposed to be already white. It seems that most (if not all)
 		// SCI1.1 games use color 0 as transparency and SCI1 games use color 255 as transparency. Sierra SCI seems to paint
-		// the whole data to screen and wont skip over transparent pixels. So this will actually make it work like Sierra.
+		// the whole data to screen and won't skip over transparent pixels. So this will actually make it work like Sierra.
 		if (!_addToFlag)
 			clearColor = _screen->getColorWhite();
 

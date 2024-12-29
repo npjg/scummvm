@@ -96,6 +96,7 @@ static const PlainGameDescriptor wintermuteGames[] = {
 	{"imustkill",       "I Must Kill...: Fresh Meat"},
 	{"jamesperis",      "James Peris: No License Nor Control"},
 	{"jamesperis2",     "James Peris 2: The Fountain of Eternal Drunkenness"},
+	{"keshaskazok",     "Кеша в мире сказок"},
 	{"klaymen1",        "Klaymen Episodes: Pilot"},
 	{"knossos",         "K'NOSSOS"},
 	{"kulivocko",       "Kulivocko"},
@@ -460,7 +461,7 @@ static const WMEGameDescription gameDescriptions[] = {
 
 	// Awakening: Burning Ashes (Hayoola) (Persian)
 	WME_WINENTRY("awakening", "",
-		WME_ENTRY1s("data.dcp", "a7b8633fdc5cc8ff659dda5a11d3d971", 1900777616), Common::FA_IRN, ADGF_UNSTABLE | GF_3D, WME_1_9_3),
+		WME_ENTRY1s("data.dcp", "a7b8633fdc5cc8ff659dda5a11d3d971", 1900777616), Common::FA_IRN, ADGF_UNSTABLE, WME_1_9_3),
 
 	// El Engaño de Barbapoca Chapter 1: Esta Pizza Esta de Muerte (Spanish)
 	WME_WINENTRY("barbapoca1", "",
@@ -865,6 +866,10 @@ static const WMEGameDescription gameDescriptions[] = {
 		WME_ENTRY2s("actors.dcp", "170c7ade10edd7ff6d24b16f2eecd818", 453328582,
 					"stageplay.dcp", "ed67b4d6e35c19597241eb1d863aa315", 226453373), Common::EN_ANY, ADGF_UNSTABLE | GF_3D, WME_1_8_10),
 
+	WME_WINENTRY("darkfallls", "",
+		WME_ENTRY2s("actors.dcp", "17df9d381d49100d2bd79c5f3eefe53c", 454049405,
+					"stageplay.dcp", "037dcab0c7204a8c09f12aec4c4dd5e7", 198193043), Common::DE_DEU, ADGF_UNSTABLE | GF_3D, WME_1_8_10),
+
 	// Twilight: Dark Summer (Ario) (Persian)
 	WME_WINENTRY("darksummer", "",
 		WME_ENTRY1s("data.dcp", "da1142983240a5bb62c32f79a863eac5", 1030873185), Common::FA_IRN, ADGF_UNSTABLE | GF_3D, WME_1_9_3),
@@ -1084,7 +1089,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1291",
 		WME_ENTRY1s("data.dcp", "651ae5b062073021edaca7e1de131eec", 59357572), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1291 (Ukranian)
+	// FoxTail 1.2.230.1291 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1291",
 		WME_ENTRY1s("data.dcp", "651ae5b062073021edaca7e1de131eec", 59357572), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1100,7 +1105,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1303",
 		WME_ENTRY1s("data.dcp", "03ed77b1ac8b94bbd0247324a41621ad", 59357623), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1303 (Ukranian)
+	// FoxTail 1.2.230.1303 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1303",
 		WME_ENTRY1s("data.dcp", "03ed77b1ac8b94bbd0247324a41621ad", 59357623), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1116,7 +1121,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1313",
 		WME_ENTRY1s("data.dcp", "d7287c49210c7c9f9376327c6e224c7b", 59383312), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1313 (Ukranian)
+	// FoxTail 1.2.230.1313 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1313",
 		WME_ENTRY1s("data.dcp", "d7287c49210c7c9f9376327c6e224c7b", 59383312), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1132,7 +1137,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1315",
 		WME_ENTRY1s("data.dcp", "434c4f598582a569972acd4d700a44e5", 59383416), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1315 (Ukranian)
+	// FoxTail 1.2.230.1315 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1315",
 		WME_ENTRY1s("data.dcp", "434c4f598582a569972acd4d700a44e5", 59383416), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1148,7 +1153,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1316",
 		WME_ENTRY1s("data.dcp", "5aa16c180998f1816a734c58a01ab8b1", 59383306), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1316 (Ukranian)
+	// FoxTail 1.2.230.1316 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1316",
 		WME_ENTRY1s("data.dcp", "5aa16c180998f1816a734c58a01ab8b1", 59383306), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1164,7 +1169,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1318",
 		WME_ENTRY1s("data.dcp", "363856606d19fb7e0e3a0a67737697fa", 59382887), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1318 (Ukranian)
+	// FoxTail 1.2.230.1318 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1318",
 		WME_ENTRY1s("data.dcp", "363856606d19fb7e0e3a0a67737697fa", 59382887), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1180,7 +1185,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1321",
 		WME_ENTRY1s("data.dcp", "bbab16777c4bc979c5f773e12b804a63", 59151985), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1321 (Ukranian)
+	// FoxTail 1.2.230.1321 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1321",
 		WME_ENTRY1s("data.dcp", "bbab16777c4bc979c5f773e12b804a63", 59151985), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1197,7 +1202,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.230.1322",
 		WME_ENTRY1s("data.dcp", "22e5f634742956b6f4087459a9c8acf4", 59151985), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
-	// FoxTail 1.2.230.1322 (Ukranian)
+	// FoxTail 1.2.230.1322 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.230.1322",
 		WME_ENTRY1s("data.dcp", "22e5f634742956b6f4087459a9c8acf4", 59151985), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_230),
 
@@ -1213,7 +1218,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.304.1571",
 		WME_ENTRY1s("data.dcp", "32fd78f0b1509863f2e91bc7afc633ff", 59630008), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_304),
 
-	// FoxTail 1.2.304.1571 (Ukranian)
+	// FoxTail 1.2.304.1571 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.304.1571",
 		WME_ENTRY1s("data.dcp", "32fd78f0b1509863f2e91bc7afc633ff", 59630008), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_304),
 
@@ -1229,7 +1234,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.362.2039",
 		WME_ENTRY1s("data.dcp", "ca1b0379c8f0dffd3bf8b95e91379b2c", 70132635), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_362),
 
-	// FoxTail 1.2.362.2039 (Ukranian)
+	// FoxTail 1.2.362.2039 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.362.2039",
 		WME_ENTRY1s("data.dcp", "ca1b0379c8f0dffd3bf8b95e91379b2c", 70132635), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_362),
 
@@ -1245,7 +1250,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.362.2047",
 		WME_ENTRY1s("data.dcp", "2c4c744ff103f4fc6e770515e2da8b16", 70124937), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_362),
 
-	// FoxTail 1.2.362.2047 (Ukranian)
+	// FoxTail 1.2.362.2047 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.362.2047",
 		WME_ENTRY1s("data.dcp", "2c4c744ff103f4fc6e770515e2da8b16", 70124937), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_362),
 
@@ -1265,7 +1270,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.527.3377",
 		WME_ENTRY1s("data.dcp", "e0177c5752d067a3e473b86ad40d57c3", 109502449), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_527),
 
-	// FoxTail 1.2.527.3377 (Ukranian)
+	// FoxTail 1.2.527.3377 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.527.3377",
 		WME_ENTRY1s("data.dcp", "e0177c5752d067a3e473b86ad40d57c3", 109502449), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_527),
 
@@ -1285,7 +1290,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.527.3389",
 		WME_ENTRY1s("data.dcp", "a940ffa1b4347588d13e4a9756bb0bbd", 109503345), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_527),
 
-	// FoxTail 1.2.527.3389 (Ukranian)
+	// FoxTail 1.2.527.3389 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.527.3389",
 		WME_ENTRY1s("data.dcp", "a940ffa1b4347588d13e4a9756bb0bbd", 109503345), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_527),
 
@@ -1305,7 +1310,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.527.3391",
 		WME_ENTRY1s("data.dcp", "e5d06fa058cd9d6f20d6206356e5854d", 109503303), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_527),
 
-	// FoxTail 1.2.527.3391 (Ukranian)
+	// FoxTail 1.2.527.3391 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.527.3391",
 		WME_ENTRY1s("data.dcp", "e5d06fa058cd9d6f20d6206356e5854d", 109503303), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_527),
 
@@ -1325,7 +1330,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.896.4370",
 		WME_ENTRY1s("data.dcp", "cee21687240aa160b8ebf1e0cccaef59", 154006218), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_896),
 
-	// FoxTail 1.2.896.4370 (Ukranian)
+	// FoxTail 1.2.896.4370 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.896.4370",
 		WME_ENTRY1s("data.dcp", "cee21687240aa160b8ebf1e0cccaef59", 154006218), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_896),
 
@@ -1345,7 +1350,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.896.4371",
 		WME_ENTRY1s("data.dcp", "ca9842a6461cc7b00e63b5bc11813971", 154006242), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_896),
 
-	// FoxTail 1.2.896.4371 (Ukranian)
+	// FoxTail 1.2.896.4371 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.896.4371",
 		WME_ENTRY1s("data.dcp", "ca9842a6461cc7b00e63b5bc11813971", 154006242), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_896),
 
@@ -1365,7 +1370,7 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("foxtail", "1.2.902.4379",
 		WME_ENTRY1s("data.dcp", "a4a5458afa42ac1d90f4050b033421a4", 153987445), Common::RU_RUS, ADGF_UNSTABLE, FOXTAIL_1_2_902),
 
-	// FoxTail 1.2.902.4379 (Ukranian)
+	// FoxTail 1.2.902.4379 (Ukrainian)
 	WME_WINENTRY("foxtail", "1.2.902.4379",
 		WME_ENTRY1s("data.dcp", "a4a5458afa42ac1d90f4050b033421a4", 153987445), Common::UA_UKR, ADGF_UNSTABLE, FOXTAIL_1_2_902),
 
@@ -1397,10 +1402,16 @@ static const WMEGameDescription gameDescriptions[] = {
 		WME_ENTRY2s("english.dcp", "e21c7278071cd2ee216ae72d5a39de29", 12008908,
 					"data.dcp", "43ba03f37a0f97249c1e0c3cf7d6f9a9", 167980), Common::EN_ANY, ADGF_UNSTABLE, WME_1_8_0),
 
-	// Ghost in the Sheet (aka S.C.A.R.E.) (German)
+	// Ghost in the Sheet (aka S.C.A.R.E.) (2007) (German)
 	WME_WINENTRY("ghostsheet", "",
 		WME_ENTRY2s("german.dcp", "7fe6c0b28ebdfa55f432805ebc524cc3", 209496295,
 					"data.dcp", "4e4e5fdff0f7a5f4aa5db51c5c7e94d3", 3759113), Common::DE_DEU, ADGF_UNSTABLE, WME_1_8_0),
+
+	// Ghost in the Sheet (aka Mystery Places - Das Geheimnis von Sektor Omega) (2011) (German)
+	WME_WINENTRY("ghostsheet", "",
+		WME_ENTRY3s("german_2.dcp", "1b034ed144db60e46fcd5333b6da1948", 741394,
+					"german.dcp", "7fe6c0b28ebdfa55f432805ebc524cc3", 209496295,
+					"data.dcp", "4e4e5fdff0f7a5f4aa5db51c5c7e94d3", 3759113), Common::DE_DEU, ADGF_UNSTABLE, WME_1_9_2),
 
 	// Ghost in the Sheet (Italian)
 	WME_WINENTRY("ghostsheet", "",
@@ -1697,6 +1708,10 @@ static const WMEGameDescription gameDescriptions[] = {
 	WME_WINENTRY("juliauntold", "GOG.com",
 		WME_ENTRY1s("data.dcp", "b0aefd82647a26425fe3ee21aabb6283", 26462676), Common::EN_ANY, ADGF_UNSTABLE, WME_LITE),
 
+	// Kesha v Mire skazok (Kesha in the World of Fairy Tales)
+	WME_WINENTRY("keshaskazok", "",
+		WME_ENTRY1s("common.dcp", "5161e6aacc79471563f2af4cf1ed1d7c", 31509010), Common::RU_RUS, ADGF_UNSTABLE, WME_1_5_2),
+
 	// Klaymen Episodes: Pilot
 	WME_WINENTRY("klaymen1", "",
 		WME_ENTRY1s("data.dcp", "8a066d13d32567ca88a6918bfa3c01fa", 17086470), Common::EN_ANY, ADGF_UNSTABLE, WME_1_8_6),
@@ -1751,11 +1766,11 @@ static const WMEGameDescription gameDescriptions[] = {
 
 	// Limbo of the Lost (English)
 	WME_WINENTRY("lotl", "",
-		WME_ENTRY1s("data.dcp", "637f2195a08f59e809ca48194a2ee73d", 354879400), Common::EN_ANY, ADGF_UNSTABLE | GF_3D, WME_1_7_2),
+		WME_ENTRY1s("data.dcp", "637f2195a08f59e809ca48194a2ee73d", 354879400), Common::EN_ANY, ADGF_UNSTABLE, WME_1_7_2),
 
 	// Limbo of the Lost (Russian)
 	WME_WINENTRY("lotl", "",
-		WME_ENTRY1s("data.dcp", "2042ea14f2d7c52a139d768e962040c1", 354370575), Common::RU_RUS, ADGF_UNSTABLE | GF_3D, WME_1_7_2),
+		WME_ENTRY1s("data.dcp", "2042ea14f2d7c52a139d768e962040c1", 354370575), Common::RU_RUS, ADGF_UNSTABLE, WME_1_7_2),
 
 	// Tale of The Lost Bride and A Hidden Treasure (Russian)
 	WME_WINENTRY("lostbride", "",
@@ -4185,6 +4200,11 @@ static const WMEGameDescription gameDescriptions[] = {
 		WME_ENTRY2s("data.dcp", "ca788ebe1b607c24c3e4db4771c16559", 1806937971,
 					"xlanguage_zh_t.dcp", "6ca6a83edad54ec1c384fbcea2989ee4", 10170999), Common::ZH_TWN, ADGF_UNSTABLE, WME_1_9_2),
 
+	// Reversion: The Return (Steam, December 2022) (French)
+	WME_WINENTRY("reversion3", "Steam",
+		WME_ENTRY2s("data.dcp", "ca788ebe1b607c24c3e4db4771c16559", 1806937971,
+					"xlanguage_fr.dcp", "95e120a88b3205e8b58f71060c34e713", 10251638), Common::FR_FRA, ADGF_UNSTABLE, WME_1_9_2),
+
 	// Rhiannon: Curse of the four Branches
 	WME_WINENTRY("rhiannon", "",
 		WME_ENTRY1s("data.dcp", "870f348900b735f1cc79c0608ce32b0e", 1046169851), Common::EN_ANY, ADGF_UNSTABLE, WME_1_8_6),
@@ -5598,7 +5618,7 @@ static const WMEGameDescription gameDescriptions[] = {
 
 	// Today, Mama!
 	WME_WINENTRY("todaymama", "",
-		WME_ENTRY1s("data.dcp", "b89e4a2000109f21d1aba10ef0920180", 1266324389), Common::RU_RUS, ADGF_UNSTABLE | GF_3D, WME_1_7_3),
+		WME_ENTRY1s("data.dcp", "b89e4a2000109f21d1aba10ef0920180", 1266324389), Common::RU_RUS, ADGF_UNSTABLE, WME_1_7_3),
 
 	// Vsevolod Prologue (Demo)
 	WME_WINENTRY("vsevolod", "Prologue",

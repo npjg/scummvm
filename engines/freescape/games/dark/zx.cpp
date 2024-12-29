@@ -31,6 +31,23 @@ void DarkEngine::initZX() {
 	_viewArea = Common::Rect(56, 28, 265, 132);
 	_maxEnergy = 63;
 	_maxShield = 63;
+
+	_soundIndexShoot = 5;
+	_soundIndexCollide = -1; // Scripted
+	_soundIndexFall = 3;
+	_soundIndexClimb = 4;
+	_soundIndexMenu = 25;
+	_soundIndexStart = 11;
+	_soundIndexAreaChange = 0x1c;
+	_soundIndexRestoreECD = 30;
+
+	_soundIndexNoShield = 14;
+	_soundIndexNoEnergy = 14;
+	_soundIndexFallen = 7;
+	_soundIndexTimeout = 14;
+	_soundIndexForceEndGame = 14;
+	_soundIndexCrushed = 25;
+	_soundIndexMissionComplete = 8;
 }
 
 void DarkEngine::loadAssetsZXFullGame() {
@@ -56,7 +73,7 @@ void DarkEngine::loadAssetsZXFullGame() {
 
 	loadMessagesFixedSize(&file, 0x56b - 6, 16, 27);
 
-	loadFonts(&file, 0x5d60 - 6, _font);
+	loadFonts(&file, 0x5d60 - 6);
 	loadGlobalObjects(&file, 0x1a, 23);
 	load8bitBinary(&file, 0x5ec0 - 4, 4);
 	loadSpeakerFxZX(&file, 0x9c1, 0xa55);
@@ -95,7 +112,7 @@ void DarkEngine::loadAssetsZXDemo() {
 	loadMessagesFixedSize(&file, 0x5761, 264, 5);
 	loadSpeakerFxZX(&file, 0x9c7, 0xa5b);
 
-	loadFonts(&file, 0x6164, _font);
+	loadFonts(&file, 0x6164);
 	loadGlobalObjects(&file, 0x20, 23);
 	load8bitBinary(&file, 0x62c6, 4);
 	_indicators.push_back(loadBundledImage("dark_fallen_indicator"));
@@ -121,17 +138,22 @@ void DarkEngine::drawZXUI(Graphics::Surface *surface) {
 
 	_gfx->readFromPalette(color, r, g, b);
 	uint32 back = _gfx->_texturePixelFormat.ARGBToColor(0xFF, r, g, b);
+	uint32 transparent = _gfx->_texturePixelFormat.ARGBToColor(0x00, 0x00, 0x00, 0x00);
 
 	int score = _gameStateVars[k8bitVariableScore];
 	int ecds = _gameStateVars[kVariableActiveECDs];
-	drawStringInSurface(Common::String::format("%04d", int(2 * _position.x())), 191, 141, front, back, surface);
-	drawStringInSurface(Common::String::format("%04d", int(2 * _position.z())), 191, 149, front, back, surface);
-	drawStringInSurface(Common::String::format("%04d", int(2 * _position.y())), 191, 157, front, back, surface);
+	surface->fillRect(Common::Rect(193, 140, 223, 163), back);
+	drawStringInSurface(Common::String::format("%04d", int(2 * _position.x())), 191, 141, front, transparent, surface);
+	drawStringInSurface(Common::String::format("%04d", int(2 * _position.z())), 191, 149, front, transparent, surface);
+	drawStringInSurface(Common::String::format("%04d", int(2 * _position.y())), 191, 157, front, transparent, surface);
 
-	drawStringInSurface(Common::String::format("%02d", int(_angleRotations[_angleRotationIndex])), 78, 165, front, back, surface);
-	drawStringInSurface(Common::String::format("%3d", _playerSteps[_playerStepIndex]), 78, 173, front, back, surface);
-	drawStringInSurface(Common::String::format("%07d", score), 94, 13, front, back, surface);
-	drawStringInSurface(Common::String::format("%3d%%", ecds), 190, 13, front, back, surface);
+	surface->fillRect(Common::Rect(80, 165, 95, 171), back);
+	surface->fillRect(Common::Rect(80, 172, 102, 178), back);
+	drawStringInSurface(Common::String::format("%02d", int(_angleRotations[_angleRotationIndex])), 79, 165, front, transparent, surface);
+	drawStringInSurface(Common::String::format("%3d", _playerSteps[_playerStepIndex]), 79, 173, front, transparent, surface);
+	surface->fillRect(Common::Rect(96, 12, 151, 18), back);
+	drawStringInSurface(Common::String::format("%07d", score), 95, 13, front, transparent, surface);
+	drawStringInSurface(Common::String::format("%3d%%", ecds), 191, 13, front, back, surface);
 
 	int seconds, minutes, hours;
 	getTimeFromCountdown(seconds, minutes, hours);

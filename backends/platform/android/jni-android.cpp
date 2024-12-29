@@ -19,8 +19,6 @@
  *
  */
 
-#if defined(__ANDROID__)
-
 // Allow use of stuff in <time.h> and abort()
 #define FORBIDDEN_SYMBOL_EXCEPTION_time_h
 #define FORBIDDEN_SYMBOL_EXCEPTION_abort
@@ -71,6 +69,8 @@ int JNI::_egl_version = 0;
 Common::Archive *JNI::_asset_archive = 0;
 OSystem_Android *JNI::_system = 0;
 
+bool JNI::assets_updated = false;
+
 bool JNI::pause = false;
 sem_t JNI::pause_sem;
 
@@ -80,6 +80,7 @@ int JNI::egl_surface_height = 0;
 int JNI::egl_bits_per_pixel = 0;
 bool JNI::_ready_for_events = 0;
 bool JNI::virt_keyboard_state = false;
+int32 JNI::gestures_insets[4] = { 0, 0, 0, 0 };
 
 jmethodID JNI::_MID_getDPI = 0;
 jmethodID JNI::_MID_displayMessageOnOSD = 0;
@@ -91,7 +92,6 @@ jmethodID JNI::_MID_isConnectionLimited = 0;
 jmethodID JNI::_MID_setWindowCaption = 0;
 jmethodID JNI::_MID_showVirtualKeyboard = 0;
 jmethodID JNI::_MID_showOnScreenControls = 0;
-jmethodID JNI::_MID_getBitmapResource = 0;
 jmethodID JNI::_MID_setTouchMode = 0;
 jmethodID JNI::_MID_getTouchMode = 0;
 jmethodID JNI::_MID_setOrientation = 0;
@@ -122,7 +122,7 @@ const JNINativeMethod JNI::_natives[] = {
 	{ "create", "(Landroid/content/res/AssetManager;"
 				"Ljavax/microedition/khronos/egl/EGL10;"
 				"Ljavax/microedition/khronos/egl/EGLDisplay;"
-				"Landroid/media/AudioTrack;II)V",
+				"Landroid/media/AudioTrack;IIZ)V",
 		(void *)JNI::create },
 	{ "destroy", "()V",
 		(void *)JNI::destroy },
@@ -140,6 +140,8 @@ const JNINativeMethod JNI::_natives[] = {
 		(void *)JNI::syncVirtkeyboardState },
 	{ "setPause", "(Z)V",
 		(void *)JNI::setPause },
+	{ "systemInsetsUpdated", "([I[I[I)V",
+		(void *)JNI::systemInsetsUpdated },
 	{ "getNativeVersionInfo", "()Ljava/lang/String;",
 		(void *)JNI::getNativeVersionInfo }
 };
@@ -434,71 +436,6 @@ void JNI::showOnScreenControls(int enableMask) {
 	}
 }
 
-Graphics::Surface *JNI::getBitmapResource(BitmapResources resource) {
-	JNIEnv *env = JNI::getEnv();
-
-	jobject bitmap = env->CallObjectMethod(_jobj, _MID_getBitmapResource, (int) resource);
-
-	if (env->ExceptionCheck()) {
-		LOGE("Can't get bitmap resource");
-
-		env->ExceptionDescribe();
-		env->ExceptionClear();
-
-		return nullptr;
-	}
-
-	if (bitmap == nullptr) {
-		LOGE("Bitmap resource was not found");
-		return nullptr;
-	}
-
-	AndroidBitmapInfo bitmap_info;
-	if (AndroidBitmap_getInfo(env, bitmap, &bitmap_info) != ANDROID_BITMAP_RESULT_SUCCESS) {
-		LOGE("Error reading bitmap info");
-		env->DeleteLocalRef(bitmap);
-		return nullptr;
-	}
-
-	Graphics::PixelFormat fmt;
-	switch(bitmap_info.format) {
-		case ANDROID_BITMAP_FORMAT_RGBA_8888:
-#ifdef SCUMM_BIG_ENDIAN
-			fmt = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
-#else
-			fmt = Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
-#endif
-			break;
-		case ANDROID_BITMAP_FORMAT_RGBA_4444:
-			fmt = Graphics::PixelFormat(2, 4, 4, 4, 4, 12, 8, 4, 0);
-			break;
-		case ANDROID_BITMAP_FORMAT_RGB_565:
-			fmt = Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
-			break;
-		default:
-			LOGE("Bitmap has unsupported format");
-			env->DeleteLocalRef(bitmap);
-			return nullptr;
-	}
-
-	void *src_pixels = nullptr;
-	if (AndroidBitmap_lockPixels(env, bitmap, &src_pixels) != ANDROID_BITMAP_RESULT_SUCCESS) {
-		LOGE("Error locking bitmap pixels");
-		env->DeleteLocalRef(bitmap);
-		return nullptr;
-	}
-
-	Graphics::Surface *ret = new Graphics::Surface();
-	ret->create(bitmap_info.width, bitmap_info.height, fmt);
-	ret->copyRectToSurface(src_pixels, bitmap_info.stride,
-			0, 0, bitmap_info.width, bitmap_info.height);
-
-	AndroidBitmap_unlockPixels(env, bitmap);
-	env->DeleteLocalRef(bitmap);
-
-	return ret;
-}
-
 void JNI::setTouchMode(int touchMode) {
 	JNIEnv *env = JNI::getEnv();
 
@@ -563,6 +500,15 @@ Common::String JNI::getScummVMBasePath() {
 	env->DeleteLocalRef(pathObj);
 
 	return path;
+}
+
+Common::String JNI::getScummVMAssetsPath() {
+	Common::String basePath = getScummVMBasePath();
+	if (!basePath.empty() && basePath.lastChar() != '/') {
+		basePath += '/';
+	}
+	basePath += "assets";
+	return basePath;
 }
 
 Common::String JNI::getScummVMConfigPath() {
@@ -663,7 +609,7 @@ void JNI::addSysArchivesToSearchSet(Common::SearchSet &s, int priority) {
 		const char *path = env->GetStringUTFChars(path_obj, 0);
 
 		if (path != 0) {
-			s.addDirectory(path, path, priority);
+			s.addDirectory(path, path, priority, 2);
 			env->ReleaseStringUTFChars(path_obj, path);
 		}
 
@@ -786,7 +732,8 @@ void JNI::setAudioStop() {
 
 void JNI::create(JNIEnv *env, jobject self, jobject asset_manager,
 				jobject egl, jobject egl_display,
-				jobject at, jint audio_sample_rate, jint audio_buffer_size) {
+				jobject at, jint audio_sample_rate, jint audio_buffer_size,
+				jboolean assets_updated_) {
 	LOGI("Native version: %s", gScummVMFullVersion);
 
 	assert(!_system);
@@ -819,7 +766,6 @@ void JNI::create(JNIEnv *env, jobject self, jobject asset_manager,
 	FIND_METHOD(, isConnectionLimited, "()Z");
 	FIND_METHOD(, showVirtualKeyboard, "(Z)V");
 	FIND_METHOD(, showOnScreenControls, "(I)V");
-	FIND_METHOD(, getBitmapResource, "(I)Landroid/graphics/Bitmap;");
 	FIND_METHOD(, setTouchMode, "(I)V");
 	FIND_METHOD(, getTouchMode, "()I");
 	FIND_METHOD(, setOrientation, "(I)V");
@@ -863,6 +809,8 @@ void JNI::create(JNIEnv *env, jobject self, jobject asset_manager,
 
 	env->DeleteLocalRef(cls);
 #undef FIND_METHOD
+
+	assets_updated = assets_updated_;
 
 	pause = false;
 	// initial value of zero!
@@ -1034,6 +982,13 @@ void JNI::setPause(JNIEnv *env, jobject self, jboolean value) {
 	}
 }
 
+void JNI::systemInsetsUpdated(JNIEnv *env, jobject self, jintArray gestureInsets, jintArray systemInsets, jintArray cutoutInsets) {
+	assert(env->GetArrayLength(gestureInsets) == ARRAYSIZE(gestures_insets));
+
+	// TODO: handle systemInsets and cutoutInsets
+	env->GetIntArrayRegion(gestureInsets, 0, ARRAYSIZE(gestures_insets), gestures_insets);
+}
+
 jstring JNI::getNativeVersionInfo(JNIEnv *env, jobject self) {
 	return convertToJString(env, Common::U32String(gScummVMVersion));
 }
@@ -1185,5 +1140,3 @@ jobject JNI::findSAFTree(const Common::String &name) {
 
 	return tree;
 }
-
-#endif

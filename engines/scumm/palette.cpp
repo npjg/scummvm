@@ -62,10 +62,10 @@ void ScummEngine::resetPalette() {
 		0x85, 0x53, 0x1C,	0x50, 0x3C, 0x00,	0xB4, 0x6B, 0x61,	0x4A, 0x4A, 0x4A,
 		0x75, 0x75, 0x75,	0xA3, 0xE7, 0x7C,	0x70, 0x64, 0xD6,	0xA3, 0xA3, 0xA3,
 #else
-		0x00, 0x00, 0x00, 	0xFD, 0xFE, 0xFC, 	0xBE, 0x1A, 0x24, 	0x30, 0xE6, 0xC6,
-		0xB4, 0x1A, 0xE2, 	0x1F, 0xD2, 0x1E, 	0x21, 0x1B, 0xAE, 	0xDF, 0xF6, 0x0A,
-		0xB8, 0x41, 0x04, 	0x6A, 0x33, 0x04, 	0xFE, 0x4A, 0x57, 	0x42, 0x45, 0x40,
-		0x70, 0x74, 0x6F, 	0x59, 0xFE, 0x59, 	0x5F, 0x53, 0xFE, 	0xA4, 0xA7, 0xA2,
+		0x00, 0x00, 0x00,	0xFD, 0xFE, 0xFC,	0xBE, 0x1A, 0x24,	0x30, 0xE6, 0xC6,
+		0xB4, 0x1A, 0xE2,	0x1F, 0xD2, 0x1E,	0x21, 0x1B, 0xAE,	0xDF, 0xF6, 0x0A,
+		0xB8, 0x41, 0x04,	0x6A, 0x33, 0x04,	0xFE, 0x4A, 0x57,	0x42, 0x45, 0x40,
+		0x70, 0x74, 0x6F,	0x59, 0xFE, 0x59,	0x5F, 0x53, 0xFE,	0xA4, 0xA7, 0xA2,
 #endif
 		// Use 17 color table for v1 games to allow correct color for inventory and
 		// sentence line. Original games used some kind of dynamic color table
@@ -125,24 +125,24 @@ void ScummEngine::resetPalette() {
 	};
 
 	static const byte tableAmigaPalette[] = {
-		0x00, 0x00, 0x00, 	0x00, 0x00, 0xBB, 	0x00, 0xBB, 0x00, 	0x00, 0xBB, 0xBB,
-		0xBB, 0x00, 0x00, 	0xBB, 0x00, 0xBB, 	0xBB, 0x77, 0x00, 	0xBB, 0xBB, 0xBB,
-		0x77, 0x77, 0x77, 	0x77, 0x77, 0xFF, 	0x00, 0xFF, 0x00, 	0x00, 0xFF, 0xFF,
-		0xFF, 0x88, 0x88, 	0xFF, 0x00, 0xFF, 	0xFF, 0xFF, 0x00, 	0xFF, 0xFF, 0xFF
+		0x00, 0x00, 0x00,	0x00, 0x00, 0xBB,	0x00, 0xBB, 0x00,	0x00, 0xBB, 0xBB,
+		0xBB, 0x00, 0x00,	0xBB, 0x00, 0xBB,	0xBB, 0x77, 0x00,	0xBB, 0xBB, 0xBB,
+		0x77, 0x77, 0x77,	0x77, 0x77, 0xFF,	0x00, 0xFF, 0x00,	0x00, 0xFF, 0xFF,
+		0xFF, 0x88, 0x88,	0xFF, 0x00, 0xFF,	0xFF, 0xFF, 0x00,	0xFF, 0xFF, 0xFF
 	};
 
 	static const byte tableAmigaMIPalette[] = {
-		0x00, 0x00, 0x00, 	0x00, 0x00, 0xAA, 	0x00, 0x88, 0x22, 	0x00, 0x66, 0x77,
-		0xBB, 0x66, 0x66, 	0xAA, 0x22, 0xAA, 	0x88, 0x55, 0x22, 	0x77, 0x77, 0x77,
-		0x33, 0x33, 0x33, 	0x22, 0x55, 0xDD, 	0x22, 0xDD, 0x44, 	0x00, 0xCC, 0xFF,
-		0xFF, 0x99, 0x99, 	0xFF, 0x55, 0xFF, 	0xFF, 0xFF, 0x77, 	0xFF, 0xFF, 0xFF
+		0x00, 0x00, 0x00,	0x00, 0x00, 0xAA,	0x00, 0x88, 0x22,	0x00, 0x66, 0x77,
+		0xBB, 0x66, 0x66,	0xAA, 0x22, 0xAA,	0x88, 0x55, 0x22,	0x77, 0x77, 0x77,
+		0x33, 0x33, 0x33,	0x22, 0x55, 0xDD,	0x22, 0xDD, 0x44,	0x00, 0xCC, 0xFF,
+		0xFF, 0x99, 0x99,	0xFF, 0x55, 0xFF,	0xFF, 0xFF, 0x77,	0xFF, 0xFF, 0xFF
 	};
 
 	static const byte tableEGAPalette[] = {
-		0x00, 0x00, 0x00, 	0x00, 0x00, 0xAA, 	0x00, 0xAA, 0x00, 	0x00, 0xAA, 0xAA,
-		0xAA, 0x00, 0x00, 	0xAA, 0x00, 0xAA, 	0xAA, 0x55, 0x00, 	0xAA, 0xAA, 0xAA,
-		0x55, 0x55, 0x55, 	0x55, 0x55, 0xFF, 	0x55, 0xFF, 0x55, 	0x55, 0xFF, 0xFF,
-		0xFF, 0x55, 0x55, 	0xFF, 0x55, 0xFF, 	0xFF, 0xFF, 0x55, 	0xFF, 0xFF, 0xFF
+		0x00, 0x00, 0x00,	0x00, 0x00, 0xAA,	0x00, 0xAA, 0x00,	0x00, 0xAA, 0xAA,
+		0xAA, 0x00, 0x00,	0xAA, 0x00, 0xAA,	0xAA, 0x55, 0x00,	0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55,	0x55, 0x55, 0xFF,	0x55, 0xFF, 0x55,	0x55, 0xFF, 0xFF,
+		0xFF, 0x55, 0x55,	0xFF, 0x55, 0xFF,	0xFF, 0xFF, 0x55,	0xFF, 0xFF, 0xFF
 	};
 
 	static const byte _cgaColors[4][12] = {
@@ -153,11 +153,11 @@ void ScummEngine::resetPalette() {
 	};
 
 	static const byte tableHercAPalette[] = {
-		0x00, 0x00, 0x00, 	0xAE, 0x69, 0x38
+		0x00, 0x00, 0x00,	0xAE, 0x69, 0x38
 	};
 
 	static const byte tableHercGPalette[] = {
-		0x00, 0x00, 0x00, 	0x00, 0xFF, 0x00
+		0x00, 0x00, 0x00,	0x00, 0xFF, 0x00
 	};
 
 	// Palette based on Apple IIgs Technical Notes: IIgs 2523063 Master Color Values
@@ -224,10 +224,6 @@ void ScummEngine::resetPalette() {
 	} else if (_game.features & GF_16COLOR) {
 		switch (_renderMode) {
 		case Common::kRenderEGA:
-		case Common::kRenderMacintoshBW:
-			// Use EGA palette for MacintoshBW, because that makes
-			// white 0xFFFFFF there. The Mac EGA palette, would
-			// make it 0xFCFCFC.
 			setPaletteFromTable(tableEGAPalette, sizeof(tableEGAPalette) / 3);
 			break;
 
@@ -238,8 +234,6 @@ void ScummEngine::resetPalette() {
 		default:
 			if ((_game.platform == Common::kPlatformAmiga) || (_game.platform == Common::kPlatformAtariST))
 				setPaletteFromTable(tableAmigaPalette, sizeof(tableAmigaPalette) / 3);
-			else if ((_game.id == GID_LOOM || _game.id == GID_INDY3) && _game.platform == Common::kPlatformMacintosh)
-				setPaletteFromTable(Graphics::macEGAPalette, sizeof(Graphics::macEGAPalette) / 3);
 			else
 				setPaletteFromTable(tableEGAPalette, sizeof(tableEGAPalette) / 3);
 		}
@@ -275,9 +269,6 @@ void ScummEngine::resetPalette() {
 		}
 		setDirtyColors(0, 255);
 	}
-
-	if (_macGui)
-		_macGui->setPalette(_currentPalette, 16);
 }
 
 void ScummEngine::setPaletteFromTable(const byte *ptr, int numcolor, int index) {
@@ -419,6 +410,9 @@ void ScummEngine::setPaletteFromPtr(const byte *ptr, int numcolor) {
 	}
 
 	setDirtyColors(firstIndex, numcolor - 1);
+
+	if (_game.id == GID_SAMNMAX && !enhancementEnabled(kEnhMinorBugFixes))
+		VAR(77) = 0;
 }
 
 void ScummEngine::setAmigaPaletteFromPtr(const byte *ptr) {
@@ -478,7 +472,7 @@ void ScummEngine::setV1ColorTable(int renderMode) {
 		{	0x00, 0x0F, 0x08, 0x05, 0x0A, 0x05, 0x01, 0x0D, 0x0A, 0x02, 0x0A, 0x0C, 0x0F, 0x0A, 0x05, 0x0C }
 	};
 
-	int tbl = (_game.platform == Common::kPlatformC64) ? 0 : (_game.id == GID_ZAK ? 1 : 3);
+	int tbl = (_game.platform == Common::kPlatformC64 || _game.platform == Common::kPlatformApple2GS) ? 0 : (_game.id == GID_ZAK ? 1 : 3);
 	if (renderMode == Common::kRenderHercA || renderMode == Common::kRenderHercG || renderMode == Common::kRenderCGA || renderMode == Common::kRenderCGA_BW)
 		++tbl;
 
@@ -1015,10 +1009,10 @@ void ScummEngine::setShadowPalette(int redScale, int greenScale, int blueScale, 
 byte egaFindBestMatch(int r, int g, int b) {
 	// This is almost like the normal EGA palette, but a bit different
 	static const byte matchPalette[] = {
-		0x00, 0x00, 0x00, 	0x00, 0x00, 0xAB, 	0x00, 0xAB, 0x00, 	0x00, 0xAB, 0xAB,
-		0xAB, 0x00, 0x00, 	0xAB, 0x00, 0xAB, 	0xAB, 0x57, 0x00, 	0xAB, 0xAB, 0xAB,
-		0x57, 0x57, 0x57, 	0x57, 0x57, 0xFF, 	0x57, 0xFF, 0x57, 	0x57, 0xFF, 0xFF,
-		0xFF, 0x57, 0x57, 	0xFF, 0x57, 0xFF, 	0xFF, 0xFF, 0x57, 	0xFF, 0xFF, 0xFF
+		0x00, 0x00, 0x00,	0x00, 0x00, 0xAB,	0x00, 0xAB, 0x00,	0x00, 0xAB, 0xAB,
+		0xAB, 0x00, 0x00,	0xAB, 0x00, 0xAB,	0xAB, 0x57, 0x00,	0xAB, 0xAB, 0xAB,
+		0x57, 0x57, 0x57,	0x57, 0x57, 0xFF,	0x57, 0xFF, 0x57,	0x57, 0xFF, 0xFF,
+		0xFF, 0x57, 0x57,	0xFF, 0x57, 0xFF,	0xFF, 0xFF, 0x57,	0xFF, 0xFF, 0xFF
 	};
 
 	uint32 best = (uint32)-1;
@@ -1180,6 +1174,10 @@ void ScummEngine::darkenPalette(int redScale, int greenScale, int blueScale, int
 			}
 			if (_game.heversion != 70)
 				setDirtyColors(startColor, endColor);
+
+			// Original noir mode behavior
+			if (_game.id == GID_SAMNMAX && !enhancementEnabled(kEnhMinorBugFixes) && VAR(77) == 1)
+				applyGrayscaleToPaletteRange(startColor, endColor);
 		}
 	}
 }
@@ -1384,6 +1382,10 @@ void ScummEngine::copyPalColor(int dst, int src) {
 		_16BitPalette[dst] = get16BitColor(sp[0], sp[1], sp[2]);
 
 	setDirtyColors(dst, dst);
+
+	// Original noir mode behavior
+	if (_game.id == GID_SAMNMAX && !enhancementEnabled(kEnhMinorBugFixes) && VAR(77) == 1)
+		applyGrayscaleToPaletteRange(src, src);
 }
 
 void ScummEngine::setPalColor(int idx, int r, int g, int b) {
@@ -1447,6 +1449,10 @@ void ScummEngine::setPalColor(int idx, int r, int g, int b) {
 		_16BitPalette[idx] = get16BitColor(r, g, b);
 
 	setDirtyColors(idx, idx);
+
+	// Original noir mode behavior
+	if (_game.id == GID_SAMNMAX && !enhancementEnabled(kEnhMinorBugFixes) && VAR(77) == 1)
+		applyGrayscaleToPaletteRange(idx, idx);
 }
 
 void ScummEngine::setCurrentPalette(int palindex) {
@@ -1580,7 +1586,51 @@ void ScummEngine::fetchBlackAndWhite(uint32 &black, uint32 &white, byte *palette
 
 uint32 ScummEngine::findClosestPaletteColor(byte *palette, int paletteLength, byte r, byte g, byte b) {
 	_pl.setPalette(palette, paletteLength);
-	return (uint32)_pl.findBestColor(r, g, b, true);
+	return (uint32)_pl.findBestColor(r, g, b, Graphics::kColorDistanceNaive);
+}
+
+void ScummEngine::applyGrayscaleToPaletteRange(int min, int max) {
+	assertRange(0, min, 256, "ScummEngine::applyGrayscaleToPaletteRange(): min");
+	assertRange(0, max, 256, "ScummEngine::applyGrayscaleToPaletteRange(): min");
+
+	if (min <= max) {
+		int count = max - min + 1;
+		byte *paletteEntry = &_currentPalette[3 * min];
+
+		for (int i = 0; i < count; i++) {
+			int r = paletteEntry[0];
+			int g = paletteEntry[1];
+			int b = paletteEntry[2];
+			byte average = (byte)((r + g + b) / 3);
+
+			// The original checks for colors to be < 126,
+			// but we handle things a little bit differently,
+			// so this is not needed...
+			//
+			// if (r < 126 || g < 126 || b < 126) {
+				paletteEntry[0] = average;
+				paletteEntry[1] = average;
+				paletteEntry[2] = average;
+			// }
+
+			paletteEntry += 3;
+		}
+	}
+
+	setDirtyColors(min, max);
+}
+
+bool ScummEngine::haveToApplyMonkey1PaletteFix() {
+	if (_game.id != GID_MONKEY)
+		return false;
+
+	bool canChangeMonkey1PaletteSlot = _game.platform == Common::kPlatformMacintosh;
+
+	canChangeMonkey1PaletteSlot |= enhancementEnabled(kEnhVisualChanges) &&
+								   (_game.platform != Common::kPlatformSegaCD && _game.platform != Common::kPlatformFMTowns &&
+									!(_game.features & GF_ULTIMATE_TALKIE));
+
+	return canChangeMonkey1PaletteSlot;
 }
 
 void ScummEngine::updatePalette() {
@@ -1590,8 +1640,8 @@ void ScummEngine::updatePalette() {
 	if (_palDirtyMax == -1)
 		return;
 
-	byte palette_colors[3 * 256];
-	byte *p = palette_colors;
+	byte paletteColors[3 * 256];
+	byte *p = paletteColors;
 	int first;
 	int num;
 
@@ -1623,7 +1673,7 @@ void ScummEngine::updatePalette() {
 
 		_system->getPaletteManager()->setPalette(mouseCursorPalette, 252, 3);
 	} else {
-		bool noir_mode = (_game.id == GID_SAMNMAX && readVar(0x8000));
+		bool noirMode = (_game.id == GID_SAMNMAX && readVar(0x8000));
 		int i;
 
 		first = _palDirtyMin;
@@ -1637,10 +1687,9 @@ void ScummEngine::updatePalette() {
 			else
 				data = _currentPalette + i * 3;
 
-			// Sam & Max film noir mode. Convert the colors to grayscale
-			// before uploading them to the backend.
-
-			if (noir_mode) {
+			// Sam & Max film noir mode - Enhanced version.
+			// Convert the colors to grayscale before uploading them to the backend.
+			if (noirMode && enhancementEnabled(kEnhMinorBugFixes)) {
 				int r, g, b;
 				byte brightness;
 
@@ -1648,7 +1697,7 @@ void ScummEngine::updatePalette() {
 				g = data[1];
 				b = data[2];
 
-				brightness = (byte)((0.299 * r + 0.587 * g + 0.114 * b) + 0.5);
+				brightness = (byte)((r + g + b) / 3);
 
 				*p++ = brightness;
 				*p++ = brightness;
@@ -1667,7 +1716,7 @@ void ScummEngine::updatePalette() {
 #ifdef USE_RGB_COLOR
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
 	if (_game.platform == Common::kPlatformFMTowns) {
-		p = palette_colors;
+		p = paletteColors;
 		for (int i = first; i < first + num; ++i) {
 			_16BitPalette[i] = get16BitColor(p[0], p[1], p[2]);
 			p += 3;
@@ -1677,7 +1726,15 @@ void ScummEngine::updatePalette() {
 #endif
 #endif
 
-	_system->getPaletteManager()->setPalette(palette_colors, first, num);
+	if (_game.platform == Common::kPlatformMacintosh && _game.heversion == 0) {
+		for (int i = 0; i < 3 * num; ++i)
+			paletteColors[i] = _macGammaCorrectionLookUp[paletteColors[i]];
+	}
+
+	_system->getPaletteManager()->setPalette(paletteColors, first, num);
+
+	if (_macGui)
+		_macGui->setPaletteDirty();
 }
 
 } // End of namespace Scumm

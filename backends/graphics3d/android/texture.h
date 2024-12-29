@@ -25,6 +25,7 @@
 #define GL_GLEXT_PROTOTYPES
 #include <GLES/gl.h>
 
+#include "backends/graphics3d/opengl/framebuffer.h"
 #include "graphics/surface.h"
 #include "graphics/pixelformat.h"
 
@@ -34,6 +35,12 @@
 namespace OpenGL {
 class Shader;
 }
+
+class AndroidFrameBuffer : public OpenGL::FrameBuffer {
+public:
+	AndroidFrameBuffer(GLenum glIntFormat, GLenum glFormat, GLenum glType, GLuint texture_name, uint width, uint height, uint texture_width, uint texture_height);
+	~AndroidFrameBuffer();
+};
 
 class GLESBaseTexture {
 public:
@@ -143,8 +150,20 @@ public:
 		return _texture_name;
 	}
 
+	GLenum getTextureFormat() const {
+		return _glFormat;
+	}
+
+	GLenum getTextureType() const {
+		return _glType;
+	}
+
 	void setGameTexture() {
 		_is_game_texture = true;
+	}
+
+	void setAlpha(float alpha) {
+		_alpha = alpha;
 	}
 
 protected:
@@ -192,6 +211,8 @@ protected:
 	Graphics::PixelFormat _palettePixelFormat;
 
 	bool _is_game_texture;
+
+	GLfloat _alpha;
 
 	static bool _npot_supported;
 	static OpenGL::Shader *_box_shader;

@@ -368,12 +368,17 @@ void ScummEngine_v100he::setupScummVars() {
 		VAR_REMOTE_START_SCRIPT = 98;
 		VAR_NETWORK_AVAILABLE = 100;
 		VAR_NETWORK_RECEIVE_ARRAY_SCRIPT = 101;
+	}
+
+	if (_game.id == GID_MOONBASE || _game.id == GID_BASKETBALL) {
 		VAR_U32_USER_VAR_A = 108;
 		VAR_U32_USER_VAR_B = 109;
 		VAR_U32_USER_VAR_C = 110;
 		VAR_U32_USER_VAR_D = 111;
 		VAR_U32_USER_VAR_E = 112;
 		VAR_U32_USER_VAR_F = 113;
+		VAR_U32_USER_VAR_G = 114;
+		VAR_U32_USER_VAR_H = 115;
 	}
 }
 #endif
@@ -852,23 +857,29 @@ void ScummEngine::setSoundCardVarToCurrentConfig() {
 	if (VAR_SOUNDCARD == 0xFF)
 		return;
 
+	switch (_sound->_musicType) {
+	case MDT_MACINTOSH:
+		switch (_game.id) {
+		case GID_INDY3:
+			VAR(VAR_SOUNDCARD) = (ConfMan.hasKey("mac_v3_low_quality_music") && ConfMan.getBool("mac_v3_low_quality_music")) ? 10 : 11;
+			break;
+		case GID_LOOM:
+			VAR(VAR_SOUNDCARD) = (ConfMan.hasKey("mac_snd_quality") && ConfMan.getInt("mac_snd_quality") > 0 && ConfMan.getInt("mac_snd_quality") < 4) ? 10 : 11;
+			break;
+		case GID_MONKEY:
+			VAR(VAR_SOUNDCARD) = 0xFFFF;
+			break;
+		default:
+			VAR(VAR_SOUNDCARD) = (_game.version >= 6) ? 0 : 4; 
+			break;
+		}
+		break;
 	// VAR_SOUNDCARD modes
 	// 0 PC Speaker
 	// 1 Tandy
 	// 2 CMS
 	// 3 AdLib
 	// 4 Roland
-	switch (_sound->_musicType) {
-	case MDT_MACINTOSH:
-		if (_game.id == GID_INDY3)
-			VAR(VAR_SOUNDCARD) = (ConfMan.hasKey("mac_v3_low_quality_music") && ConfMan.getBool("mac_v3_low_quality_music")) ? 10 : 11;
-		else if (_game.id == GID_LOOM)
-			VAR(VAR_SOUNDCARD) = (ConfMan.hasKey("mac_snd_quality") && ConfMan.getInt("mac_snd_quality") > 0 && ConfMan.getInt("mac_snd_quality") < 4) ? 10 : 11;
-		else if (_game.id == GID_MONKEY)
-			VAR(VAR_SOUNDCARD) = 0xffff;
-		else
-			VAR(VAR_SOUNDCARD) = 3;
-		break;
 	case MDT_NONE:
 	case MDT_PCSPK:
 		VAR(VAR_SOUNDCARD) = 0;

@@ -40,6 +40,7 @@
 #include "graphics/sjis.h"
 #include "graphics/palette.h"
 
+#include "scumm/file.h"
 #include "scumm/gfx.h"
 #include "scumm/detection.h"
 #include "scumm/script.h"
@@ -114,21 +115,6 @@ enum {
 
 /* SCUMM Debug Channels */
 void debugC(int level, MSVC_PRINTF const char *s, ...) GCC_PRINTF(2, 3);
-
-enum {
-	DEBUG_GENERAL	=	1 << 0,		// General debug
-	DEBUG_SCRIPTS	=	1 << 2,		// Track script execution (start/stop/pause)
-	DEBUG_OPCODES	=	1 << 3,		// Track opcode invocations
-	DEBUG_VARS	=	1 << 4,		// Track variable changes
-	DEBUG_RESOURCE	=	1 << 5,		// Track resource loading / allocation
-	DEBUG_IMUSE	=	1 << 6,		// Track iMUSE events
-	DEBUG_SOUND	=	1 << 7,		// General Sound Debug
-	DEBUG_ACTORS	=	1 << 8,		// General Actor Debug
-	DEBUG_INSANE	=	1 << 9,		// Track INSANE
-	DEBUG_SMUSH	=	1 << 10,		// Track SMUSH
-	DEBUG_MOONBASE_AI = 1 << 11,		// Moonbase AI
-	DEBUG_NETWORK = 1 << 12		// Track Networking
-};
 
 struct VerbSlot;
 struct ObjectData;
@@ -524,6 +510,8 @@ class ScummEngine : public Engine, public Common::Serializable {
 	friend class MacGuiImpl;
 	friend class MacIndy3Gui;
 	friend class MacLoomGui;
+	friend class MacV5Gui;
+	friend class LogicHEBasketball;
 
 public:
 	/* Put often used variables at the top.
@@ -552,20 +540,20 @@ public:
 	ResourceManager *_res = nullptr;
 	int _insideCreateResource = 0; // Counter for HE sound
 
-	int32 _activeEnhancements = kEnhGameBreakingBugFixes;
 	bool _useOriginalGUI = true;
 	bool _enableAudioOverride = false;
 	bool _enableCOMISong = false;
 	bool _isAmigaPALSystem = false;
 	bool _quitFromScriptCmd = false;
 	bool _isHE995 = false;
+	bool _enableHECompetitiveOnlineMods = false;
 
 	Common::Keymap *_insaneKeymap;
 
 protected:
 	VirtualMachineState vm;
 
-	bool _oldSoundsPaused = false;
+	bool _needsSoundUnpause = false;
 
 public:
 	// Constructor / Destructor
@@ -585,7 +573,7 @@ public:
 
 	void errorString(const char *buf_input, char *buf_output, int buf_output_size) override;
 	bool hasFeature(EngineFeature f) const override;
-	bool enhancementEnabled(int32 cls);
+	bool gameSupportsQuitDialogOverride() const;
 	void syncSoundSettings() override;
 
 	Common::Error loadGameState(int slot) override;
@@ -629,6 +617,9 @@ protected:
 
 	// Event handling
 public:
+	void beginTextInput();
+	void endTextInput();
+
 	void parseEvents();	// Used by IMuseDigital::startSound
 protected:
 	virtual void parseEvent(Common::Event event);
@@ -660,11 +651,30 @@ protected:
 	virtual void setCursorHotspot(int x, int y) {}
 	virtual void setCursorFromBuffer(const byte *ptr, int width, int height, int pitch, bool preventScale = false) {}
 
+	// Gamma curve lookup, from the Macintosh Quadra/Performa monitor driver
+	byte _macGammaCorrectionLookUp[256] = {
+		0x00, 0x05, 0x09, 0x0B, 0x0E, 0x10, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1E, 0x20, 0x22, 0x24,
+		0x25, 0x27, 0x28, 0x2A, 0x2C, 0x2D, 0x2F, 0x30, 0x31, 0x33, 0x34, 0x36, 0x37, 0x38, 0x3A, 0x3B,
+		0x3C, 0x3E, 0x3F, 0x40, 0x42, 0x43, 0x44, 0x45, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4D, 0x4E, 0x4F,
+		0x50, 0x51, 0x52, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5E, 0x5F, 0x60, 0x61,
+		0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F, 0x70, 0x71,
+		0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F, 0x80, 0x81,
+		0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8C, 0x8D, 0x8E, 0x8F,
+		0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9B, 0x9C, 0x9D,
+		0x9E, 0x9F, 0xA0, 0xA1, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB,
+		0xAB, 0xAC, 0xAD, 0xAE, 0xAF, 0xB0, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8,
+		0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC0, 0xC1, 0xC2, 0xC3, 0xC3, 0xC4,
+		0xC5, 0xC6, 0xC7, 0xC7, 0xC8, 0xC9, 0xCA, 0xCA, 0xCB, 0xCC, 0xCD, 0xCD, 0xCE, 0xCF, 0xD0, 0xD0,
+		0xD1, 0xD2, 0xD3, 0xD3, 0xD4, 0xD5, 0xD6, 0xD6, 0xD7, 0xD8, 0xD9, 0xD9, 0xDA, 0xDB, 0xDC, 0xDC,
+		0xDD, 0xDE, 0xDF, 0xDF, 0xE0, 0xE1, 0xE1, 0xE2, 0xE3, 0xE4, 0xE4, 0xE5, 0xE6, 0xE7, 0xE7, 0xE8,
+		0xE9, 0xE9, 0xEA, 0xEB, 0xEC, 0xEC, 0xED, 0xEE, 0xEE, 0xEF, 0xF0, 0xF1, 0xF1, 0xF2, 0xF3, 0xF3,
+		0xF4, 0xF5, 0xF5, 0xF6, 0xF7, 0xF8, 0xF8, 0xF9, 0xFA, 0xFA, 0xFB, 0xFC, 0xFC, 0xFD, 0xFE, 0xFF
+	};
 
 public:
 	void pauseGame();
 	void restart();
-	bool isUsingOriginalGUI();
+	bool isUsingOriginalGUI() const;
 	bool isMessageBannerActive(); // For Indy4 Jap character shadows
 
 	bool _isIndy4Jap = false;
@@ -858,6 +868,7 @@ protected:
 	int _numTalkies = 0;
 	int _numUnk = 0;
 	int _HEHeapSize = 0;
+
 public:
 	int _numLocalScripts = 60, _numImages = 0, _numRooms = 0, _numScripts = 0, _numSounds = 0;	// Used by HE games
 	int _numCostumes = 0;	// FIXME - should be protected, used by Actor::remapActorPalette
@@ -874,6 +885,11 @@ public:
 	byte _NESBaseTiles = 0;
 
 	int _NESStartStrip = 0;
+
+	/* MI SE injected speech */
+	int32 _currentScriptSavedForSpeechMI = 0;
+	int32 _currentScriptOffsetSavedForSpeechMI = 0;
+	int32 _currentSpeechIndexMI = 0;
 
 protected:
 	int _curPalIndex = 0;
@@ -968,7 +984,6 @@ protected:
 	void saveInfos(Common::WriteStream *file);
 	static bool loadInfos(Common::SeekableReadStream *file, SaveStateMetaInfos *stuff);
 
-protected:
 	/* Script VM - should be in Script class */
 	uint32 _localScriptOffsets[1024];
 	const byte *_scriptPointer = nullptr;
@@ -1006,6 +1021,7 @@ protected:
 	void executeScript();
 	void updateScriptPtr();
 	virtual void runInventoryScript(int i);
+	virtual void runInventoryScriptEx(int i);
 	virtual void checkAndRunSentenceScript();
 	void runExitScript();
 	void runEntryScript();
@@ -1064,9 +1080,7 @@ public:
 	Common::Path _macCursorFile;
 
 	bool openFile(BaseScummFile &file, const Common::Path &filename, bool resourceFile = false);
-
-	/** Is this game a Mac m68k v5 game with iMuse? */
-	bool isMacM68kIMuse() const;
+	ScummFile *instantiateScummFile(bool indexPAKFiles = true);
 
 protected:
 	int _resourceHeaderSize = 8;
@@ -1290,7 +1304,7 @@ public:
 	// ScummVM GUI; but currently I'm not taking that responsibility, after all the
 	// work done on ensuring that old savegames translate correctly to the new setting... :-P
 	bool _useMacScreenCorrectHeight = true;
-	int _screenDrawOffset = 0;
+	int _macScreenDrawOffset = 20;
 
 	Common::RenderMode _renderMode;
 	uint8 _bytesPerPixel = 1;
@@ -1319,6 +1333,7 @@ protected:
 	// HACK Double the array size to handle 16-bit images.
 	// this should be dynamically allocated based on game depth instead.
 	byte _grabbedCursor[16384];
+	byte _macGrabbedCursor[16384 * 4]; // Double resolution cursor
 	byte _currentCursor = 0;
 
 	byte _newEffect = 0, _switchRoomEffect2 = 0, _switchRoomEffect = 0;
@@ -1384,6 +1399,8 @@ protected:
 	virtual void palManipulateInit(int resID, int start, int end, int time);
 	void palManipulate();
 	uint32 findClosestPaletteColor(byte *palette, int paletteLength, byte r, byte g, byte b);
+	void applyGrayscaleToPaletteRange(int min, int max); // For Sam&Max original noir mode
+	bool haveToApplyMonkey1PaletteFix();
 
 public:
 	uint8 *getHEPaletteSlot(uint16 palSlot);
@@ -1422,6 +1439,15 @@ protected:
 	void mac_drawIndy3TextBox();
 	void mac_undrawIndy3TextBox();
 	void mac_undrawIndy3CreditsText();
+	void mac_drawBufferToScreen(const byte *buffer, int pitch, int x, int y, int width, int height, bool epxRectangleExpansion = true);
+	void mac_updateCompositeBuffer(const byte *buffer, int pitch, int x, int y, int width, int height);
+	void mac_blitDoubleResImage(const byte *buffer, int pitch, int x, int y, int width, int height);
+	void mac_applyDoubleResToBuffer(const byte *inputBuffer, byte *outputBuffer, int width, int height, int inputPitch, int outputPitch);
+	void mac_blitEPXImage(const byte *buffer, int pitch, int x, int y, int width, int height, bool epxRectangleExpansion = true);
+	void mac_applyEPXToBuffer(const byte *inputBuffer, byte *outputBuffer, int width, int height, int inputPitch, int outputPitch, int xOffset, int yOffset, int bufferWidth, int bufferHeight);
+	void mac_scaleCursor(byte *&outCursor, int &outHotspotX, int &outHotspotY, int &outWidth, int &outHeight);
+	void mac_toggleSmoothing();
+
 	Common::KeyState mac_showOldStyleBannerAndPause(const char *msg, int32 waitTime);
 
 	const byte *postProcessDOSGraphics(VirtScreen *vs, int &pitch, int &x, int &y, int &width, int &height) const;
@@ -1593,6 +1619,8 @@ public:
 
 	Graphics::Surface *_macScreen = nullptr;
 	MacGui *_macGui = nullptr;
+	bool _useMacGraphicsSmoothing = true;
+	byte _completeScreenBuffer[320 * 200];
 
 protected:
 	byte _charsetColor = 0;
@@ -1619,6 +1647,7 @@ protected:
 	virtual bool handleNextCharsetCode(Actor *a, int *c);
 	virtual void drawSentence() {}
 	virtual void displayDialog();
+	int countNumberOfWaits(); // For SE speech support, from disasm
 	bool newLine();
 	void drawString(int a, const byte *msg);
 	virtual void fakeBidiString(byte *ltext, bool ignoreVerb, int ltextSize) const;

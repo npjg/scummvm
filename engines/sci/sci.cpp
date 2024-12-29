@@ -54,7 +54,7 @@
 #include "sci/graphics/controls16.h"
 #include "sci/graphics/coordadjuster.h"
 #include "sci/graphics/cursor.h"
-#include "sci/graphics/gfxdrivers.h"
+#include "sci/graphics/drivers/gfxdriver.h"
 #include "sci/graphics/macfont.h"
 #include "sci/graphics/maciconbar.h"
 #include "sci/graphics/menu.h"
@@ -136,7 +136,7 @@ SciEngine::SciEngine(OSystem *syst, const ADGameDescription *desc, SciGameId gam
 	_console(nullptr),
 	_tts(nullptr),
 	_rng("sci"),
-	_forceHiresGraphics(false),
+	_useHiresGraphics(false),
 	_inErrorString(false) {
 
 	assert(g_sci == nullptr);
@@ -312,30 +312,18 @@ Common::Error SciEngine::run() {
 		// so read the user option now.
 		// We need to do this, because the option's default is "true", but we don't want "true"
 		// for any game that does not have this option.
-		_forceHiresGraphics = ConfMan.getBool("enable_high_resolution_graphics");
+		_useHiresGraphics = ConfMan.getBool("enable_high_resolution_graphics");
 	} else if (hasMacFonts()) {
 		// Default to using hires Mac fonts if GUI option isn't present, as it was added later.
-		_forceHiresGraphics = true;
+		_useHiresGraphics = true;
 	}
 
 	if (getSciVersion() < SCI_VERSION_2) {
-		Common::RenderMode renderMode = Common::kRenderDefault;
-
 		bool undither = ConfMan.getBool("disable_dithering");
-		if (ConfMan.hasKey("render_mode"))
-			renderMode = Common::parseRenderMode(ConfMan.get("render_mode"));
+		Common::RenderMode renderMode = SciGfxDriver::getRenderMode();
 
-		// Check if the selected render mode is available for the game. This is quite specific for each game.
-		// Sometime it is only EGA, sometimes only CGA b/w without CGA 4 colors, etc. Also set default mode if undithering is enabled.
-		if ((renderMode == Common::kRenderEGA && (((getSciVersion() <= SCI_VERSION_0_LATE || getSciVersion() == SCI_VERSION_1_EGA_ONLY) && undither) ||
-			(getSciVersion() >= SCI_VERSION_1_EARLY && getSciVersion() <= SCI_VERSION_1_1 && !SCI1_EGADriver::validateMode()))) ||
-			(renderMode == Common::kRenderVGAGrey && !SCI1_VGAGreyScaleDriver::validateMode()) ||
-			(renderMode == Common::kRenderCGA && !SCI0_CGADriver::validateMode()) ||
-			(renderMode == Common::kRenderCGA_BW && !SCI0_CGABWDriver::validateMode()) ||
-			((renderMode == Common::kRenderHercA || renderMode == Common::kRenderHercG) && !SCI0_HerculesDriver::validateMode()))
-			renderMode = Common::kRenderDefault;
-
-		// Disable undithering for CGA and Hercules modes
+		// Disable undithering for CGA, Hercules and other unsuitable video modes. The render mode should have been set to
+		// kRenderDefault by determineRenderMode() if undithering is selected, but we want to make sure that this matches.
 		if (renderMode != Common::kRenderDefault)
 			undither = false;
 
@@ -380,7 +368,7 @@ Common::Error SciEngine::run() {
 	// we try to find the super class address of the game object, we can't do that earlier
 	const Object *gameObject = segMan->getObject(_gameObjectAddress);
 	if (!gameObject) {
-		warning("Could not get game object, aborting...");
+		warning("Could not get game object, aborting");
 		return Common::kUnknownError;
 	}
 
@@ -541,7 +529,7 @@ void SciEngine::suggestDownloadGK2SubTitlesPatch() {
 		downloadMessage = "";
 	}
 
-	int result = showScummVMDialog(_("GK2 has a fan made subtitles, available thanks to the good persons at SierraHelp.\n\n"
+	int result = showScummVMDialog(_("GK2 has fan made subtitles, available thanks to the good people at SierraHelp.\n\n"
 		"Installation:\n"
 		"- download http://www.sierrahelp.com/Files/Patches/GabrielKnight/GK2Subtitles.zip\n" +
 		downloadMessage +
@@ -563,7 +551,7 @@ bool SciEngine::initGame() {
 	int script0Segment = _gamestate->_segMan->getScriptSegment(0, SCRIPT_GET_LOCK);
 	DataStack *stack = _gamestate->_segMan->allocateStack(VM_STACK_SIZE);
 
-	_gamestate->_msgState = new MessageState(_gamestate->_segMan);
+	_gamestate->initMessageState();
 	_gamestate->gcCountDown = GC_INTERVAL - 1;
 
 	// Script 0 should always be at segment 1
@@ -890,8 +878,8 @@ bool SciEngine::isCD() const {
 	return _gameDescription->flags & ADGF_CD;
 }
 
-bool SciEngine::forceHiresGraphics() const {
-	return _forceHiresGraphics;
+bool SciEngine::useHiresGraphics() const {
+	return _useHiresGraphics;
 }
 
 bool SciEngine::isBE() const{

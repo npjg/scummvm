@@ -35,7 +35,7 @@ protected:
 		int x, y, w, h;
 		byte *buffer;
 		uint16 xStrips, yStrips;
-		bool isDrawn;
+		bool eraseFlag;
 	} _flashlight;
 
 	char _saveLoadVarsFilename[256];
@@ -89,6 +89,8 @@ protected:
 	void drawFlashlight();
 
 	void walkActorToActor(int actor, int toActor, int dist);
+
+	void injectMISESpeech();
 
 	/**
 	 * Fetch the next script word, then if cond is *false*, perform a relative jump.

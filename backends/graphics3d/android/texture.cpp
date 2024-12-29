@@ -50,6 +50,46 @@
 
 #include "backends/graphics3d/android/texture.h"
 
+
+AndroidFrameBuffer::AndroidFrameBuffer(GLenum glIntFormat, GLenum glFormat, GLenum glType, GLuint texture_name, uint width, uint height, uint texture_width, uint texture_height) :
+		OpenGL::FrameBuffer(glIntFormat, glFormat, glType, false) {
+	if (!OpenGLContext.framebufferObjectSupported) {
+		error("FrameBuffer Objects are not supported by the current OpenGL context");
+	}
+
+	_logicalWidth = width;
+	_logicalHeight = height;
+	_width = texture_width;
+	_height = texture_height;
+	_glTexture = texture_name;
+
+	if (_width != 0 && _height != 0) {
+		const GLfloat texWidth = (GLfloat)_logicalWidth / _width;
+		const GLfloat texHeight = (GLfloat)_logicalHeight / _height;
+
+		_texCoords[0] = 0;
+		_texCoords[1] = 0;
+
+		_texCoords[2] = texWidth;
+		_texCoords[3] = 0;
+
+		_texCoords[4] = 0;
+		_texCoords[5] = texHeight;
+
+		_texCoords[6] = texWidth;
+		_texCoords[7] = texHeight;
+	}
+
+	enableLinearFiltering(true);
+
+	init();
+}
+
+AndroidFrameBuffer::~AndroidFrameBuffer() {
+	// Prevent the texture from being deleted by the parent class
+	_glTexture = 0;
+}
+
 // Supported GL extensions
 bool GLESBaseTexture::_npot_supported = false;
 OpenGL::Shader *GLESBaseTexture::_box_shader = nullptr;
@@ -103,9 +143,10 @@ static const char *controlFragment =
 		"precision mediump float;\n"
 	"#endif\n"
 	"varying vec2 Texcoord;\n"
+	"uniform float alpha;\n"
 	"uniform sampler2D tex;\n"
 	"void main() {\n"
-		"gl_FragColor = texture2D(tex, Texcoord);\n"
+		"gl_FragColor = texture2D(tex, Texcoord) * vec4(1.0, 1.0, 1.0, alpha);\n"
 	"}\n";
 
 void GLESBaseTexture::initGL() {
@@ -135,6 +176,7 @@ GLESBaseTexture::GLESBaseTexture(GLenum glFormat, GLenum glType,
 	_surface(),
 	_texture_width(0),
 	_texture_height(0),
+	_alpha(1.f),
 	_draw_rect(),
 	_all_dirty(false),
 	_dirty_rect(),
@@ -266,6 +308,7 @@ void GLESBaseTexture::drawTexture(GLshort x, GLshort y, GLshort w, GLshort h,
 	clipV.w() /= _texture_height;
 //	LOGD("*** Drawing at (%f,%f) , size %f x %f", float(x) / float(_surface.w), float(y) / float(_surface.h),  tex_width, tex_height);
 
+	_box_shader->setUniform1f("alpha", _alpha);
 	_box_shader->setUniform("offsetXY", Math::Vector2d(offsetX, offsetY));
 	_box_shader->setUniform("sizeWH", Math::Vector2d(sizeW, sizeH));
 	_box_shader->setUniform("clip", clipV);

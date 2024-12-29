@@ -56,18 +56,18 @@ void Converstation_Globals::syncGame(Common::Serializer &s) {
 		conv_reset_all();
 
 	// Handle size
-	count = conv_save_buff.size();
+	count = convSave.size();
 	s.syncAsUint32LE(count);
 	if (s.isLoading())
-		conv_save_buff.resize(count);
+		convSave.resize(count);
 
-	// Read in the buffer
+	// Sync buffer contents
 	if (count)
-		s.syncBytes(&conv_save_buff[0], count);
+		s.syncBytes(&convSave[0], count);
 }
 
 void Converstation_Globals::conv_reset_all() {
-	conv_save_buff.clear();
+	convSave.clear();
 }
 
 /*------------------------------------------------------------------------*/
@@ -83,14 +83,6 @@ void cdd_init(void) {
 	_G(cdd).num_txt_ents = 0;
 	Common::strcpy_s(_G(cdd).mesg, "");
 	_G(cdd).mesg_snd_file = nullptr;
-}
-
-void set_conv_name(const char *s) {
-	Common::strcpy_s(_GC(conv_name), s);
-}
-
-const char *get_conv_name() {
-	return _GC(conv_name);
 }
 
 Conv *conv_get_handle(void) {
@@ -125,6 +117,10 @@ int conv_get_event(void) {
 
 void conv_play(Conv *c) {
 	conv_go(c);
+}
+
+void conv_play() {
+	conv_play(conv_get_handle());
 }
 
 int32 conv_current_node() {
@@ -332,7 +328,7 @@ void find_and_set_conv_name(Conv *c) {
 		case CONV_CHUNK:
 			conv = get_conv(c, ent);
 			assert(conv);
-			set_conv_name(get_string(c, c->myCNode + ent + sizeof(conv_chunk)));
+			Common::strcpy_s(_GC(conv_name), get_string(c, c->myCNode + ent + sizeof(conv_chunk)));
 			break;
 
 		default:
@@ -388,10 +384,10 @@ static void conv_save_state(Conv *c) {
 
 	amt_to_write += (num_entries / 8) * sizeof(int32);
 	if ((num_entries % 8) != 0)
-		amt_to_write += sizeof(int32);	// pad the sucker
+		amt_to_write += sizeof(int32);	// Pad the sucker
 
 	//-------------------------------------------------------------------------------
-	// if consave.dat exists, read it in
+	// if consave data exists, read it in
 
 	int32 file_size = 0;
 	int32 offset = -1;
@@ -409,7 +405,7 @@ static void conv_save_state(Conv *c) {
 		Common::copy(&_GC(convSave)[0], &_GC(convSave)[0] + file_size, &conv_save_buff[0]);
 
 		//----------------------------------------------------------------------------
-		// if this conversation already in save file, overwrite it,
+		// If this conversation already in conv data, overwrite it,
 		// otherwise chuck out the buffer, and create a new buffer which is just
 		// big enough to hold the new save data.
 
@@ -417,11 +413,11 @@ static void conv_save_state(Conv *c) {
 
 		if (offset != -1) {
 			overwrite_file = true;
-			memcpy(&prev_size, &conv_save_buff[offset], sizeof(int32));
+			prev_size = READ_LE_UINT32(&conv_save_buff[offset]);
 			prev_size += 3 * sizeof(int32);
-			offset += sizeof(int32); //skip header. (name + size)
+			offset += sizeof(int32);	// Skip header. (name + size)
 		} else {
-			//append!!!
+			// Append
 			offset = 0;
 
 			if (conv_save_buff)
@@ -433,13 +429,12 @@ static void conv_save_state(Conv *c) {
 
 			memcpy(&conv_save_buff[offset], fname, 8 * sizeof(char));
 			offset += 8 * sizeof(char);
-			memcpy(&conv_save_buff[offset], &amt_to_write, sizeof(int32));
+			WRITE_LE_UINT32(&conv_save_buff[offset], amt_to_write);
 			offset += sizeof(int32);
 		}
-	} else
-	{
+	} else {
 		//----------------------------------------------------------------------------
-		// convsav.dat didn't exist, so we set things up for a create here.
+		// Conv save dat didn't exist, so we set things up for a create here.
 
 		offset = 0;
 
@@ -449,20 +444,20 @@ static void conv_save_state(Conv *c) {
 
 		memcpy(&conv_save_buff[offset], fname, 8 * sizeof(char));
 		offset += 8 * sizeof(char);
-		memcpy(&conv_save_buff[offset], &amt_to_write, sizeof(int32));
+		WRITE_LE_UINT32(&conv_save_buff[offset], amt_to_write);
 		offset += sizeof(int32);
 	}
 
 	//----------------------------------------------------------------------------
 	// finish filling in conv_save_buff data with num of entries etc.
 
-	memcpy(&conv_save_buff[offset], &myCNode, sizeof(int32));
+	WRITE_LE_INT32(&conv_save_buff[offset], myCNode);
 	offset += sizeof(int32);
 
-	memcpy(&conv_save_buff[offset], &num_decls, sizeof(int32));
+	WRITE_LE_UINT32(&conv_save_buff[offset], num_decls);
 	offset += sizeof(int32);
 
-	memcpy(&conv_save_buff[offset], &num_entries, sizeof(int32));
+	WRITE_LE_UINT32(&conv_save_buff[offset], num_entries);
 	offset += sizeof(int32);
 
 	int32 size = 3 * sizeof(int32);
@@ -487,7 +482,7 @@ static void conv_save_state(Conv *c) {
 			decl = get_decl(c, ent);
 			val = conv_get_decl_val(c, decl);
 
-			memcpy(&conv_save_buff[offset], &val, sizeof(int32));
+			WRITE_LE_UINT32(&conv_save_buff[offset], val);
 			offset += sizeof(int32);
 
 			size += sizeof(int32);
@@ -503,7 +498,7 @@ static void conv_save_state(Conv *c) {
 			if (flag_index == 32) {
 				flag_index = 0;
 
-				memcpy(&conv_save_buff[offset], &e_flags, sizeof(int32));
+				WRITE_LE_UINT32(&conv_save_buff[offset], e_flags);
 				offset += sizeof(int32);
 				size += sizeof(int32);
 
@@ -518,13 +513,13 @@ static void conv_save_state(Conv *c) {
 		default:
 			break;
 		}
+
 		ent = next;
 	}
 
 	// Copy the flags
-
 	if (flag_index != 0) {
-		memcpy(&conv_save_buff[offset], &e_flags, sizeof(int32));
+		WRITE_LE_UINT32(&conv_save_buff[offset], e_flags);
 		offset += sizeof(int32);
 		size += sizeof(int32);
 	}
@@ -557,8 +552,7 @@ static Conv *conv_restore_state(Conv *c) {
 	entry_chunk *entry;
 	decl_chunk *decl;
 
-	int32 num_decls = 0, num_entries = 0;
-	short /*flag_num = 0, */flag_index = 0;
+	short flag_index = 0;
 	int32 val;
 	int32 e_flags = 0;
 	int32 myCNode;
@@ -570,7 +564,7 @@ static Conv *conv_restore_state(Conv *c) {
 	ent = 0; c->myCNode = 0;
 
 	find_and_set_conv_name(c);
-	cstrncpy(fname, get_conv_name(), 8);
+	cstrncpy(fname, _GC(conv_name), 8);
 	fname[8] = '\0';
 
 	if (_GC(convSave).empty())
@@ -598,13 +592,13 @@ static Conv *conv_restore_state(Conv *c) {
 	// Skip header.
 	offset += sizeof(int32);
 
-	memcpy(&myCNode, &conv_save_buff[offset], sizeof(int32));
+	myCNode = READ_LE_INT32(&conv_save_buff[offset]);
 	offset += sizeof(int32);
 
-	memcpy(&num_decls, &conv_save_buff[offset], sizeof(int32));
+	/*int num_decls = */READ_LE_UINT32(&conv_save_buff[offset]);
 	offset += sizeof(int32);
 
-	memcpy(&num_entries, &conv_save_buff[offset], sizeof(int32));
+	/*int num_entries = */READ_LE_UINT32(&conv_save_buff[offset]);
 	offset += sizeof(int32);
 
 	ent = 0; c->myCNode = 0;
@@ -614,7 +608,7 @@ static Conv *conv_restore_state(Conv *c) {
 
 		switch (tag) {
 		case DECL_CHUNK:
-			memcpy(&val, &conv_save_buff[offset], sizeof(int32));
+			val = READ_LE_UINT32(&conv_save_buff[offset]);
 			offset += sizeof(int32);
 			decl = get_decl(c, ent);
 
@@ -624,10 +618,12 @@ static Conv *conv_restore_state(Conv *c) {
 		default:
 			break;
 		}
+
 		ent = next;
 	}
 
-	ent = 0; c->myCNode = 0;
+	ent = 0;
+	c->myCNode = 0;
 
 	while (ent < c->chunkSize) {
 		conv_ops_get_entry(ent, &next, &tag, c);
@@ -648,7 +644,7 @@ static Conv *conv_restore_state(Conv *c) {
 			}
 
 			if (flag_index == 0) {
-				memcpy(&e_flags, &conv_save_buff[offset], sizeof(int32));
+				e_flags = READ_LE_UINT32(&conv_save_buff[offset]);
 				offset += sizeof(int32);
 			}
 
@@ -661,6 +657,7 @@ static Conv *conv_restore_state(Conv *c) {
 		default:
 			break;
 		}
+
 		ent = next;
 	}
 
@@ -705,6 +702,9 @@ void conv_set_default_hv(int32 h, int32 v) {
 
 void conv_set_default_text_colour(int32 norm_colour, int32 hi_colour) {
 	conv_set_text_colours(norm_colour, norm_colour, norm_colour, hi_colour, hi_colour, hi_colour);
+
+	_GC(conv_default_normal_colour) = norm_colour;
+	_GC(conv_default_hilite_colour) = hi_colour;
 }
 
 void conv_set_shading(int32 shade) {
@@ -728,7 +728,6 @@ Conv *conv_load(const char *filename, int x1, int y1, int32 myTrigger, bool want
 	Conv *convers = nullptr;
 	int32 cSize = 0;
 	char fullpathname[MAX_FILENAME_SIZE];
-	void *bufferHandle;
 
 	term_message("conv_load");
 
@@ -763,7 +762,9 @@ Conv *conv_load(const char *filename, int x1, int y1, int32 myTrigger, bool want
 		error_show(FL, 'CNVL', "couldn't conv_load %s", fullpathname);
 		conv_set_handle(nullptr);
 		convers = nullptr;
-		goto done;
+		fp.close();
+
+		return nullptr;
 	}
 
 	cSize = fp.size();
@@ -777,7 +778,9 @@ Conv *conv_load(const char *filename, int x1, int y1, int32 myTrigger, bool want
 	if (!convers) {
 		conv_set_handle(nullptr);
 		convers = nullptr;
-		goto done;
+		fp.close();
+
+		return nullptr;
 	}
 
 	convers->chunkSize = cSize;
@@ -791,14 +794,13 @@ Conv *conv_load(const char *filename, int x1, int y1, int32 myTrigger, bool want
 
 	convers->conv = (char *)mem_alloc(cSize * sizeof(char), "conv char data");
 
-	bufferHandle = convers->conv;
-	if (!fp.read((MemHandle)&bufferHandle, cSize)) {
+	if (!fp.read((byte *)convers->conv, cSize)) {
 		conv_set_handle(nullptr);
-		if (convers)
-			delete convers;
-
+		delete convers;
 		convers = nullptr;
-		goto done;
+		fp.close();
+
+		return nullptr;
 	}
 
 	conv_swap_words(convers);
@@ -816,7 +818,6 @@ Conv *conv_load(const char *filename, int x1, int y1, int32 myTrigger, bool want
 
 	conv_set_handle(convers);
 
-done:
 	fp.close();
 
 	return convers;

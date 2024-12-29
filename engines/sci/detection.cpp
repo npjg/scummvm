@@ -226,12 +226,12 @@ DetectedGames SciMetaEngineDetection::detectGames(const Common::FSList &fslist, 
 	DetectedGames games = AdvancedMetaEngineDetection::detectGames(fslist, skipADFlags, skipIncomplete);
 
 	for (DetectedGame &game : games) {
-		const GameIdStrToEnum *g = s_gameIdStrToEnum;
+		const GameIdStrToEnum *g = gameIdStrToEnum;
 		for (; g->gameidStr; ++g) {
 			if (game.gameId.equals(g->gameidStr))
 				break;
 		}
-		game.setGUIOptions(customizeGuiOptions(fslist.begin()->getParent().getPath(), parseGameGUIOptions(game.getGUIOptions()), g->version));
+		game.setGUIOptions(customizeGuiOptions(fslist.begin()->getParent().getPath(), parseGameGUIOptions(game.getGUIOptions()), game.platform, g->gameidStr, g->version));
 		game.appendGUIOptions(getGameGUIOptionsDescriptionLanguage(game.language));
 	}
 
@@ -246,7 +246,7 @@ ADDetectedGame SciMetaEngineDetection::fallbackDetect(const FileMap &allFiles, c
 
 	if (ConfMan.hasKey("always_run_fallback_detection_extern")) {
 		if (ConfMan.getBool("always_run_fallback_detection_extern") == false) {
-			warning("SCI: Fallback detection is disabled.");
+			warning("SCI: Fallback detection is disabled");
 			return ADDetectedGame();
 		}
 	}
@@ -255,7 +255,7 @@ ADDetectedGame SciMetaEngineDetection::fallbackDetect(const FileMap &allFiles, c
 	if (!enginePlugin) {
 		static bool warn = true;
 		if (warn) {
-			warning("Engine plugin for SCI not present. Fallback detection is disabled.");
+			warning("Engine plugin for SCI not present. Fallback detection is disabled");
 			warn = false;
 		}
 		return ADDetectedGame();

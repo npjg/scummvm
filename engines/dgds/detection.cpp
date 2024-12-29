@@ -26,8 +26,10 @@ static const PlainGameDescriptor dgdsGames[] = {
 	{"rise", "Rise of the Dragon"},
 	{"china", "Heart of China"},
 	{"beamish", "The Adventures of Willy Beamish"},
+	{"quarky", "Quarky And Quaysoo's Turbo Science"},
 	{"sq5demo", "Space Quest V Demo"},
 	{"comingattractions", "Sierra / Dynamix 1991 Coming Attractions Demo"},
+	{"castaway", "Johnny Castaway"},
 
 	{0, 0}
 };
@@ -42,11 +44,11 @@ public:
 	}
 
 	const char* getEngineName() const override {
-		return "dgds";
+		return "Dynamix Game Development System";
 	}
 
 	const char *getName() const override {
-		return "DGDS";
+		return "dgds";
 	}
 
 	const char *getOriginalCopyright() const override {

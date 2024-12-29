@@ -34,6 +34,14 @@
 
 namespace Freescape {
 
+const Graphics::PixelFormat getRGBAPixelFormat() {
+#ifdef SCUMM_BIG_ENDIAN
+		return Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
+#else
+		return Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24);
+#endif
+}
+
 Renderer::Renderer(int screenW, int screenH, Common::RenderMode renderMode, bool authenticGraphics) {
 	_screenW = screenW;
 	_screenH = screenH;
@@ -130,12 +138,12 @@ byte getCGAStipple(byte x, int back, int fore) {
 }
 
 void Renderer::clearColorPairArray() {
-	for (int i = 0; i < 15; i++)
+	for (int i = 0; i < 16; i++)
 		_colorPair[i] = 0;
 }
 
 void Renderer::fillColorPairArray() {
-	for (int i = 4; i < 15; i++) {
+	for (int i = 0; i < 15; i++) {
 		byte *entry = (*_colorMap)[i];
 		int c1;
 		if (_renderMode == Common::kRenderCGA)
@@ -164,7 +172,9 @@ void Renderer::fillColorPairArray() {
 			if (k != 4)
 				break;
 		}
-		assert(c2 >= 0);
+		// The Castle Master CPC release needs the following workaround
+		if (c2 < 0)
+			c2 = c1;
 		assert((c1 < 16) & (c2 < 16));
 		_colorPair[i] = byte(c1) | (byte(c2) << 4);
 	}
@@ -187,7 +197,7 @@ uint16 duplicate_bits(uint8 byte) {
 }
 
 
-void scaleStipplePattern(byte originalPattern[128], byte newPattern[128]) {
+void Renderer::scaleStipplePattern(byte originalPattern[128], byte newPattern[128]) {
     // Initialize the new pattern to all 0
     memset(newPattern, 0, 128);
 
@@ -202,7 +212,7 @@ void scaleStipplePattern(byte originalPattern[128], byte newPattern[128]) {
 
 void Renderer::setColorMap(ColorMap *colorMap_) {
 	_colorMap = colorMap_;
-	if (_renderMode == Common::kRenderZX) {
+	if (_renderMode == Common::kRenderZX || _renderMode == Common::kRenderHercG) {
 		for (int i = 0; i < 15; i++) {
 			byte *entry = (*_colorMap)[i];
 			for (int j = 0; j < 128; j++)
@@ -231,7 +241,7 @@ void Renderer::setColorMap(ColorMap *colorMap_) {
 	}
 
 	if (_isAccelerated && _authenticGraphics) {
-		for (int i = 1; i < 14; i++) {
+		for (int i = 1; i <= 14; i++) {
 			scaleStipplePattern(_stipples[i], _stipples[15]);
 			memcpy(_stipples[i], _stipples[15], 128);
 			scaleStipplePattern(_stipples[i], _stipples[15]);
@@ -274,6 +284,7 @@ bool Renderer::getRGBAtCGA(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &
 
 	assert (_renderMode == Common::kRenderCGA);
 	if (index <= 4) { // Solid colors
+		stipple = nullptr;
 		readFromPalette(index - 1, r1, g1, b1);
 		r2 = r1;
 		g2 = g1;
@@ -287,6 +298,9 @@ bool Renderer::getRGBAtCGA(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &
 	byte c2 = (pair >> 4) & 0xf;
 	readFromPalette(c1, r1, g1, b1);
 	readFromPalette(c2, r2, g2, b2);
+	if (r1 == r2 && g1 == g2 && b1 == b2) {
+		stipple = nullptr;
+	}
 	return true;
 }
 
@@ -364,12 +378,14 @@ bool Renderer::getRGBAtZX(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r
 	if (entry[0] == 0 && entry[1] == 0 && entry[2] == 0 && entry[3] == 0) {
 		readFromPalette(_paperColor, r1, g1, b1);
 		readFromPalette(_paperColor, r2, g2, b2);
+		stipple = nullptr;
 		return true;
 	}
 
 	if (entry[0] == 0xff && entry[1] == 0xff && entry[2] == 0xff && entry[3] == 0xff) {
 		readFromPalette(_inkColor, r1, g1, b1);
 		readFromPalette(_inkColor, r2, g2, b2);
+		stipple = nullptr;
 		return true;
 	}
 
@@ -377,8 +393,35 @@ bool Renderer::getRGBAtZX(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r
 
 	readFromPalette(_paperColor, r1, g1, b1);
 	readFromPalette(_inkColor, r2, g2, b2);
+	if (r1 == r2 && g1 == g2 && b1 == g2) {
+		stipple = nullptr;
+	}
 	return true;
 }
+
+bool Renderer::getRGBAtHercules(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r2, uint8 &g2, uint8 &b2, byte *&stipple) {
+	if (index == _keyColor)
+		return false;
+
+	byte *entry = (*_colorMap)[index - 1];
+	if (entry[0] == 0 && entry[1] == 0 && entry[2] == 0 && entry[3] == 0) {
+		readFromPalette(0, r1, g1, b1);
+		readFromPalette(0, r2, g2, b2);
+		return true;
+	}
+
+	if (entry[0] == 0xff && entry[1] == 0xff && entry[2] == 0xff && entry[3] == 0xff) {
+		readFromPalette(1, r1, g1, b1);
+		readFromPalette(1, r2, g2, b2);
+		return true;
+	}
+
+	stipple = (byte *)_stipples[index - 1];
+	readFromPalette(0, r1, g1, b1);
+	readFromPalette(1, r2, g2, b2);
+	return true;
+}
+
 
 void Renderer::selectColorFromFourColorPalette(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1) {
 	if (index == 0) {
@@ -406,30 +449,20 @@ bool Renderer::getRGBAtCPC(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &
 			r2 = r1;
 			g2 = g1;
 			b2 = b1;
+			stipple = nullptr;
 			return true;
 		}
-		readFromPalette(index, r1, g1, b1);
-		r2 = r1;
-		g2 = g1;
-		b2 = b1;
-		return true;
 	}
-
 	assert (_renderMode == Common::kRenderCPC);
-	if (index <= 4) { // Solid colors
-		selectColorFromFourColorPalette(index - 1, r1, g1, b1);
-		r2 = r1;
-		g2 = g1;
-		b2 = b1;
-		return true;
-	}
-
 	stipple = (byte *)_stipples[index - 1];
 	byte *entry = (*_colorMap)[index - 1];
 	uint8 i1 = getCPCPixel(entry[0], 0, true);
 	uint8 i2 = getCPCPixel(entry[0], 1, true);
 	selectColorFromFourColorPalette(i1, r1, g1, b1);
 	selectColorFromFourColorPalette(i2, r2, g2, b2);
+	if (r1 == r2 && g1 == g2 && b1 == b2) {
+		stipple = nullptr;
+	}
 	return true;
 }
 
@@ -485,7 +518,14 @@ bool Renderer::getRGBAt(uint8 index, uint8 ecolor, uint8 &r1, uint8 &g1, uint8 &
 	}
 
 	if (_renderMode == Common::kRenderAmiga || _renderMode == Common::kRenderAtariST) {
-		if (_colorRemaps && _colorRemaps->contains(index)) {
+		if (_colorPair[index] > 0) {
+			int color = 0;
+			color = _colorPair[index] & 0xf;
+			readFromPalette(color, r1, g1, b1);
+			color = _colorPair[index] >> 4;
+			readFromPalette(color, r2, g2, b2);
+			return true;
+		} else if (_colorRemaps && _colorRemaps->contains(index)) {
 			int color = (*_colorRemaps)[index];
 			_texturePixelFormat.colorToRGB(color, r1, g1, b1);
 		} else
@@ -510,6 +550,8 @@ bool Renderer::getRGBAt(uint8 index, uint8 ecolor, uint8 &r1, uint8 &g1, uint8 &
 		return getRGBAtCPC(index, r1, g1, b1, r2, g2, b2, stipple);
 	else if (_renderMode == Common::kRenderZX)
 		return getRGBAtZX(index, r1, g1, b1, r2, g2, b2, stipple);
+	else if (_renderMode == Common::kRenderHercG)
+		return getRGBAtHercules(index, r1, g1, b1, r2, g2, b2, stipple);
 
 
 	error("Invalid or unsupported render mode");
@@ -550,8 +592,8 @@ bool Renderer::computeScreenViewport() {
 	Common::Rect viewport;
 	if (g_system->getFeatureState(OSystem::kFeatureAspectRatioCorrection)) {
 			// Aspect ratio correction
-			int32 viewportWidth = MIN<int32>(screenWidth, screenHeight * float(_screenW) / _screenH);
-			int32 viewportHeight = MIN<int32>(screenHeight, screenWidth * float(_screenH) / _screenW);
+			int32 viewportWidth = MIN<int32>(screenWidth, screenHeight * float(4) / 3);
+			int32 viewportHeight = MIN<int32>(screenHeight, screenWidth * float(3) / 3);
 			viewport = Common::Rect(viewportWidth, viewportHeight);
 
 			// Pillarboxing
@@ -922,6 +964,9 @@ void Renderer::renderRectangle(const Math::Vector3d &originalOrigin, const Math:
 	Math::Vector3d size = originalSize;
 	Math::Vector3d origin = originalOrigin;
 
+	if (!_isAccelerated)
+		polygonOffset(true);
+
 	if (size.x() > 0 && size.y() > 0 && size.z() > 0) {
 		/* According to https://www.shdon.com/freescape/
 		If the bounding box is has all non-zero dimensions
@@ -1058,6 +1103,10 @@ void Renderer::renderPolygon(const Math::Vector3d &origin, const Math::Vector3d 
 		}
 		polygonOffset(false);
 	} else {
+
+		if (!_isAccelerated)
+			polygonOffset(true);
+
 		if (size.x() == 0) {
 			for (int i = 0; i < int(ordinates->size()); i++) {
 				if (i % 3 == 0)

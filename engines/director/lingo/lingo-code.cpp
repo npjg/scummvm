@@ -59,7 +59,7 @@
 
 namespace Director {
 
-static struct FuncDescr {
+static const struct FuncDescr {
 	const inst func;
 	const char *name;
 	const char *args;
@@ -173,7 +173,7 @@ static struct FuncDescr {
 
 void Lingo::initFuncs() {
 	Symbol sym;
-	for (FuncDescr *fnc = funcDescr; fnc->name; fnc++) {
+	for (const FuncDescr *fnc = funcDescr; fnc->name; fnc++) {
 		sym.u.func = fnc->func;
 		_functions[(void *)sym.u.s] = new FuncDesc(fnc->name, fnc->args);
 	}
@@ -719,7 +719,7 @@ Datum LC::mapBinaryOp(Datum (*mapFunc)(Datum &, Datum &), Datum &d1, Datum &d2) 
 		if (d2.isArray()) {
 			b = d2.u.farr->arr[i];
 		} else if (d2.type == PARRAY) {
-			a = d2.u.parr->arr[i].v;
+			b = d2.u.parr->arr[i].v;
 		}
 		if (res.type == PARRAY) {
 			res.u.parr->arr[i] = PCell(d1.u.parr->arr[i].p, mapFunc(a, b));
@@ -1662,7 +1662,7 @@ void LC::call(const Symbol &funcSym, int nargs, bool allowRetVal) {
 			if (g_lingo->_theEntities.contains(*funcSym.name) && nargs == 0) {
 				warning("Calling builtin '%s' as a function", funcSym.name->c_str());
 
-				TheEntity *entity = g_lingo->_theEntities[*funcSym.name];
+				const TheEntity *entity = g_lingo->_theEntities[*funcSym.name];
 				Datum id;
 				id.u.i = 0;
 				id.type = VOID;

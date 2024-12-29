@@ -32,8 +32,6 @@
 #include "engines/wintermute/base/base.h"
 #include "engines/wintermute/coll_templ.h"
 
-#include "math/vector3d.h"
-
 namespace Wintermute {
 
 class CAdSceneGeometry;
@@ -47,7 +45,7 @@ public:
 	bool addFromMesh(Mesh3DS *mesh);
 	AdWaypointGroup3D(BaseGame *inGame);
 	virtual ~AdWaypointGroup3D();
-	BaseArray<Math::Vector3d *> _points;
+	BaseArray<DXVector3 *> _points;
 };
 
 }

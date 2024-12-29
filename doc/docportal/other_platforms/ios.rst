@@ -49,6 +49,17 @@ Controls
         Pinch gesture, Enables/disables keyboard
         Keyboard spacebar, Pause
 
+.. csv-table::
+    :widths: 40 60
+    :header-rows: 1
+    :class: controls
+
+        Apple Pencil control, Action
+        Touch, Left mouse click
+        Touch & hold for >0.5s, "Left mouse button hold and drag, such as for selection from action wheel in Curse of Monkey Island"
+        3 quick touches, Right mouse click 
+        3 quick touches & hold for >0.5s, "Right mouse button hold and drag, such as for selection from action wheel in Tony Tough"
+
 
 Touch controls
 *******************
@@ -91,7 +102,7 @@ For external keyboards missing the special keys, e.g. the Apple Magic Keyboard f
         Key combination, Action
         CMD + 1, F1
         CMD + 2, F2
-        "..." , "..."
+        "...", "..."
         CMD + 0, F10
         CMD + SHIFT 1, F11
         CMD + SHIFT 2, F12

@@ -304,7 +304,7 @@ void Console::postEnter() {
 			playVideo(*videoDecoder);
 			_engine->_gfxCursor->kernelShow();
 		} else
-			warning("Could not play video %s\n", _videoFile.toString(Common::Path::kNativeSeparator).c_str());
+			warning("Could not play video %s", _videoFile.toString(Common::Path::kNativeSeparator).c_str());
 
 		_videoFile.clear();
 		_videoFrameDelay = 0;
@@ -2280,8 +2280,6 @@ bool Console::cmdSavedBits(int argc, const char **argv) {
 					debugPrintf(" priority");
 				if (mask & GFX_SCREEN_MASK_CONTROL)
 					debugPrintf(" control");
-				if (mask & GFX_SCREEN_MASK_DISPLAY)
-					debugPrintf(" display");
 				debugPrintf("\n");
 			}
 		}
@@ -2361,8 +2359,6 @@ bool Console::cmdShowSavedBits(int argc, const char **argv) {
 		debugPrintf(" priority");
 	if (mask & GFX_SCREEN_MASK_CONTROL)
 		debugPrintf(" control");
-	if (mask & GFX_SCREEN_MASK_DISPLAY)
-		debugPrintf(" display");
 	debugPrintf("\n");
 
 	if (!_engine->_gfxPaint16 || !_engine->_gfxScreen)
@@ -4032,7 +4028,7 @@ bool Console::cmdSend(int argc, const char **argv) {
 		_engine->_gamestate->_executionStackPosChanged = true;
 		debugPrintf("Message scheduled for execution\n");
 
-		// We call run_engine explictly so we can restore the value of r_acc
+		// We call run_engine explicitly so we can restore the value of r_acc
 		// after execution.
 		run_vm(_engine->_gamestate);
 		_engine->_gamestate->xs = old_xstack;

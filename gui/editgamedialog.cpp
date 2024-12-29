@@ -400,6 +400,7 @@ void EditGameDialog::open() {
 
 	e = ConfMan.hasKey("gfx_mode", _domain) ||
 		ConfMan.hasKey("render_mode", _domain) ||
+		ConfMan.hasKey("rotation_mode", _domain) ||
 		ConfMan.hasKey("stretch_mode", _domain) ||
 		ConfMan.hasKey("scaler", _domain) ||
 		ConfMan.hasKey("scale_factor", _domain) ||
@@ -638,7 +639,7 @@ void EditGameDialog::handleCommand(CommandSender *sender, uint32 cmd, uint32 dat
 
 #ifdef USE_LIBCURL
 	case kCmdCheckIntegrity: {
-		IntegrityDialog wizard("http://gamesdb.sev.zone/endpoints/validate.php", _domain);
+		IntegrityDialog wizard("http://gamesdb.sev.zone/validate", _domain);
 		wizard.runModal();
 		break;
 	}

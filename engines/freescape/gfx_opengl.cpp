@@ -23,7 +23,6 @@
 // available at https://github.com/TomHarte/Phantasma/ (MIT)
 
 #include "common/config-manager.h"
-#include "common/math.h"
 #include "common/system.h"
 #include "math/glmath.h"
 
@@ -42,7 +41,7 @@ Renderer *CreateGfxOpenGL(int screenW, int screenH, Common::RenderMode renderMod
 OpenGLRenderer::OpenGLRenderer(int screenW, int screenH, Common::RenderMode renderMode, bool authenticGraphics) : Renderer(screenW, screenH, renderMode, authenticGraphics) {
 	_verts = (Vertex *)malloc(sizeof(Vertex) * kVertexArraySize);
 	_coords = (Coord *)malloc(sizeof(Coord) * kCoordsArraySize);
-	_texturePixelFormat = OpenGLTexture::getRGBAPixelFormat();
+	_texturePixelFormat = getRGBAPixelFormat();
 	_isAccelerated = true;
 	_variableStippleArray = nullptr;
 }
@@ -52,7 +51,7 @@ OpenGLRenderer::~OpenGLRenderer() {
 	free(_coords);
 }
 
-Texture *OpenGLRenderer::createTexture(const Graphics::Surface *surface) {
+Texture *OpenGLRenderer::createTexture(const Graphics::Surface *surface, bool is3D) {
 	return new OpenGLTexture(surface);
 }
 
@@ -81,6 +80,10 @@ void OpenGLRenderer::init() {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_SCISSOR_TEST);
 	setViewport(_viewport);
+	glEnable(GL_DEPTH_CLAMP);
+
+	scaleStipplePattern(_defaultStippleArray, _stipples[15]);
+	memcpy(_defaultStippleArray, _stipples[15], 128);
 }
 
 void OpenGLRenderer::setViewport(const Common::Rect &rect) {
@@ -166,7 +169,12 @@ void OpenGLRenderer::drawSkybox(Texture *texture, Math::Vector3d camera) {
 	glBindTexture(GL_TEXTURE_2D, glTexture->_id);
 	glVertexPointer(3, GL_FLOAT, 0, _skyVertices);
 	glNormalPointer(GL_FLOAT, 0, _skyNormals);
-	glTexCoordPointer(2, GL_FLOAT, 0, _skyUvs);
+	if (texture->_width == 1008)
+		glTexCoordPointer(2, GL_FLOAT, 0, _skyUvs1008);
+	else if (texture->_width == 128)
+		glTexCoordPointer(2, GL_FLOAT, 0, _skyUvs128);
+	else
+		error("Unsupported skybox texture width %d", texture->_width);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -191,18 +199,18 @@ void OpenGLRenderer::drawSkybox(Texture *texture, Math::Vector3d camera) {
 	glFlush();
 }
 
-void OpenGLRenderer::updateProjectionMatrix(float fov, float yminValue, float ymaxValue, float nearClipPlane, float farClipPlane) {
+void OpenGLRenderer::updateProjectionMatrix(float fov, float aspectRatio, float nearClipPlane, float farClipPlane) {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	// Determining xmaxValue and ymaxValue still needs some work for matching the 3D view in freescape games
-	/*float aspectRatio = _screenW / (float)_screenH;
 
-	float xmaxValue = nearClipPlane * tan(Common::deg2rad(fov) / 2);
+	// Calculate the xmax and ymax values based on FOV and aspect ratio
+	float xmaxValue = nearClipPlane * tan(Math::deg2rad(fov) / 2);
 	float ymaxValue = xmaxValue / aspectRatio;
-	// debug("max values: %f %f", xmaxValue, ymaxValue);
 
-	glFrustum(xmaxValue, -xmaxValue, -ymaxValue, ymaxValue, nearClipPlane, farClipPlane);*/
-	glFrustum(1.5, -1.5, yminValue, ymaxValue, nearClipPlane, farClipPlane);
+	// Corrected glFrustum call
+	glFrustum(-xmaxValue, xmaxValue, -ymaxValue, ymaxValue, nearClipPlane, farClipPlane);
+	glScalef(-1.0f, 1.0f, 1.0f);
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
@@ -213,6 +221,7 @@ void OpenGLRenderer::positionCamera(const Math::Vector3d &pos, const Math::Vecto
 	Math::Matrix4 lookMatrix = Math::makeLookAtMatrix(pos, interest, up_vec);
 	glMultMatrixf(lookMatrix.getData());
 	glTranslatef(-pos.x(), -pos.y(), -pos.z());
+	glTranslatef(_shakeOffset.x, _shakeOffset.y, 0);
 }
 
 void OpenGLRenderer::renderSensorShoot(byte color, const Math::Vector3d sensor, const Math::Vector3d target, const Common::Rect viewArea) {
@@ -472,6 +481,8 @@ void OpenGLRenderer::renderFace(const Common::Array<Math::Vector3d> &vertices) {
 
 void OpenGLRenderer::depthTesting(bool enabled) {
 	if (enabled) {
+		// If we re-enable depth testing, we need to clear the depth buffer
+		glClear(GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 	} else {
 		glDisable(GL_DEPTH_TEST);
@@ -481,7 +492,7 @@ void OpenGLRenderer::depthTesting(bool enabled) {
 void OpenGLRenderer::polygonOffset(bool enabled) {
 	if (enabled) {
 		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(-10.0f, 1.0f);
+		glPolygonOffset(-1.0f, 1.0f);
 	} else {
 		glPolygonOffset(0, 0);
 		glDisable(GL_POLYGON_OFFSET_FILL);
@@ -502,11 +513,12 @@ void OpenGLRenderer::useStipple(bool enabled) {
 		GLfloat factor = 0;
 		glGetFloatv(GL_POLYGON_OFFSET_FACTOR, &factor);
 		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(factor - 1.0f, -1.0f);
+		glPolygonOffset(factor - 0.5f, -1.0f);
 		glEnable(GL_POLYGON_STIPPLE);
-		if (_renderMode == Common::kRenderZX  ||
-			_renderMode == Common::kRenderCPC ||
-			_renderMode == Common::kRenderCGA)
+		if (_renderMode == Common::kRenderZX    ||
+			_renderMode == Common::kRenderCPC   ||
+			_renderMode == Common::kRenderCGA   ||
+			_renderMode == Common::kRenderHercG)
 			glPolygonStipple(_variableStippleArray);
 		else
 			glPolygonStipple(_defaultStippleArray);
@@ -551,7 +563,7 @@ void OpenGLRenderer::flipBuffer() {}
 Graphics::Surface *OpenGLRenderer::getScreenshot() {
 	Common::Rect screen = viewport();
 	Graphics::Surface *s = new Graphics::Surface();
-	s->create(screen.width(), screen.height(), OpenGLTexture::getRGBAPixelFormat());
+	s->create(screen.width(), screen.height(), getRGBAPixelFormat());
 	glReadPixels(screen.left, screen.top, screen.width(), screen.height(), GL_RGBA, GL_UNSIGNED_BYTE, s->getPixels());
 	flipVertical(s);
 	return s;

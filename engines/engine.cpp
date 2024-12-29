@@ -193,6 +193,18 @@ Engine::Engine(OSystem *syst)
 	g_system->getPaletteManager()->setPalette(dummyPalette, 0, 256);
 
 	defaultSyncSoundSettings();
+
+	// Register original bug fixes as defaults...
+	ConfMan.registerDefault("enhancements", kEnhGameBreakingBugFixes | kEnhGrp1);
+	if (!ConfMan.hasKey("enhancements", _targetName)) {
+		if (ConfMan.hasKey("enable_enhancements", _targetName) && ConfMan.getBool("enable_enhancements", _targetName)) {
+			// Was the "enable_enhancements" key previously set to true?
+			// Convert it to a full activation of the enhancement flags then!
+			ConfMan.setInt("enhancements", kEnhGameBreakingBugFixes | kEnhGrp1 | kEnhGrp2 | kEnhGrp3 | kEnhGrp4);
+		}
+	}
+
+	_activeEnhancements = (int32)ConfMan.getInt("enhancements");
 }
 
 Engine::~Engine() {
@@ -215,42 +227,52 @@ void Engine::initializePath(const Common::FSNode &gamePath) {
 	SearchMan.addDirectory(gamePath, 0, 4);
 }
 
-void initCommonGFX() {
+bool Engine::enhancementEnabled(int32 cls) {
+	return _activeEnhancements & cls;
+}
+
+void initCommonGFX(bool is3D) {
 	const Common::ConfigManager::Domain *gameDomain = ConfMan.getActiveDomain();
 
 	// Any global or command line settings already have been applied at the time
 	// we get here, so we only do something if the game domain overrides those
 	// values
-	if (gameDomain) {
-		if (gameDomain->contains("aspect_ratio"))
-			g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, ConfMan.getBool("aspect_ratio"));
+	if (!gameDomain)
+		return;
 
-		if (gameDomain->contains("fullscreen"))
-			g_system->setFeatureState(OSystem::kFeatureFullscreenMode, ConfMan.getBool("fullscreen"));
+	if (gameDomain->contains("aspect_ratio"))
+		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, ConfMan.getBool("aspect_ratio"));
 
-		if (gameDomain->contains("filtering"))
-			g_system->setFeatureState(OSystem::kFeatureFilteringMode, ConfMan.getBool("filtering"));
+	if (gameDomain->contains("fullscreen"))
+		g_system->setFeatureState(OSystem::kFeatureFullscreenMode, ConfMan.getBool("fullscreen"));
 
-		if (gameDomain->contains("vsync"))
-			g_system->setFeatureState(OSystem::kFeatureVSync, ConfMan.getBool("vsync"));
+	if (gameDomain->contains("vsync"))
+		g_system->setFeatureState(OSystem::kFeatureVSync, ConfMan.getBool("vsync"));
 
-		if (gameDomain->contains("stretch_mode"))
-			g_system->setStretchMode(ConfMan.get("stretch_mode").c_str());
+	if (gameDomain->contains("stretch_mode"))
+		g_system->setStretchMode(ConfMan.get("stretch_mode").c_str());
 
-		if (gameDomain->contains("scaler") || gameDomain->contains("scale_factor"))
-			g_system->setScaler(ConfMan.get("scaler").c_str(), ConfMan.getInt("scale_factor"));
+	// Stop here for hardware-accelerated 3D games
+	if (is3D)
+		return;
 
-		if (gameDomain->contains("shader"))
-			g_system->setShader(ConfMan.getPath("shader"));
+	// Set up filtering, scaling and shaders for 2D games
+	if (gameDomain->contains("filtering"))
+		g_system->setFeatureState(OSystem::kFeatureFilteringMode, ConfMan.getBool("filtering"));
 
-		// TODO: switching between OpenGL and SurfaceSDL is quite fragile
-		// and the SDL backend doesn't really need this so leave it out
-		// for now to avoid regressions
+	if (gameDomain->contains("scaler") || gameDomain->contains("scale_factor"))
+		g_system->setScaler(ConfMan.get("scaler").c_str(), ConfMan.getInt("scale_factor"));
+
+	if (gameDomain->contains("shader"))
+		g_system->setShader(ConfMan.getPath("shader"));
+
+	// TODO: switching between OpenGL and SurfaceSDL is quite fragile
+	// and the SDL backend doesn't really need this so leave it out
+	// for now to avoid regressions
 #ifndef SDL_BACKEND
-		if (gameDomain->contains("gfx_mode"))
-			g_system->setGraphicsMode(ConfMan.get("gfx_mode").c_str());
+	if (gameDomain->contains("gfx_mode"))
+		g_system->setGraphicsMode(ConfMan.get("gfx_mode").c_str());
 #endif
-	}
 }
 
 // Please leave the splash screen in working order for your releases, even if they're commercial.
@@ -348,7 +370,7 @@ int initGraphicsAny(const Graphics::ModeWithFormatList &modes, int start) {
 
 	for (candidate = start; candidate < (int)modes.size(); candidate++) {
 		g_system->beginGFXTransaction();
-		initCommonGFX();
+		initCommonGFX(false);
 #ifdef USE_RGB_COLOR
 		if (modes[candidate].hasFormat)
 			g_system->initSize(modes[candidate].width, modes[candidate].height, &modes[candidate].format);
@@ -470,11 +492,8 @@ void initGraphics(int width, int height) {
 void initGraphics3d(int width, int height) {
 	g_system->beginGFXTransaction();
 		g_system->setGraphicsMode(0, OSystem::kGfxModeRender3d);
+		initCommonGFX(true);
 		g_system->initSize(width, height);
-		g_system->setFeatureState(OSystem::kFeatureFullscreenMode, ConfMan.getBool("fullscreen")); // TODO: Replace this with initCommonGFX()
-		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, ConfMan.getBool("aspect_ratio")); // TODO: Replace this with initCommonGFX()
-		g_system->setFeatureState(OSystem::kFeatureVSync, ConfMan.getBool("vsync")); // TODO: Replace this with initCommonGFX()
-		g_system->setStretchMode(ConfMan.get("stretch_mode").c_str()); // TODO: Replace this with initCommonGFX()
 	g_system->endGFXTransaction();
 
 	if (!splash && !GUI::GuiManager::instance()._launched) {
@@ -499,7 +518,7 @@ void GUIErrorMessage(const Common::String &msg, const char *url) {
 void GUIErrorMessage(const Common::U32String &msg, const char *url) {
 	g_system->setWindowCaption(_("Error"));
 	g_system->beginGFXTransaction();
-		initCommonGFX();
+		initCommonGFX(false);
 		g_system->initSize(320, 200);
 	if (g_system->endGFXTransaction() == OSystem::kTransactionSuccess) {
 		if (url) {

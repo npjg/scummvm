@@ -24,6 +24,7 @@
 
 #include "freescape/freescape.h"
 #include "freescape/language/8bitDetokeniser.h"
+#include "freescape/sweepAABB.h"
 
 namespace Freescape {
 
@@ -85,7 +86,7 @@ void FCLInstruction::setBranches(FCLInstructionVector *thenBranch, FCLInstructio
 	_elseInstructions = elseBranch;
 }
 
-Token::Type FCLInstruction::getType() {
+Token::Type FCLInstruction::getType() const {
 	return _type;
 }
 
@@ -115,9 +116,12 @@ bool FreescapeEngine::executeObjectConditions(GeometricObject *obj, bool shot, b
 			debugC(1, kFreescapeDebugCode, "Executing with activated flag: %s", obj->_conditionSource.c_str());
 		else
 			error("Neither shot or collided flag is set!");
-		executeCode(obj->_condition, shot, collided, false, activated); // TODO: check this last parameter
-		executed = true;
+		executed = executeCode(obj->_condition, shot, collided, false, activated); // TODO: check this last parameter
 	}
+	if (activated && !executed)
+		if (!_noEffectMessage.empty())
+			insertTemporaryMessage(_noEffectMessage, _countdown - 2);
+
 	return executed;
 }
 
@@ -131,32 +135,63 @@ void FreescapeEngine::executeLocalGlobalConditions(bool shot, bool collided, boo
 		executeCode(conditions[i], shot, collided, timer, false);
 	}
 
+	_executingGlobalCode = true;
 	debugC(1, kFreescapeDebugCode, "Executing global conditions (%d)", _conditions.size());
 	for (uint i = 0; i < _conditions.size(); i++) {
 		debugC(1, kFreescapeDebugCode, "%s", _conditionSources[i].c_str());
 		executeCode(_conditions[i], shot, collided, timer, false);
 	}
+	_executingGlobalCode = false;
 }
 
-void FreescapeEngine::executeCode(FCLInstructionVector &code, bool shot, bool collided, bool timer, bool activated) {
-	assert(!(shot && collided));
+bool FreescapeEngine::executeCode(FCLInstructionVector &code, bool shot, bool collided, bool timer, bool activated) {
 	int ip = 0;
 	bool skip = false;
+	int skipDepth = 0;
+	int conditionalDepth = 0;
+	bool executed = false;
 	int codeSize = code.size();
-	assert(codeSize > 0);
+
+	if (codeSize == 0) {
+		assert(isCastle()); // Only seems to happen in Castle Master (magister room)
+		debugC(1, kFreescapeDebugCode, "Code is empty!");
+		return false;
+	}
+
 	while (ip <= codeSize - 1) {
 		FCLInstruction &instruction = code[ip];
-		debugC(1, kFreescapeDebugCode, "Executing ip: %d with type %d in code with size: %d", ip, instruction.getType(), codeSize);
+		debugC(1, kFreescapeDebugCode, "Executing ip: %d with type %d in code with size: %d. Skip flag is: %d", ip, instruction.getType(), codeSize, skip);
 
-		if (skip && instruction.getType() != Token::ELSE && instruction.getType() != Token::ENDIF) {
+		if (instruction.isConditional()) {
+			conditionalDepth++;
+			debugC(1, kFreescapeDebugCode, "Conditional depth increased to: %d", conditionalDepth);
+		} else if (instruction.getType() == Token::ENDIF) {
+			conditionalDepth--;
+			debugC(1, kFreescapeDebugCode, "Conditional depth decreased to: %d", conditionalDepth);
+		}
+
+		if (skip) {
+			if (instruction.getType() == Token::ELSE) {
+				debugC(1, kFreescapeDebugCode, "Else found, skip depth: %d, conditional depth: %d", skipDepth, conditionalDepth);
+				if (skipDepth == conditionalDepth - 1) {
+					skip = false;
+				}
+			} else if (instruction.getType() == Token::ENDIF) {
+				debugC(1, kFreescapeDebugCode, "Endif found, skip depth: %d, conditional depth: %d", skipDepth, conditionalDepth);
+				if (skipDepth == conditionalDepth) {
+					skip = false;
+				}
+			}
 			debugC(1, kFreescapeDebugCode, "Instruction skipped!");
 			ip++;
 			continue;
 		}
 
+		if (instruction.getType() != Token::CONDITIONAL && !instruction.isConditional())
+			executed = true;
+
 		switch (instruction.getType()) {
 		default:
-			//if (!isCastle())
 			error("Instruction %x at ip: %d not implemented!", instruction.getType(), ip);
 			break;
 		case Token::NOP:
@@ -165,25 +200,37 @@ void FreescapeEngine::executeCode(FCLInstructionVector &code, bool shot, bool co
 
 		case Token::CONDITIONAL:
 			if (checkConditional(instruction, shot, collided, timer, activated))
-				executeCode(*instruction._thenInstructions, shot, collided, timer, activated);
+				executed = executeCode(*instruction._thenInstructions, shot, collided, timer, activated);
 			// else branch is always empty
 			assert(instruction._elseInstructions == nullptr);
 			break;
 
 		case Token::VARNOTEQ:
 			if (executeEndIfNotEqual(instruction)) {
-				if (isCastle())
+				if (isCastle()) {
 					skip = true;
-				else
+					skipDepth = conditionalDepth - 1;
+				} else
 					ip = codeSize;
 			}
 			break;
 		case Token::IFGTEQ:
 			skip = !checkIfGreaterOrEqual(instruction);
+			if (skip)
+				skipDepth = conditionalDepth - 1;
 			break;
+
+		case Token::IFLTEQ:
+			skip = !checkIfLessOrEqual(instruction);
+			if (skip)
+				skipDepth = conditionalDepth - 1;
+			break;
+
 
 		case Token::ELSE:
 			skip = !skip;
+			if (skip)
+				skipDepth = conditionalDepth - 1;
 			break;
 
 		case Token::ENDIF:
@@ -221,7 +268,8 @@ void FreescapeEngine::executeCode(FCLInstructionVector &code, bool shot, bool co
 			executeRedraw(instruction);
 			break;
 		case Token::EXECUTE:
-			executeExecute(instruction);
+			executeExecute(instruction, shot, collided, activated);
+			ip = codeSize;
 			break;
 		case Token::DELAY:
 			executeDelay(instruction);
@@ -255,46 +303,51 @@ void FreescapeEngine::executeCode(FCLInstructionVector &code, bool shot, bool co
 			break;
 		case Token::BITNOTEQ:
 			if (executeEndIfBitNotEqual(instruction)) {
-				if (isCastle())
+				if (isCastle()) {
 					skip = true;
-				else
+					skipDepth = conditionalDepth - 1;
+				} else
 					ip = codeSize;
 			}
 			break;
 		case Token::INVISQ:
 			if (executeEndIfVisibilityIsEqual(instruction)) {
-				if (isCastle())
+				if (isCastle()) {
 					skip = true;
-				else
+					skipDepth = conditionalDepth - 1;
+				} else
 					ip = codeSize;
 			}
 			break;
 		}
 		ip++;
 	}
+	return executed;
 }
 
 void FreescapeEngine::executeRedraw(FCLInstruction &instruction) {
 	debugC(1, kFreescapeDebugCode, "Redrawing screen");
-	drawFrame();
-	_gfx->flipBuffer();
-	g_system->updateScreen();
-	g_system->delayMillis(10);
-
-	drawFrame();
-	_gfx->flipBuffer();
-	g_system->updateScreen();
-	g_system->delayMillis(isCPC() ? 100 : 10);
-
+	waitInLoop((100 / 15) + 1);
 	if (_syncSound) {
 		waitForSounds();
 	}
 }
 
-void FreescapeEngine::executeExecute(FCLInstruction &instruction) {
-	// TODO
+void FreescapeEngine::executeExecute(FCLInstruction &instruction, bool shot, bool collided, bool activated) {
 	uint16 objId = instruction._source;
 	debugC(1, kFreescapeDebugCode, "Executing instructions from object %d", objId);
+	Object *obj = _currentArea->objectWithID(objId);
+	if (!obj) {
+		obj = _areaMap[255]->objectWithID(objId);
+		if (!obj) {
+			obj = _areaMap[255]->entranceWithID(objId);
+			assert(obj);
+			FCLInstructionVector &condition = ((Entrance *)obj)->_condition;
+			executeCode(condition, shot, collided, false, activated);
+			return;
+		}
+	}
+	executeObjectConditions((GeometricObject *)obj, shot, collided, activated);
 }
 
 void FreescapeEngine::executeSound(FCLInstruction &instruction) {
@@ -310,7 +363,7 @@ void FreescapeEngine::executeSound(FCLInstruction &instruction) {
 void FreescapeEngine::executeDelay(FCLInstruction &instruction) {
 	uint16 delay = instruction._source;
 	debugC(1, kFreescapeDebugCode, "Delaying %d * 1/50 seconds", delay);
-	g_system->delayMillis(20 * delay);
+	waitInLoop(((20 * delay) / 15) + 1);
 }
 
 void FreescapeEngine::executePrint(FCLInstruction &instruction) {
@@ -423,17 +476,28 @@ bool FreescapeEngine::checkConditional(FCLInstruction &instruction, bool shot, b
 }
 
 bool FreescapeEngine::checkIfGreaterOrEqual(FCLInstruction &instruction) {
+	assert(instruction._destination <= 128);
+
 	uint16 variable = instruction._source;
-	uint16 value = instruction._destination;
-	debugC(1, kFreescapeDebugCode, "Check if variable %d is greater than equal to %d!", variable, value);
-	return (_gameStateVars[variable] >= value);
+	int8 value = instruction._destination;
+	debugC(1, kFreescapeDebugCode, "Check if variable %d with value %d is greater or equal to %d!", variable, (int8)_gameStateVars[variable], value);
+	return ((int8)_gameStateVars[variable] >= value);
+}
+
+bool FreescapeEngine::checkIfLessOrEqual(FCLInstruction &instruction) {
+	assert(instruction._destination <= 128);
+
+	uint16 variable = instruction._source;
+	int8 value = instruction._destination;
+	debugC(1, kFreescapeDebugCode, "Check if variable %d with value %d is less or equal to %d!", variable, (int8)_gameStateVars[variable], value);
+	return ((int8)_gameStateVars[variable] <= value);
 }
 
 
 bool FreescapeEngine::executeEndIfNotEqual(FCLInstruction &instruction) {
 	uint16 variable = instruction._source;
 	uint16 value = instruction._destination;
-	debugC(1, kFreescapeDebugCode, "End condition if variable %d is not equal to %d!", variable, value);
+	debugC(1, kFreescapeDebugCode, "End condition if variable %d with value %d is not equal to %d!", variable, (int8)_gameStateVars[variable], value);
 	return (_gameStateVars[variable] != value);
 }
 
@@ -441,31 +505,26 @@ void FreescapeEngine::executeIncrementVariable(FCLInstruction &instruction) {
 	int32 variable = instruction._source;
 	int32 increment = instruction._destination;
 	_gameStateVars[variable] = _gameStateVars[variable] + increment;
-	switch (variable) {
-	case k8bitVariableScore:
+	if (variable == k8bitVariableScore) {
 		debugC(1, kFreescapeDebugCode, "Score incremented by %d up to %d", increment, _gameStateVars[variable]);
-		break;
-	case k8bitVariableEnergy:
+	} else if (variable == k8bitVariableEnergy) {
 		if (_gameStateVars[variable] > _maxEnergy)
 			_gameStateVars[variable] = _maxEnergy;
 		else if (_gameStateVars[variable] < 0)
 			_gameStateVars[variable] = 0;
 		debugC(1, kFreescapeDebugCode, "Energy incremented by %d up to %d", increment, _gameStateVars[variable]);
-		break;
-	case k8bitVariableShield:
+	} else if (variable == k8bitVariableShield) {
 		if (_gameStateVars[variable] > _maxShield)
 			_gameStateVars[variable] = _maxShield;
 		else if (_gameStateVars[variable] < 0)
 			_gameStateVars[variable] = 0;
 
-		if (increment < 0)
+		if (increment < 0 && !isCastle())
 			flashScreen(_renderMode == Common::kRenderCGA ? 1 :_currentArea->_underFireBackgroundColor);
 
 		debugC(1, kFreescapeDebugCode, "Shield incremented by %d up to %d", increment, _gameStateVars[variable]);
-		break;
-	default:
+	} else {
 		debugC(1, kFreescapeDebugCode, "Variable %d by %d incremented up to %d!", variable, increment, _gameStateVars[variable]);
-		break;
 	}
 }
 
@@ -524,17 +583,26 @@ void FreescapeEngine::executeMakeInvisible(FCLInstruction &instruction) {
 	debugC(1, kFreescapeDebugCode, "Making obj %d invisible in area %d!", objectID, areaID);
 	if (_areaMap.contains(areaID)) {
 		Object *obj = _areaMap[areaID]->objectWithID(objectID);
-		if (!obj && isCastle())
-			return; // No side effects
+
+		if (!obj) {
+			// Object is not in the area, but it should be invisible so we can return immediately
+			return;
+			/*obj = _areaMap[255]->objectWithID(objectID);
+			if (!obj) {
+				error("obj %d does not exists in area %d nor in the global one!", objectID, areaID);
+				return;
+			}
+			_currentArea->addObjectFromArea(objectID, _areaMap[255]);
+			obj = _areaMap[areaID]->objectWithID(objectID);*/
+		}
+
 		assert(obj); // We assume the object was there
 		obj->makeInvisible();
 	} else {
-		assert(isDOS() && isDemo()); // Should only happen in the DOS demo
+		assert(isDriller() && isDOS() && isDemo());
 	}
 
 }
-
-extern Math::AABB createPlayerAABB(Math::Vector3d const position, int playerHeight);
 
 void FreescapeEngine::executeMakeVisible(FCLInstruction &instruction) {
 	uint16 objectID = 0;
@@ -550,9 +618,21 @@ void FreescapeEngine::executeMakeVisible(FCLInstruction &instruction) {
 	debugC(1, kFreescapeDebugCode, "Making obj %d visible in area %d!", objectID, areaID);
 	if (_areaMap.contains(areaID)) {
 		Object *obj = _areaMap[areaID]->objectWithID(objectID);
-		if (!obj && isCastle())
+		if (!obj && isCastle() && _executingGlobalCode)
 			return; // No side effects
-		assert(obj); // We assume an object should be there
+
+		if (!obj) {
+			obj = _areaMap[255]->objectWithID(objectID);
+			if (!obj) {
+				if (!isCastle() || !isDemo())
+					error("obj %d does not exists in area %d nor in the global one!", objectID, areaID);
+				return;
+			}
+			_currentArea->addObjectFromArea(objectID, _areaMap[255]);
+			obj = _areaMap[areaID]->objectWithID(objectID);
+			assert(obj); // We know that an object should be there
+		}
+
 		obj->makeVisible();
 		if (!isDriller()) {
 			Math::AABB boundingBox = createPlayerAABB(_position, _playerHeight);
@@ -602,6 +682,7 @@ void FreescapeEngine::executeToggleVisibility(FCLInstruction &instruction) {
 			Math::AABB boundingBox = createPlayerAABB(_position, _playerHeight);
 			if (obj->_boundingBox.collides(boundingBox)) {
 				_playerWasCrushed = true;
+				_avoidRenderingFrames = 60 * 3;
 				_shootingFrames = 0;
 			}
 		}
@@ -697,7 +778,8 @@ void FreescapeEngine::executeStartAnim(FCLInstruction &instruction) {
 		group = (Group *)obj->_partOfGroup;
 	}
 	debugC(1, kFreescapeDebugCode, "From group %d", group->getObjectID());
-	group->_active = true;
+	if (!group->isDestroyed())
+		group->start();
 }
 
 

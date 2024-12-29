@@ -100,7 +100,7 @@ struct CmdTableRow {
     MCIDataType data_type;
 };
 
-static CmdTableRow table[] = {
+static const CmdTableRow table[] = {
   {"open"            ,MCI_OPEN      ,0          ,MCI_COMMAND_HEAD },
   {""                ,MCI_INTEGER   ,0          ,MCI_RETURN }      ,
   {"notify"          ,0x00000001L   ,-1         ,MCI_FLAG }        ,
@@ -330,7 +330,7 @@ static MCIError parseMCICommand(const Common::String &name, MCICommand &parsedCm
         bool found = false;
         bool inConst = false;
         int flag, cflag = 0;
-        CmdTableRow *cmdtable, *c_cmdtable = nullptr;
+        const CmdTableRow *cmdtable, *c_cmdtable = nullptr;
         auto& token = token_list[i_token];
 
         for (i_table = tableStart; i_table < tableEnd; i_table++) {
@@ -445,9 +445,12 @@ void Lingo::func_mci(const Common::String &name) {
             Audio::AudioStream *sound = Audio::makeWAVStream(file, DisposeAfterUse::YES);
             if (parsedCmd.parameters.contains("alias")) {
                 _audioAliases[parsedCmd.parameters["alias"].string] = sound;
+            } else {
+                delete sound;
             }
         } else {
             warning("func_mci(): Unhandled audio type %s", parsedCmd.parameters["type"].string.c_str());
+            delete file;
         }
         }
         break;

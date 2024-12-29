@@ -42,8 +42,9 @@ namespace Dgds {
 class REQFileData;
 
 enum MenuId {
-	// Request data numbers, same in both RoTD and China VCRs
+	// Request data numbers, most are same in both RoTD and China VCRs
 	kMenuNone = 0,
+	kMenuMainBeamish = 3,
 	kMenuMain = 5,
 	kMenuControls = 7,
 	kMenuOptions = 29,
@@ -62,12 +63,11 @@ enum MenuId {
 	kMenuCalibrateJoystick = 28,
 	kMenuCalibrateMouse = 32,
 	kMenuReallyQuit = 35,
+	kMenuReplayArcade = 45,
+	kMenuSaveBeforeArcade = 46,
+	kMenuArcadeFrustrated = 47,
 	kMenuSkipPlayIntro = 50,
 	kMenuSkipArcade = 52,
-	kMenuSaveBeforeArcade = 46,
-	kMenuReplayArcade = 45,
-	kMenuArcadeFrustrated = 47,
-	kMenuBeamishSkipCredits = 50,
 };
 
 class Menu {

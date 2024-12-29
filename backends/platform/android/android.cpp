@@ -19,8 +19,6 @@
  *
  */
 
-#if defined(__ANDROID__)
-
 #define FORBIDDEN_SYMBOL_EXCEPTION_getenv(a)
 
 // Allow use of stuff in <time.h>
@@ -76,14 +74,14 @@
 #include "backends/keymapper/keymapper-defaults.h"
 #include "backends/keymapper/standard-actions.h"
 
-#include "common/util.h"
-#include "common/textconsole.h"
-#include "common/rect.h"
-#include "common/queue.h"
-#include "common/mutex.h"
-#include "common/events.h"
 #include "common/config-manager.h"
+#include "common/events.h"
+#include "common/mutex.h"
+#include "common/queue.h"
+#include "common/textconsole.h"
 #include "common/translation.h"
+#include "common/util.h"
+
 #include "graphics/cursorman.h"
 
 const char *android_log_tag = "ScummVM";
@@ -557,6 +555,10 @@ void OSystem_Android::initBackend() {
 	_audio_thread_exit = false;
 	pthread_create(&_audio_thread, 0, audioThreadFunc, this);
 
+	JNI::DPIValues dpi;
+	JNI::getDPI(dpi);
+	_touchControls.init(dpi[2]);
+
 	_graphicsManager = new AndroidGraphicsManager();
 
 	// renice this thread to boost the audio thread
@@ -574,6 +576,7 @@ void OSystem_Android::initBackend() {
 void OSystem_Android::engineInit() {
 	_engineRunning = true;
 	updateOnScreenControls();
+	dynamic_cast<AndroidCommonGraphics *>(_graphicsManager)->applyTouchSettings();
 
 	JNI::setCurrentGame(ConfMan.getActiveDomainName());
 }
@@ -582,6 +585,53 @@ void OSystem_Android::engineDone() {
 	_engineRunning = false;
 	updateOnScreenControls();
 	JNI::setCurrentGame("");
+}
+
+void OSystem_Android::updateStartSettings(const Common::String &executable, Common::String &command, Common::StringMap &settings, Common::StringArray& additionalArgs) {
+	// We only try to detect bundled games only on an app version update
+	if (!JNI::assets_updated) {
+		return;
+	}
+
+	Common::Path gamesPath(JNI::getScummVMAssetsPath(), Common::Path::kNativeSeparator);
+	gamesPath.joinInPlace("games");
+
+	// We need to init the ConfMan ourselves to cleanup outdated games
+	Common::SeekableReadStream *configStream = createConfigReadStream();
+	if (configStream) {
+		// The configuration file exists, we can load it and clean it
+		delete configStream;
+		ConfMan.loadDefaultConfigFile(Common::Path());
+
+		for (Common::ConfigManager::DomainMap::iterator it = ConfMan.beginGameDomains(), end = ConfMan.endGameDomains(); it != end; ++it) {
+			if (!it->_value.contains("path")) {
+				continue;
+			}
+			Common::Path path = Common::Path::fromConfig(it->_value.getVal("path"));
+			if (!path.isRelativeTo(gamesPath)) {
+				continue;
+			}
+			if (Common::FSNode(path).isDirectory()) {
+				continue;
+			}
+			LOGI("Cleanup up: %s, %s not found", it->_key.c_str(), path.toString().c_str());
+			// path is inside our assets games directory and doesn't exist anymore: cleanup
+			ConfMan.removeGameDomain(it->_key);
+		}
+		ConfMan.flushToDisk();
+	}
+
+	Common::FSNode node(gamesPath);
+	if (!node.exists() || !node.isDirectory() ) {
+		return;
+	}
+
+	// As this detection happens only once per version upgrade, ignore command and override it
+	LOGD("Searching games");
+	command = "add";
+	settings["path"] = gamesPath.toConfig();
+	settings["recursive"] = "true";
+	settings["exit"] = "false";
 }
 
 void OSystem_Android::updateOnScreenControls() {
@@ -1116,7 +1166,7 @@ _s(
 "To open the virtual keyboard, long press on the controller icon at the top right of the screen, or tap on any editable text field. To hide the virtual keyboard, tap the controller icon again, or tap outside the text field.\n"
 "\n"
 "\n"
-"  ![Keybpard icon](keyboard.png \"Keyboard icon\"){w=10em}\n"
+"  ![Keyboard icon](keyboard.png \"Keyboard icon\"){w=10em}\n"
 "\n"
 	),
 
@@ -1156,5 +1206,3 @@ _s(
 const char * const *OSystem_Android::buildHelpDialogData() {
 	return helpTabs;
 }
-
-#endif

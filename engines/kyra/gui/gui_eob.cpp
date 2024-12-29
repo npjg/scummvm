@@ -2255,7 +2255,7 @@ int GUI_EoB::simpleMenu_getMouseItem(int sd) {
 
 	if (column == _menuColumns)
 		return -1;
-	
+
 	int yrelcol = yrel - _menuColumnOffset[column] * lineH;
 
 	if (yrelcol >= 0 && yrelcol < _menuLines[column] * lineH)
@@ -3585,19 +3585,15 @@ void GUI_EoB::runMemorizePrayMenu(int charIndex, int spellType) {
 
 	} else {
 		li = _vm->getCharacterLevelIndex(1, c->cClass);
-
-		if (li == -1) {
-			if (_vm->checkInventoryForRings(charIndex, 1)) {
-				np[3] <<= 1;
-				np[4] <<= 1;
-			}
-
-		} else {
+		if (li != -1) {
 			lv = c->level[li] - 1;
 			for (int i = 0; i < _numPages; i++)
 				np[i] = _vm->_numSpellsMage[lv * _numPages + i];
-
 			avltyFlags = c->mageSpellsAvailableFlags;
+		}
+		if (_vm->checkInventoryForRings(charIndex, kRingOfWizardry)) {
+			np[3] <<= 1;
+			np[4] <<= 1;
 		}
 	}
 
@@ -4195,7 +4191,7 @@ bool GUI_EoB::restParty() {
 							_vm->gui_drawCharPortraitWithStats(i);
 						}
 
-						if (!_vm->checkInventoryForRings(i, 2)) {
+						if (!_vm->checkInventoryForRings(i, kRingOfSustenance)) {
 							if (_vm->_characters[i].food <= 5) {
 								_vm->_characters[i].food = 0;
 								starving = true;
@@ -4510,7 +4506,7 @@ void GUI_EoB::displayTextBox(int id, int, bool) {
 	Common::Point txtPos((dm->sx << 3) + 5, dm->sy + 5);
 	if (_vm->game() == GI_EOB2 && _vm->gameFlags().platform == Common::kPlatformPC98) {
 		for (size_t p = tmp.find("  "); p != Common::String::npos; p = tmp.find("  "))
-			tmp.deleteChar(p);		
+			tmp.deleteChar(p);
 		txtPos = Common::Point(dm->sx << 3, (dm->sy + 16) & ~7);
 	}
 

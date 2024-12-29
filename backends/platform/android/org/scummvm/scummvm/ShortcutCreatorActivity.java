@@ -26,6 +26,7 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -50,15 +51,48 @@ import java.util.List;
 import java.util.Map;
 
 
-public class ShortcutCreatorActivity extends Activity {
+public class ShortcutCreatorActivity extends Activity implements CompatHelpers.SystemInsets.SystemInsetsListener  {
 	final protected static String LOG_TAG = "ShortcutCreatorActivity";
 
 	private IconsCache _cache;
+
+	static void pushShortcut(Context context, String gameId, Intent intent) {
+		Map<String, Map<String, String>> parsedIniMap;
+		try (FileReader reader = new FileReader(new File(context.getFilesDir(), "scummvm.ini"))) {
+			parsedIniMap = INIParser.parse(reader);
+		} catch(FileNotFoundException ignored) {
+			parsedIniMap = null;
+		} catch(IOException ignored) {
+			parsedIniMap = null;
+		}
+
+		if (parsedIniMap == null) {
+			return;
+		}
+
+		Game game = Game.loadGame(parsedIniMap, gameId);
+		if (game == null) {
+			return;
+		}
+
+		FileInputStream defaultStream = openFile(new File(context.getFilesDir(), "gui-icons.dat"));
+
+		File iconsPath = INIParser.getPath(parsedIniMap, "scummvm", "iconspath",
+			new File(context.getFilesDir(), "icons"));
+		FileInputStream[] packsStream = openFiles(context, iconsPath, "gui-icons.*\\.dat");
+
+		IconsCache cache = new IconsCache(context, defaultStream, packsStream);
+		final Drawable icon = cache.getGameIcon(game);
+
+		CompatHelpers.ShortcutCreator.pushDynamicShortcut(context, game.getTarget(), intent, game.getDescription(), icon, R.drawable.ic_no_game_icon);
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.shortcut_creator_activity);
+
+		CompatHelpers.SystemInsets.registerSystemInsetsListener(findViewById(R.id.shortcut_creator_root), this);
 
 		// We are only here to create a shortcut
 		if (!Intent.ACTION_CREATE_SHORTCUT.equals(getIntent().getAction())) {
@@ -88,7 +122,7 @@ public class ShortcutCreatorActivity extends Activity {
 
 		File iconsPath = INIParser.getPath(parsedIniMap, "scummvm", "iconspath",
 			new File(getFilesDir(), "icons"));
-		FileInputStream[] packsStream = openFiles(iconsPath, "gui-icons.*\\.dat");
+		FileInputStream[] packsStream = openFiles(this, iconsPath, "gui-icons.*\\.dat");
 
 		_cache = new IconsCache(this, defaultStream, packsStream);
 
@@ -123,7 +157,17 @@ public class ShortcutCreatorActivity extends Activity {
 		setResult(RESULT_CANCELED);
 	}
 
-	private FileInputStream openFile(File path) {
+	@Override
+	public void systemInsetsUpdated(int[] gestureInsets, int[] systemInsets, int[] cutoutInsets) {
+		LinearLayout root = findViewById(R.id.shortcut_creator_root);
+		// Ignore bottom as we have our list which can overflow
+		root.setPadding(
+			Math.max(systemInsets[0], cutoutInsets[0]),
+			Math.max(systemInsets[1], cutoutInsets[1]),
+			Math.max(systemInsets[2], cutoutInsets[2]), 0);
+	}
+
+	static private FileInputStream openFile(File path) {
 		 try {
 			return new FileInputStream(path);
 		} catch (FileNotFoundException e) {
@@ -131,7 +175,7 @@ public class ShortcutCreatorActivity extends Activity {
 		}
 	}
 
-	private FileInputStream[] openFiles(File basePath, String regex) {
+	static private FileInputStream[] openFiles(Context context, File basePath, String regex) {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N ||
 			!basePath.getPath().startsWith("/saf/")) {
 			// This is a standard filesystem path
@@ -157,7 +201,7 @@ public class ShortcutCreatorActivity extends Activity {
 		String treeName = baseName.substring(5, slash);
 		String path = baseName.substring(slash);
 
-		SAFFSTree tree = SAFFSTree.findTree(this, treeName);
+		SAFFSTree tree = SAFFSTree.findTree(context, treeName);
 		if (tree == null) {
 			return new FileInputStream[0];
 		}
@@ -212,9 +256,14 @@ public class ShortcutCreatorActivity extends Activity {
 			builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
 				dialog.dismiss();
 
+				String label = desc.getText().toString();
+				// Generate an id which depends on the user description
+				// Without this, if the user changes the description but already has the same shortcut (also in the dynamic ones), the other label will be reused
+				String shortcutId = game.getTarget() + String.format("-%08x", label.hashCode());
+
 				Intent shortcut = new Intent(Intent.ACTION_MAIN, Uri.fromParts("scummvm", game.getTarget(), null),
 					ShortcutCreatorActivity.this, SplashActivity.class);
-				Intent result = CompatHelpers.ShortcutCreator.createShortcutResultIntent(ShortcutCreatorActivity.this, game.getTarget(), shortcut,
+				Intent result = CompatHelpers.ShortcutCreator.createShortcutResultIntent(ShortcutCreatorActivity.this, shortcutId, shortcut,
 					desc.getText().toString(), icon, R.drawable.ic_no_game_icon);
 				setResult(RESULT_OK, result);
 
@@ -273,6 +322,20 @@ public class ShortcutCreatorActivity extends Activity {
 			ret.add(String.format("icons/%s.png", _engineid).toLowerCase());
 
 			return ret;
+		}
+
+		public static Game loadGame(@NonNull Map<String, Map<String, String>> parsedIniMap, String target) {
+			Map<String, String> domain = parsedIniMap.get(target);
+			if (domain == null) {
+				return null;
+			}
+			String engineid = domain.get("engineid");
+			String gameid = domain.get("gameid");
+			String description = domain.get("description");
+			if (description == null) {
+				return null;
+			}
+			return new Game(target, engineid, gameid, description);
 		}
 
 		public static List<Game> loadGames(@NonNull Map<String, Map<String, String>> parsedIniMap) {

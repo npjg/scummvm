@@ -23,6 +23,7 @@
 #define DGDS_IMAGE_H
 
 #include <common/ptr.h>
+#include <common/rect.h>
 #include <graphics/palette.h>
 
 namespace Common {
@@ -42,8 +43,8 @@ class ResourceManager;
 
 enum ImageFlipMode {
 	kImageFlipNone = 0,
-	kImageFlipH = 1,
-	kImageFlipV = 2,
+	kImageFlipV = 1,
+	kImageFlipH = 2,
 	kImageFlipHV = 3,
 };
 
@@ -57,10 +58,13 @@ public:
 	void loadBitmap(const Common::String &filename);
 	int frameCount(const Common::String &filename);
 	void drawBitmap(uint frameno, int x, int y, const Common::Rect &drawWin, Graphics::ManagedSurface &dst, ImageFlipMode flip = kImageFlipNone, int dstWidth = 0, int dstHeight = 0) const;
+	void drawScrollBitmap(int16 x, int16 y, int16 width, int16 height, int16 scrollX, int16 scrollY, const Common::Rect &drawWin, Graphics::ManagedSurface &dst) const;
 
 	Common::SharedPtr<Graphics::ManagedSurface> getSurface(uint frameno) const;
 
 	const Common::Array<Common::SharedPtr<Graphics::ManagedSurface>> &getFrames() const { return _frames; }
+
+	int16 getFrameFromMatrix(int16 x, int16 y);
 
 	int16 width(uint frameno) const;
 	int16 height(uint frameno) const;
@@ -71,8 +75,8 @@ public:
 	const Common::String &getFilename() const { return _filename; }
 
 private:
-	void loadBitmap4(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream, bool highByte);
-	void loadBitmap8(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream);
+	void loadBitmap4(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream, bool highByte, uint16 width, uint16 height);
+	void loadBitmap8(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream, uint16 width, uint16 height);
 	uint32 loadVQT(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream);
 	bool loadSCN(Graphics::ManagedSurface *surf, Common::SeekableReadStream *stream);
 
@@ -81,6 +85,11 @@ private:
 	Decompressor *_decompressor;
 
 	Common::String _filename; // the file this was loaded from - only used for debugging
+
+	// Used if the image is a scrolling image.
+	int16 _matrixX;
+	int16 _matrixY;
+	Common::Array<uint16> _tileMatrix;
 };
 
 } // End of namespace Dgds

@@ -33,7 +33,9 @@
 #include "dgds/image.h"
 #include "dgds/sound.h"
 #include "dgds/font.h"
-
+#include "dgds/sound_raw.h"
+#include "dgds/drawing.h"
+#include "dgds/scene.h"
 
 namespace Dgds {
 
@@ -43,7 +45,7 @@ void GetPutRegion::reset() {
 }
 
 Common::Error TTMEnviro::syncState(Common::Serializer &s) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 	for (auto &shape : _scriptShapes) {
 		bool hasShape = shape.get() != nullptr;
 		s.syncAsByte(hasShape);
@@ -138,10 +140,14 @@ static const char *ttmOpName(uint16 op) {
 	case 0x0080: return "FREE SHAPE";
 	case 0x0090: return "FREE FONT";
 	case 0x00B0: return "NULLOP";
+	case 0x00C0: return "FREE BACKGROUND";
 	case 0x0110: return "PURGE";
-	case 0x0400: return "PALETTE RESET ?";
-	case 0x0500: return "UNKNOWN 0x0500 (flip mode ?)";
-	case 0x0510: return "UNKNOWN 0x0510 (flip mode off?)";
+	case 0x0210: return "song something?";
+	case 0x0220: return "STOP CURRENT MUSIC";
+	case 0x0230: return "FADE CURRENT MUSIC";
+	case 0x0400: return "PALETTE RESET / STOP PAL BLOCK SWAP";
+	case 0x0500: return "UNKNOWN 0x0500 (flip mode ON?)";
+	case 0x0510: return "UNKNOWN 0x0510 (flip mode OFF?)";
 	case 0x0ff0: return "FINISH FRAME / DRAW";
 	case 0x1020: return "SET DELAY";
 	case 0x1030: return "SET BRUSH";
@@ -155,19 +161,26 @@ static const char *ttmOpName(uint16 op) {
 	case 0x1120: return "SET GETPUT NUM";
 	case 0x1200: return "GOTO";
 	case 0x1300: return "PLAY SFX";
+	case 0x1310: return "STOP SFX";
 	case 0x2000: return "SET DRAW COLORS";
 	case 0x2010: return "SET FRAME";
 	case 0x2020: return "SET RANDOM DELAY";
+	case 0x2030: return "SET SCROLL OFFSET";
 	case 0x2300: return "PAL SET BLOCK SWAP 0";
 	case 0x2310: return "PAL SET BLOCK SWAP 1";
 	case 0x2320: return "PAL SET BLOCK SWAP 2";
 	case 0x2400: return "PAL DO BLOCK SWAP";
 	case 0x3000: return "GOSUB";
+	case 0x3100: return "SCROLL";
+	case 0x3200: return "CDS FIND TARGET";
+	case 0x3300: return "CDS GOSUB";
 	case 0x4000: return "SET CLIP WINDOW";
 	case 0x4110: return "FADE OUT";
 	case 0x4120: return "FADE IN";
 	case 0x4200: return "STORE AREA";
 	case 0x4210: return "SAVE GETPUT REGION";
+	case 0x5000: return "SET DYNAMIC RECT";
+
 	case 0xa000: return "DRAW PIXEL";
 	case 0xa010: return "WIPE DISSOLVE";
 	case 0xa020: return "WIPE 20?";
@@ -199,6 +212,7 @@ static const char *ttmOpName(uint16 op) {
 	case 0xa520: return "DRAW SPRITE FLIPH";
 	case 0xa530: return "DRAW SPRITE FLIPHV";
 	case 0xa600: return "DRAW GETPUT";
+	case 0xa700: return "DRAW SCROLL";
 	case 0xaf00: return "DRAW FLOOD FILL";
 	case 0xaf10: return "DRAW EMPTY POLY";
 	case 0xaf20: return "DRAW FILLED POLY";
@@ -211,6 +225,7 @@ static const char *ttmOpName(uint16 op) {
 	case 0xf040: return "LOAD FONT";
 	case 0xf050: return "LOAD PAL";
 	case 0xf060: return "LOAD SONG";
+	case 0xf080: return "LOAD SCROLL";
 	case 0xf100: return "SET STRING 0";
 	case 0xf110: return "SET STRING 1";
 	case 0xf120: return "SET STRING 2";
@@ -221,19 +236,27 @@ static const char *ttmOpName(uint16 op) {
 	case 0xf170: return "SET STRING 7";
 	case 0xf180: return "SET STRING 8";
 	case 0xf190: return "SET STRING 9";
-	case 0x0220: return "STOP CURRENT MUSIC";
 
-	case 0x00C0: return "FREE BACKGROUND";
-	case 0x0230: return "reset current music?";
-	case 0x1310: return "STOP SFX";
-	case 0xc020: return "LOAD_SAMPLE";
-	case 0xc030: return "SELECT_SAMPLE";
-	case 0xc040: return "DESELECT_SAMPLE";
-	case 0xc050: return "PLAY_SAMPLE";
-	case 0xc060: return "STOP_SAMPLE";
+	case 0xc020: return "LOAD SAMPLE";
+	case 0xc030: return "SELECT SAMPLE";
+	case 0xc040: return "DESELECT SAMPLE";
+	case 0xc050: return "PLAY SAMPLE";
+	case 0xc060: return "STOP SAMPLE";
+	case 0xc070: return "PAUSE SAMPLE";
+	case 0xc080: return "UNPAUSE SAMPLE";
+	case 0xc090: return "MUTE SAMPLE";
+	case 0xc0a0: return "UNMUTE SAMPLE";
+	case 0xc0b0: return "SAMPLE PRIORITY";
+	case 0xc0c0: return "SAMPLE HOLD";
+	case 0xc0d0: return "SAMPLE BEND";
 	case 0xc0e0: return "FADE SONG";
+	case 0xc0f0: return "SONG CONTROLLER??";
+	case 0xc100: return "SAMPLE VOL";
 	case 0xc210: return "LOAD RAW SFX";
-	case 0xc220: return "PLAY RAW SFX ??";
+	case 0xc220: return "PLAY RAW SFX";
+	case 0xc240: return "STOP RAW SFX";
+	case 0xc250: return "SYNC RAW SFX";
+	case 0xcf10: return "SFX MASTER VOL";
 
 	default: return "UNKNOWN!!";
 	}
@@ -267,8 +290,95 @@ static void _copyRectToScreen(const Graphics::ManagedSurface &src, const Common:
 	g_system->unlockScreen();
 }
 
+static void _dissolveToScreen(const Graphics::ManagedSurface &src, const Common::Rect &r) {
+	if (r.isEmpty())
+		return;
 
-void TTMInterpreter::doWipeOp(uint16 code, TTMEnviro &env, TTMSeq &seq, const Common::Rect &r) {
+	// This is basically copied from SCI - it seems to be the same algo in DGDS?
+	uint16 mask = 0x40, stepNr = 0;
+	Common::Rect pixelRect;
+
+	Graphics::Surface *surf = g_system->lockScreen();
+
+	do {
+		mask = (mask & 1) ? (mask >> 1) ^ 0xB400 : mask >> 1;
+		if (mask >= SCREEN_WIDTH * SCREEN_HEIGHT)
+			continue;
+		pixelRect.left = mask % SCREEN_WIDTH; pixelRect.right = pixelRect.left + 1;
+		pixelRect.top = mask / SCREEN_WIDTH;  pixelRect.bottom = pixelRect.top + 1;
+		pixelRect.clip(r);
+		if (!pixelRect.isEmpty())
+			surf->copyRectToSurface(src.rawSurface(), pixelRect.left, pixelRect.top, pixelRect);
+		if ((stepNr & 0x3FF) == 0) {
+			g_system->unlockScreen();
+			g_system->updateScreen();
+			surf = g_system->lockScreen();
+		}
+		stepNr++;
+	} while (mask != 0x40);
+
+	g_system->unlockScreen();
+}
+
+static void _doScroll(Graphics::ManagedSurface &compBuf, int16 dir, int16 steps, int16 offset) {
+	// Scroll the contents of the composition buffer on to the screen
+	// Dir 0/1 means y (scroll camera toward bottom / top)
+	// Dir 2/3 means x (scroll camera toward right / left)
+	//
+	// This is not at all how the original does it, but we have a bit
+	// more memory and cpu to play with so an extra 64k screen buffer
+	// and more copies is ok for simpler code.
+	//
+	Graphics::Surface *screen = g_system->lockScreen();
+	Graphics::Surface screenCopy;
+
+	screenCopy.copyFrom(*screen);
+	steps = CLIP(steps, (int16)1, offset);
+	const Common::Rect screenRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	for (int16 i = 1; i <= steps; i++) {
+		int stepval = ((int)i * offset) / steps;
+		int xoff = (dir <= 1 ? 0 : (dir == 2 ? stepval : -stepval));
+		int yoff = (dir >= 2 ? 0 : (dir == 1 ? stepval : -stepval));
+		Common::Rect srcRectFromOrigScreen(Common::Point(xoff, yoff), SCREEN_WIDTH, SCREEN_HEIGHT);
+		srcRectFromOrigScreen.clip(screenRect);
+		if (abs(xoff) < SCREEN_WIDTH && abs(yoff) < SCREEN_HEIGHT)
+			screen->copyRectToSurface(screenCopy, MAX(0, -xoff), MAX(0, -yoff), srcRectFromOrigScreen);
+
+		switch (dir) {
+		case 0: {
+			// Draw composition buf to the top of screen buf
+			error("TODO: Implement TTM scroll direction 0");
+			break;
+		}
+		case 1: {
+			// Draw composition buf below the screen buf
+			error("TODO: Implement TTM scroll direction 1");
+			break;
+		}
+		case 2: {
+			// Draw composition buf to right of screen buf (camera moves to right)
+			Common::Rect rectFromCompBuf(0, 0, SCREEN_WIDTH - srcRectFromOrigScreen.width(), SCREEN_HEIGHT);
+			screen->copyRectToSurface(compBuf, srcRectFromOrigScreen.width(), 0, rectFromCompBuf);
+			break;
+		}
+		case 3: {
+			// Draw composition buf to left of screen buf (camera moves to left)
+			Common::Rect rectFromCompBuf(srcRectFromOrigScreen.width(), 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+			screen->copyRectToSurface(compBuf, 0, 0, rectFromCompBuf);
+			break;
+		}
+		default:
+			error("TTM scroll invalid scroll direction: %d", dir);
+			break;
+		}
+		g_system->unlockScreen();
+		g_system->updateScreen();
+		screen = g_system->lockScreen();
+	}
+	g_system->unlockScreen();
+}
+
+void TTMInterpreter::doWipeOp(uint16 code, const TTMEnviro &env, const TTMSeq &seq, const Common::Rect &r) {
 	//
 	// In the original games, these operations copy certain parts of the buffer on to
 	// the screen, and rely on the system's speed to make it happen faster than a regular
@@ -284,9 +394,7 @@ void TTMInterpreter::doWipeOp(uint16 code, TTMEnviro &env, TTMSeq &seq, const Co
 	//
 	switch(code) {
 	case 0xa010:
-		warning("TODO: Implement TTM 0xa010 wipe (dissolve) op");
-		_copyRectToScreen(_vm->_compositionBuffer, r);
-		g_system->updateScreen();
+		_dissolveToScreen(_vm->_compositionBuffer, r);
 		break;
 
 	case 0xa020:
@@ -396,7 +504,7 @@ int16 TTMInterpreter::doOpInitCreditScroll(const Image *img) {
  bool TTMInterpreter::doOpCreditsScroll(const Image *img, int16 ygap, int16 ymax, int16 xoff, int16 measuredWidth, const Common::Rect &clipRect) {
 	int nframes = img->loadedFrameCount();
 	bool scrollFinished = true;
-	int y = 200 - ymax;
+	int y = SCREEN_HEIGHT - ymax;
 	for (int i = 0; i < nframes; i++) {
 		int width = img->width(i);
 		int height = img->height(i);
@@ -409,13 +517,13 @@ int16 TTMInterpreter::doOpInitCreditScroll(const Image *img) {
 			scrollFinished = false;
 		}
 		y += ygap + height;
-		if (y > 200)
+		if (y > SCREEN_HEIGHT)
 			break;
-    }
-    return scrollFinished;
+	}
+	return scrollFinished;
 }
 
-void TTMInterpreter::doDrawDialogForStrings(TTMEnviro &env, TTMSeq &seq, int16 x, int16 y, int16 width, int16 height) {
+void TTMInterpreter::doDrawDialogForStrings(const TTMEnviro &env, const TTMSeq &seq, int16 x, int16 y, int16 width, int16 height) {
 	int16 fontno = seq._currentFontId;
 	if (fontno >= (int16)env._fonts.size()) {
 		warning("Trying to draw font no %d but only loaded %d", fontno, env._fonts.size());
@@ -466,7 +574,7 @@ void TTMInterpreter::doDrawDialogForStrings(TTMEnviro &env, TTMSeq &seq, int16 x
 }
 
 
-void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byte count, const int16 *ivals, const Common::String &sval, const Common::Array<Common::Point> &pts) {
+bool TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byte count, const int16 *ivals, const Common::String &sval, const Common::Array<Common::Point> &pts) {
 	switch (op) {
 	case 0x0000: // FINISH:	void
 		break;
@@ -493,7 +601,11 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		seq._currentPalId = 0;
 		break;
 	case 0x0080: // FREE SHAPE
-		//debug("0x0080: Free from slot %d for seq %d env %d", seq._currentBmpId, seq._seqNum, env._enviro);
+		// This is a one-shot op only in Willy Beamish - in HoC and Dragon it's done every time
+		// (although it may not make any difference)
+		if (seq._executed && DgdsEngine::getInstance()->getGameId() == GID_WILLY)
+			break;
+		//debug(1, "0x0080: Free from slot %d for seq %d env %d", seq._currentBmpId, seq._seqNum, env._enviro);
 		env._scriptShapes[seq._currentBmpId].reset();
 		break;
 	case 0x0090: // FREE FONT
@@ -515,7 +627,11 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		env._getPuts[seq._currentGetPutId].reset();
 		break;
 	case 0x0110: // PURGE void
-		_vm->adsInterpreter()->setHitTTMOp0110();
+		// only set if not running from CDS script
+		if (env._cdsSeqNum < 0)
+			_vm->adsInterpreter()->setHitTTMOp0110();
+		else
+			env._cdsSeqNum++;
 		break;
 	case 0x0220: // STOP CURRENT MUSIC
 		if (seq._executed) // this is a one-shot op
@@ -525,20 +641,33 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 	case 0x0400: // RESET PALETTE?
 		if (seq._executed) // this is a one-shot op
 			break;
-		warning("TODO: 0x0400 Reset palette");
+		warning("TODO: 0x0400 Reset palette / stop pal cycle");
+		break;
+	case 0x0500: // FLIP MODE ON
+		DgdsEngine::getInstance()->setFlipMode(true);
+		break;
+	case 0x0510: // FLIP MODE OFF
+		DgdsEngine::getInstance()->setFlipMode(false);
 		break;
 	case 0x0ff0: // REFRESH:	void
 		break;
-	case 0x1020: // SET DELAY:	    i:int   [0..n]
+	case 0x1020: { // SET DELAY:	    i:int   [0..n]
 		// TODO: Probably should do this accounting (as well as timeCut and dialogs)
 		// 		 in game frames, not millis.
-		_vm->adsInterpreter()->setScriptDelay((int)(ivals[0] * MS_PER_FRAME));
+		int delayMillis = (int)round(ivals[0] * MS_PER_FRAME);
+		// Slight HACK - if we are running from CDS (Willy Beamish conversation) script,
+		// set that delay, otherwise set ADS interpreter delay.
+		if (env._cdsSeqNum >= 0)
+			env._cdsDelay = delayMillis;
+		else
+			_vm->adsInterpreter()->setScriptDelay(delayMillis);
 		break;
+	}
 	case 0x1030: // SET BRUSH:	id:int [-1:n]
 		seq._brushNum = ivals[0];
 		break;
 	case 0x1050: // SELECT BMP:	    id:int [0:n]
-		//debug("0x1051: Select bmp %d for seq %d from env %d", ivals[0], seq._seqNum, env._enviro);
+		//debug(1, "0x1051: Select bmp %d for seq %d from env %d", ivals[0], seq._seqNum, env._enviro);
 		seq._currentBmpId = ivals[0];
 		break;
 	case 0x1060: // SELECT PAL:  id:int [0]
@@ -574,9 +703,7 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 	case 0x1310: // STOP SFX    i:int   eg [107]
 		if (seq._executed) // this is a one-shot op.
 			break;
-		warning("TODO: Implement TTM 0x1310 stop SFX %d", ivals[0]);
-		// Implement this:
-		//_vm->_soundPlayer->stopSfxById(ivals[0])
+		_vm->_soundPlayer->stopSfxByNum(ivals[0]);
 		break;
 	case 0x2000: // SET (DRAW) COLORS: fgcol,bgcol:int [0..255]
 		seq._drawColFG = static_cast<byte>(ivals[0]);
@@ -587,6 +714,29 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 			break;
 		uint sleep = _vm->getRandom().getRandomNumberRng(ivals[0], ivals[1]);
 		_vm->adsInterpreter()->setScriptDelay((int)(sleep * MS_PER_FRAME));
+		break;
+	}
+	case 0x2030: { // SET SCROLL mode,val: int
+		if (seq._executed) // this is a one-shot op.
+			break;
+
+		// mode chooses x/y and +/- for scroll offset.
+		switch(ivals[0]) {
+		case 0:
+			env._yScroll -= ivals[1];
+			break;
+		case 1:
+			env._yScroll += ivals[1];
+			break;
+		case 2:
+			env._xScroll -= ivals[1];
+			break;
+		case 3:
+			env._xScroll += ivals[1];
+			break;
+		default:
+			error("TTM 0x2030 Invalid scroll mode %d (should be 0-3)", ivals[0]);
+		}
 		break;
 	}
 	case 0x2300:
@@ -603,7 +753,7 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 			break;
 		warning("TODO: 0x%04x Palette do block swaps 0x%x, 0x%x", op, ivals[0], ivals[1]);
 		break;
-	case 0x3000: {
+	case 0x3000: { // GOSUB xoff,yoff,frame
 		_stackDepth++;
 		bool prevHitOp0110Val = _vm->adsInterpreter()->getHitTTMOp0110();
 		int32 target = findGOTOTarget(env, seq, ivals[2]);
@@ -612,8 +762,8 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		int64 prevPos = env.scr->pos();
 		env.scr->seek(env._frameOffsets[target]);
 
-		// TODO: Set some other render-related globals here
-		warning("TODO: TTM 0x3000 GOSUB %d %d, use other args", ivals[0], ivals[1]);
+		env._xOff = ivals[0];
+		env._yOff = ivals[1];
 
 		run(env, seq);
 		env.scr->seek(prevPos);
@@ -624,9 +774,34 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		_stackDepth--;
 		break;
 	}
+	case 0x3100: { // SCROLL dir,steps,distance eg (2, 100, 185) in beamish intro
+		if (seq._executed) // this is a one-shot op.
+			break;
+		_doScroll(_vm->_compositionBuffer, ivals[0], ivals[1], ivals[2]);
+		// After scroll, we need to store the screen contents into the
+		// stored area buffer, and copy the background to the front?
+		Graphics::Surface *screen = g_system->lockScreen();
+		_vm->getStoredAreaBuffer().blitFrom(*screen);
+		g_system->unlockScreen();
+		_vm->_compositionBuffer.blitFrom(_vm->getBackgroundBuffer());
+		break;
+	}
+	case 0x3200:
+		env._cdsSeqNum = findGOTOTarget(env, seq, ivals[0]);
+		break;
+	case 0x3300:
+		if (!env._cdsJumped && env._frameOffsets[env._cdsSeqNum] != seq._currentFrame) {
+			env._cdsJumped = true;
+			int64 prevPos = env.scr->pos();
+			env.scr->seek(env._frameOffsets[env._cdsSeqNum]);
+			run(env, seq);
+			env.scr->seek(prevPos);
+			env._cdsJumped = false;
+		}
+		break;
 	case 0x4000: // SET CLIP WINDOW x,y,x2,y2:int	[0..320,0..200]
 		// NOTE: params are xmax/ymax, NOT w/h
-		seq._drawWin = Common::Rect(ivals[0], ivals[1], ivals[2], ivals[3]);
+		seq._drawWin = Common::Rect(ivals[0], ivals[1], ivals[2] + 1, ivals[3] + 1);
 		break;
 	case 0x4110: // FADE OUT:	colorno,ncolors,targetcol,speed:byte
 		if (seq._executed) // this is a one-shot op.
@@ -660,10 +835,10 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		if (ivals[3] == 0) {
 			_vm->getGamePals()->setPalette();
 		} else {
-			for (int i = 320; i > 0; i -= ivals[3]) {
+			for (int i = SCREEN_WIDTH; i > 0; i -= ivals[3]) {
 				int fade = MAX(0, MIN(i / 5, 63));
 				_vm->getGamePals()->setFade(ivals[0], ivals[1], ivals[2], fade * 4);
-				if (i == 320) {
+				if (i == SCREEN_WIDTH) {
 					// update screen first to make the initial fade-in work
 					g_system->copyRectToScreen(_vm->_compositionBuffer.getPixels(), SCREEN_WIDTH, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 				}
@@ -676,7 +851,9 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 	case 0x4200: { // STORE AREA: x,y,w,h:int [0..n]  ; makes this area of foreground persist in the next frames.
 		if (seq._executed) // this is a one-shot op
 			break;
-		const Common::Rect rect(Common::Point(ivals[0], ivals[1]), ivals[2], ivals[3]);
+		Common::Rect rect(Common::Point(ivals[0], ivals[1]), ivals[2], ivals[3]);
+		if (env._cdsSeqNum >= 0)
+			rect.translate(env._xOff, env._yOff);
 		_vm->getStoredAreaBuffer().blitFrom(_vm->_compositionBuffer, rect, rect);
 		break;
 	}
@@ -695,8 +872,12 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		env._getPuts[seq._currentGetPutId]._surf.reset(surf);
 		break;
 	}
+	case 0x5000: // SET DYNAMIC RECT: x,y,w,h,num ??
+		_vm->getScene()->setDynamicSceneRect(ivals[4], ivals[0], ivals[1], ivals[2], ivals[3]);
+		break;
 	case 0xa000: // DRAW PIXEL x,y:int
-		_vm->_compositionBuffer.setPixel(ivals[0], ivals[1], seq._drawColFG);
+		if (seq._drawWin.contains(ivals[0], ivals[1]))
+			_vm->_compositionBuffer.setPixel(ivals[0], ivals[1], seq._drawColFG);
 		break;
 	case 0xa010:
 	case 0xa020:
@@ -757,6 +938,19 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 	case 0xa300:
 		doDrawDialogForStrings(env, seq, ivals[0], ivals[1], ivals[2], ivals[3]);
 		break;
+
+	case 0xa400: { // DRAW FILLED CIRCLE
+		int16 xr = ivals[2] / 2;
+		int16 yr = ivals[3] / 2;
+		Drawing::filledCircle(ivals[0] + xr, ivals[1] + yr, xr, yr, &_vm->_compositionBuffer, seq._drawColFG, seq._drawColBG);
+		break;
+	}
+	case 0xa420: { // DRAW EMPTY CIRCLE
+		int16 xr = ivals[2] / 2;
+		int16 yr = ivals[3] / 2;
+		Drawing::emptyCircle(ivals[0] + xr, ivals[1] + yr, xr, yr, &_vm->_compositionBuffer, seq._drawColFG);
+		break;
+	}
 	case 0xa500: // DRAW SPRITE: x,y,tile-id,bmp-id:int [-n,+n]
 	case 0xa510: // DRAW SPRITE FLIP V x,y:int
 	case 0xa520: // DRAW SPRITE FLIP H: x,y:int
@@ -787,10 +981,18 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 			flipMode = kImageFlipHV;
 
 		Common::SharedPtr<Image> img = env._scriptShapes[bmpNo];
-		if (img)
-			img->drawBitmap(frameno, ivals[0], ivals[1], seq._drawWin, _vm->_compositionBuffer, flipMode, dstWidth, dstHeight);
-		else
+		if (img) {
+			int x = ivals[0];
+			int y = ivals[1];
+			// Use env offset if we are in gosub *or* running from CDS
+			if (_stackDepth > 0 || env._cdsSeqNum >= 0) {
+				x += env._xOff;
+				y += env._yOff;
+			}
+			img->drawBitmap(frameno, x, y, seq._drawWin, _vm->_compositionBuffer, flipMode, dstWidth, dstHeight);
+		} else {
 			warning("Trying to draw image %d in env %d which is not loaded", bmpNo, env._enviro);
+		}
 		break;
 	}
 	case 0xa600: { // DRAW GETPUT: i:int
@@ -807,10 +1009,20 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 						Common::Point(r.left, r.top));
 		break;
 	}
+	case 0xa700: { // DRAW SCROLL x,y,w,h??
+		if (!env._scrollShape) {
+			warning("Trying to draw scroll with no scrollshape loaded");
+		} else {
+			env._scrollShape->drawScrollBitmap(ivals[0], ivals[1], ivals[2], ivals[3],
+						env._xScroll, env._yScroll, seq._drawWin, _vm->_compositionBuffer);
+		}
+		break;
+	}
 	case 0xaf00: { // FLOOD FILL x,y
 		Graphics::FloodFill f(_vm->_compositionBuffer.surfacePtr(), 0, seq._drawColFG);
 		f.addSeed(ivals[0], ivals[1]);
 		f.fill();
+		break;
 	}
 	case 0xaf10: { // DRAW EMPTY POLY
 		ClipSurface clipSurf(seq._drawWin, _vm->_compositionBuffer.surfacePtr());
@@ -836,13 +1048,13 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 					seq._drawColFG, plotClippedPoint, &clipSurf);
 		break;
 	}
-	case 0xb000:
+	case 0xb000: // INIT CREDITS SCRLL
 		if (seq._executed) // this is a one-shot op
 			break;
 		env._creditScrollMeasure = doOpInitCreditScroll(env._scriptShapes[seq._currentBmpId].get());
 		env._creditScrollYOffset = 0;
 		break;
-	case 0xb010: {
+	case 0xb010: { // DRAW CREDITS SCROLL
 		const Image *img = env._scriptShapes[seq._currentBmpId].get();
 		if (img && img->isLoaded()) {
 			bool finished = doOpCreditsScroll(env._scriptShapes[seq._currentBmpId].get(), ivals[0], env._creditScrollYOffset,
@@ -853,25 +1065,27 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		}
 		break;
 	}
-	case 0xb600: { // COPY BUFFER: x, y, w, h, buf1, buf2
-		// buf1 and buf2 are buffer numbers.
-		// 	0 - composition
+	case 0xb600: { // COPY BUFFER: x, y, w, h, srcbuf, dstbuf
+		// srcbuf and dstbuf are buffer numbers.
+		// 	0 - background
 		// 	1 - stored area
-		// 	2 - background
+		// 	2 - composition
 		if (seq._executed) // this is a one-shot op
 			break;
 		const Common::Rect r(Common::Point(ivals[0], ivals[1]), ivals[2], ivals[3]);
 		int16 b1 = ivals[4];
 		int16 b2 = ivals[5];
-		Graphics::ManagedSurface &s1 = ((b1 == 0) ? _vm->_compositionBuffer :
-				(b1 == 2 ? _vm->getBackgroundBuffer() : _vm->getStoredAreaBuffer()));
-		Graphics::ManagedSurface &s2 = ((b2 == 0) ? _vm->_compositionBuffer :
-				(b2 == 2 ? _vm->getBackgroundBuffer() : _vm->getStoredAreaBuffer()));
-		s2.blitFrom(s1, r, r);
+		Graphics::ManagedSurface &src = ((b1 == 2) ? _vm->_compositionBuffer :
+				(b1 == 0 ? _vm->getBackgroundBuffer() : _vm->getStoredAreaBuffer()));
+		Graphics::ManagedSurface &dst = ((b2 == 2) ? _vm->_compositionBuffer :
+				(b2 == 0 ? _vm->getBackgroundBuffer() : _vm->getStoredAreaBuffer()));
+		dst.blitFrom(src, r, r);
 		break;
 	}
 	case 0xc020: {	// LOAD SAMPLE: filename:str
-		_vm->_soundPlayer->loadMacMusic(sval.c_str());
+		// Ignore this?
+		//_vm->_soundPlayer->loadMusic(sval.c_str());
+		//_vm->_soundPlayer->stopMusic();
 		break;
 	}
 	case 0xc030: {	// SELECT SAMPLE: int: i
@@ -879,13 +1093,61 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		break;
 	}
 	case 0xc050: {	// PLAY SAMPLE: int: i
-		_vm->_soundPlayer->playMusic(ivals[0]);
+		_vm->_soundPlayer->playMusicOrSFX(ivals[0]);
+		break;
+	}
+	case 0xc060: {	// STOP SAMPLE: int: i
+		_vm->_soundPlayer->stopMusicOrSFX(ivals[0]);
+		break;
+	}
+	case 0xc210: {  // LOAD RAW SFX filename:str
+		if (seq._executed) // this is a one-shot op
+			break;
+		if (_vm->getResourceManager()->hasResource(sval)) {
+			SoundRaw *snd = new SoundRaw(_vm->getResourceManager(), _vm->getDecompressor());
+			snd->load(sval);
+			env._soundRaw.reset(snd);
+		} else {
+			// This happens in Willy Beamish talkie CDS files.
+			debug("TTM 0xC210: Skip loading RAW %s, not found.", sval.c_str());
+		}
+		break;
+	}
+	case 0xc220: {	// PLAY RAW SFX
+		if (seq._executed) // this is a one-shot op
+			break;
+		if (!env._soundRaw)
+			warning("TODO: Trying to play raw SFX but nothing loaded");
+		else
+			env._soundRaw->play();
+		break;
+	}
+	case 0xc240: {	// STOP RAW SFX
+		if (env._soundRaw) {
+			env._soundRaw->stop();
+		} else {
+			warning("TODO: Trying to stop raw SFX but nothing loaded");
+		}
+		break;
+	}
+	case 0xc250: {	// SYNC RAW SFX
+		uint16 hi = (uint16)ivals[1];
+		uint16 lo = (uint16)ivals[0];
+		uint32 offset = ((uint32)hi << 16) + lo;
+		debug("TODO: 0xC250 Sync raw sfx?? offset %d", offset);
+		/*if (env._soundRaw->playedOffset() < offset) {
+			// Not played to this point yet.
+			env.scr->seek(-6, SEEK_CUR);
+			return false;
+		}*/
 		break;
 	}
 	case 0xf010: { // LOAD SCR:	filename:str
 		if (seq._executed) // this is a one-shot op
 			break;
-		Image tmp = Image(_vm->getResourceManager(), _vm->getDecompressor());
+		if (env._cdsSeqNum >= 0) // don't run from CDS scripts?
+			break;
+		Image tmp(_vm->getResourceManager(), _vm->getDecompressor());
 		tmp.drawScreen(sval, _vm->getBackgroundBuffer());
 		_vm->_compositionBuffer.blitFrom(_vm->getBackgroundBuffer());
 		_vm->getStoredAreaBuffer().fillRect(Common::Rect(SCREEN_WIDTH, SCREEN_HEIGHT), 0);
@@ -895,9 +1157,14 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 	case 0xf020: // LOAD BMP:	filename:str
 		if (seq._executed) // this is a one-shot op
 			break;
-		//debug("0xf020: Load bitmap %s to slot %d for env %d", sval.c_str(), env._enviro, seq._currentBmpId);
-		env._scriptShapes[seq._currentBmpId].reset(new Image(_vm->getResourceManager(), _vm->getDecompressor()));
-		env._scriptShapes[seq._currentBmpId]->loadBitmap(sval);
+		//debug(1, "0xf020: Load bitmap %s to slot %d for env %d", sval.c_str(), env._enviro, seq._currentBmpId);
+		if (_vm->getResourceManager()->hasResource(sval)) {
+			env._scriptShapes[seq._currentBmpId].reset(new Image(_vm->getResourceManager(), _vm->getDecompressor()));
+			env._scriptShapes[seq._currentBmpId]->loadBitmap(sval);
+		} else {
+			// This happens in Willy Beamish talkie CDS files.
+			debug("TTM 0xF020: Skip loading BMP %s, not found.", sval.c_str());
+		}
 		break;
 	case 0xf040: { // LOAD FONT:	filename:str
 		if (seq._executed) // this is a one-shot op
@@ -916,17 +1183,24 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 	case 0xf060: // LOAD SONG:	filename:str
 		if (seq._executed) // this is a one-shot op
 			break;
+
 		if (_vm->_platform == Common::kPlatformAmiga) {
 			// TODO: remove hard-coded stuff..
 			_vm->_soundPlayer->playAmigaSfx("DYNAMIX.INS", 0, 255);
-		} else if (_vm->_platform == Common::kPlatformMacintosh) {
-			_vm->_soundPlayer->loadMacMusic(sval.c_str());
-			_vm->_soundPlayer->playMusic(seq._currentSongId);
 		} else {
-			_vm->_soundPlayer->loadMusic(sval.c_str());
-			_vm->_soundPlayer->playMusic(seq._currentSongId);
+			if (_vm->_soundPlayer->loadMusic(sval.c_str()))
+				_vm->_soundPlayer->playMusic(seq._currentSongId);
 		}
 		break;
+	case 0xf080: { // LOAD SCROLL: filename:str
+		if (seq._executed) // this is a one-shot op
+			break;
+		env._scrollShape.reset(new Image(_vm->getResourceManager(), _vm->getDecompressor()));
+		env._scrollShape->loadBitmap(sval);
+		env._xScroll = 0;
+		env._yScroll = 0;
+		break;
+	}
 	case 0xf100: // 0xf1n0 - SET STRING n: s:str - set the nth string in the table
 	case 0xf110:
 	case 0xf120:
@@ -942,18 +1216,6 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 		break;
 	}
 
-	// Unimplemented / unknown
-	case 0x0010: // (one-shot) ??
-	case 0x0230: // (one-shot) reset current music? (0 args) - found in HoC intro.  Sets params about current music.
-	case 0x1040: // Sets some global? i:int
-	case 0x10B0: // null op?
-	case 0x2010: // SET FRAME?? x,y
-	case 0xa400: // DRAW FILLED CIRCLE
-	case 0xa420: // DRAW EMPTY CIRCLE
-	case 0xc040: // DESELECT_SAMPLE				// SQ5 demo onward
-	case 0xc060: // STOP_SAMPLE					// SQ5 demo onward
-	case 0xc0e0: // FADE SONG songnum, destvol, ticks (1/60th sec)
-
 	default:
 		if (count < 15)
 			warning("Unimplemented TTM opcode: 0x%04X (%s, %d args) (ivals: %d %d %d %d)",
@@ -963,6 +1225,22 @@ void TTMInterpreter::handleOperation(TTMEnviro &env, TTMSeq &seq, uint16 op, byt
 					ttmOpName(op), sval.c_str());
 		break;
 	}
+	return true;
+}
+
+Common::String TTMInterpreter::readTTMStringVal(Common::SeekableReadStream *scr) {
+	Common::String sval;
+	byte ch[2];
+
+	do {
+		ch[0] = scr->readByte();
+		ch[1] = scr->readByte();
+		if (ch[0])
+			sval += ch[0];
+		if (ch[1])
+			sval += ch[1];
+	} while (ch[0] != 0 && ch[1] != 0);
+	return sval;
 }
 
 bool TTMInterpreter::run(TTMEnviro &env, TTMSeq &seq) {
@@ -1002,16 +1280,7 @@ bool TTMInterpreter::run(TTMEnviro &env, TTMSeq &seq) {
 					debugN(10, "(%d,%d)", pts[i].x, pts[i].y);
 				debugN(10, "]");
 			} else {
-				byte ch[2];
-
-				do {
-					ch[0] = scr->readByte();
-					ch[1] = scr->readByte();
-					if (ch[0])
-						sval += ch[0];
-					if (ch[1])
-						sval += ch[1];
-				} while (ch[0] != 0 && ch[1] != 0);
+				sval = readTTMStringVal(scr);
 				debugN(10, "\"%s\"", sval.c_str());
 			}
 
@@ -1025,13 +1294,15 @@ bool TTMInterpreter::run(TTMEnviro &env, TTMSeq &seq) {
 		}
 		debug(10, " (%s)", ttmOpName(op));
 
-		handleOperation(env, seq, op, count, ivals, sval, pts);
+		bool opResult = handleOperation(env, seq, op, count, ivals, sval, pts);
+		if (!opResult)
+			break;
 	}
 
 	return true;
 }
 
-int32 TTMInterpreter::findGOTOTarget(TTMEnviro &env, TTMSeq &seq, int16 targetFrame) {
+int32 TTMInterpreter::findGOTOTarget(const TTMEnviro &env, const TTMSeq &seq, int16 targetFrame) {
 	int64 startpos = env.scr->pos();
 	int32 retval = -1;
 	for (int32 i = 0; i < (int)env._frameOffsets.size(); i++) {
@@ -1051,28 +1322,28 @@ int32 TTMInterpreter::findGOTOTarget(TTMEnviro &env, TTMSeq &seq, int16 targetFr
 	return retval;
 }
 
-void TTMInterpreter::findAndAddSequences(TTMEnviro &env, Common::Array<TTMSeq> &seqArray) {
+void TTMInterpreter::findAndAddSequences(TTMEnviro &env, Common::Array<Common::SharedPtr<TTMSeq>> &seqArray) {
 	int16 envno = env._enviro;
 	env.scr->seek(0);
 	uint16 op = 0;
 	for (uint frame = 0; frame < env._totalFrames; frame++) {
 		env._frameOffsets[frame] = env.scr->pos();
-		//debug("findAndAddSequences: frame %d at offset %d", frame, (int)env.scr->pos());
+		//debug(1, "findAndAddSequences: frame %d at offset %d", frame, (int)env.scr->pos());
 		op = env.scr->readUint16LE();
 		while (op != 0x0ff0 && env.scr->pos() < env.scr->size()) {
-			//debug("findAndAddSequences: check ttm op %04x", op);
+			//debug(1, "findAndAddSequences: check ttm op %04x", op);
 			switch (op & 0xf) {
 			case 0:
 				break;
 			case 1:
 				if (op == 0x1111) {
-					TTMSeq newseq;
-					newseq._enviro = envno;
-					newseq._seqNum = env.scr->readUint16LE();
-					newseq._startFrame = frame;
-					newseq._currentFrame = frame;
-					newseq._lastFrame = -1;
-					//debug("findAndAddSequences: found env %d seq %d at %d", newseq._enviro, newseq._seqNum, (int)env.scr->pos());
+					Common::SharedPtr<TTMSeq> newseq(new TTMSeq());
+					newseq->_enviro = envno;
+					newseq->_seqNum = env.scr->readUint16LE();
+					newseq->_startFrame = frame;
+					newseq->_currentFrame = frame;
+					newseq->_lastFrame = -1;
+					//debug(1, "findAndAddSequences: found env %d seq %d at %d", newseq._enviro, newseq._seqNum, (int)env.scr->pos());
 					seqArray.push_back(newseq);
 				} else {
 					env.scr->skip(2);
@@ -1083,11 +1354,7 @@ void TTMInterpreter::findAndAddSequences(TTMEnviro &env, Common::Array<TTMSeq> &
 					int16 nbytes = env.scr->readUint16LE() * 4;
 					env.scr->skip(nbytes);
 				} else {
-					byte ch[2];
-					do {
-						ch[0] = env.scr->readByte();
-						ch[1] = env.scr->readByte();
-					} while (ch[0] != 0 && ch[1] != 0);
+					readTTMStringVal(env.scr);
 				}
 				break;
 			}
@@ -1105,8 +1372,11 @@ void TTMSeq::reset() {
 	_currentFontId = 0;
 	_currentPalId = 0;
 	_currentSongId = 0;
-	_currentBmpId = 0;
-	_currentGetPutId = 0;
+	if (DgdsEngine::getInstance()->getGameId() == GID_DRAGON) {
+		// These slots are not reset in HOC onward
+		_currentBmpId = 0;
+		_currentGetPutId = 0;
+	}
 	_currentFrame = _startFrame;
 	_gotoFrame = -1;
 	_drawColBG = 0xf;

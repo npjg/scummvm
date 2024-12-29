@@ -681,7 +681,7 @@ void Kernel::mapFunctions(GameFeatures *features) {
 									while (kernelSubLeft) {
 										kernelSubLeft--;
 										kernelSubMapBack--;
-										if (kernelSubMapBack->name == kernelSubMap->name) {
+										if (!strcmp(kernelSubMapBack->name, kernelSubMap->name)) {
 											if (kernelSubMapBack->signature) {
 												subFunctions[subId].signature = parseKernelSignature(kernelSubMap->name, kernelSubMapBack->signature);
 												break;
@@ -771,7 +771,7 @@ void Kernel::loadKernelNames(GameFeatures *features) {
 			// function has been replaced with kPortrait. In KQ6 Mac,
 			// kPlayBack has been replaced by kShowMovie.
 			if ((g_sci->getPlatform() == Common::kPlatformWindows) || 
-				(g_sci->getPlatform() == Common::kPlatformDOS && g_sci->forceHiresGraphics()))
+				(g_sci->getPlatform() == Common::kPlatformDOS && g_sci->useHiresGraphics()))
 				_kernelNames[0x26] = "Portrait";
 			else if (g_sci->getPlatform() == Common::kPlatformMacintosh)
 				_kernelNames[0x84] = "ShowMovie";

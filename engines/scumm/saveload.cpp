@@ -45,6 +45,7 @@
 #include "backends/audiocd/audiocd.h"
 
 #include "graphics/thumbnail.h"
+#include "gui/message.h"
 
 namespace Scumm {
 
@@ -52,7 +53,7 @@ struct SaveGameHeader {
 	uint32 type;
 	uint32 size;
 	uint32 ver;
-	char name[32];
+	char name[32] = {};
 };
 
 struct SaveInfoSection {
@@ -69,7 +70,7 @@ struct SaveInfoSection {
 
 #define SaveInfoSectionSize (4+4+4 + 4+4 + 4+2)
 
-#define CURRENT_VER 119
+#define CURRENT_VER 123
 #define INFOSECTION_VERSION 2
 
 #pragma mark -
@@ -138,10 +139,6 @@ bool ScummEngine::canLoadGameStateCurrently(Common::U32String *msg) {
 }
 
 Common::Error ScummEngine::saveGameState(int slot, const Common::String &desc, bool isAutosave) {
-	// Disable autosaving if the original GUI is in place
-	if (isAutosave && isUsingOriginalGUI())
-		return Common::kNoError;
-
 	requestSave(slot, desc);
 	return Common::kNoError;
 }
@@ -313,6 +310,8 @@ void ScummEngine::copyHeapSaveGameToFile(int slot, const char *saveName) {
 
 		delete saveFile;
 	}
+
+	delete heapSaveFile;
 
 	if (saveFailed)
 		debug(1, "State save as '%s' FAILED", fileName.c_str());
@@ -523,12 +522,21 @@ uint32 *ScummEngine_v8::fetchScummVMSaveStateThumbnail(int slotId, bool isHeapSa
 			// Now take the pixels from the surface, extract the RGB components, process them
 			// with the brightness parameter, and store them in an appropriate structure
 			// which the SCUMM graphics pipeline can use...
-			byte r, g, b;
+			byte r = 0, g = 0, b = 0;
+			byte bpp = thumbnailSurface->format.bpp();
 			uint32 *processedThumbnail = new uint32[thumbnailSurface->w * thumbnailSurface->h];
 			for (int i = 0; i < thumbnailSurface->h; i++) {
 				for (int j = 0; j < thumbnailSurface->w; j++) {
-					uint32 *ptr = (uint32 *)thumbnailSurface->getBasePtr(j, i);
-					thumbnailSurface->format.colorToRGB(*ptr, r, g, b);
+					if (bpp == 32) {
+						uint32 *ptr = (uint32 *)thumbnailSurface->getBasePtr(j, i);
+						thumbnailSurface->format.colorToRGB(*ptr, r, g, b);
+					} else if (bpp == 16) {
+						uint16 *ptr = (uint16 *)thumbnailSurface->getBasePtr(j, i);
+						thumbnailSurface->format.colorToRGB(*ptr, r, g, b);
+					} else if (bpp == 8) {
+						uint8 *ptr = (uint8 *)thumbnailSurface->getBasePtr(j, i);
+						thumbnailSurface->format.colorToRGB(*ptr, r, g, b);
+					}
 
 					processedThumbnail[i * thumbnailSurface->w + j] = getPaletteColorFromRGB(
 						_currentPalette,
@@ -741,7 +749,7 @@ bool ScummEngine::loadState(int slot, bool compat, Common::String &filename) {
 	memset(_newNames, 0, sizeof(_newNames[0]) * _numNewNames);
 
 	// Because old savegames won't fill the entire gfxUsageBits[] array,
-	// clear it here just to be sure it won't hold any unforseen garbage.
+	// clear it here just to be sure it won't hold any unforeseen garbage.
 	memset(gfxUsageBits, 0, sizeof(gfxUsageBits));
 
 	// Nuke all resources
@@ -755,9 +763,6 @@ bool ScummEngine::loadState(int slot, bool compat, Common::String &filename) {
 
 	if (_game.features & GF_OLD_BUNDLE)
 		loadCharset(0); // FIXME - HACK ?
-
-	// Save this for later
-	bool currentSessionUsesCorrection = _useMacScreenCorrectHeight;
 
 	//
 	// Now do the actual loading
@@ -878,17 +883,8 @@ bool ScummEngine::loadState(int slot, bool compat, Common::String &filename) {
 	updateDirtyScreen(kMainVirtScreen);
 	updatePalette();
 
-	if (!currentSessionUsesCorrection && _useMacScreenCorrectHeight) {
-		sb -= 20 * 2;
-		sh -= 20 * 2;
-	} else if (currentSessionUsesCorrection && !_useMacScreenCorrectHeight) {
-		sb += 20 * 2;
-		sh += 20 * 2;
-	}
-
 	initScreens(sb, sh);
 
-	_useMacScreenCorrectHeight = currentSessionUsesCorrection;
 	_completeScreenRedraw = true;
 
 	// Reset charset mask
@@ -1350,7 +1346,6 @@ bool ScummEngine::changeSavegameName(int slot, char *newName) {
 
 void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 	int i;
-	int var120Backup;
 	int var98Backup;
 	uint8 md5Backup[16];
 
@@ -1435,27 +1430,16 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 	s.syncAsUint16LE(camera._movingToActor, VER(8));
 	s.syncAsByte(_cameraIsFrozen, VER(108));
 
-	// For Mac versions...
-	bool currentSessionUsesCorrection = _useMacScreenCorrectHeight;
-
-	s.syncAsUint16LE(_screenDrawOffset, VER(112));
+	// Old stuff for Mac versions, see below...
+	s.skip(2, VER(112), VER(121)); // Old _screenDrawOffset
 	s.syncAsByte(_useMacScreenCorrectHeight, VER(112));
 
-	// If this is an older version without Mac screen
-	// offset correction, bring it up to date...
+	// Post-load fix for some savegame versions which offset the engine elements
+	// instead of offsetting the final screen texture and the mouse coordinates...
 	if (s.isLoading()) {
-		if (s.getVersion() < VER(112)) {
-			// We assume _useMacScreenCorrectHeight == false
-			camera._cur.y += _screenDrawOffset;
-			camera._last.y += _screenDrawOffset;
-		} else {
-			if (!currentSessionUsesCorrection && _useMacScreenCorrectHeight) {
-				camera._cur.y -= _screenDrawOffset;
-				camera._last.y -= _screenDrawOffset;
-			} else if (currentSessionUsesCorrection && !_useMacScreenCorrectHeight) {
-				camera._cur.y += _screenDrawOffset;
-				camera._last.y += _screenDrawOffset;
-			}
+		if (_game.version == 3 && _game.platform == Common::kPlatformMacintosh && s.getVersion() >= VER(112) && s.getVersion() < VER(121)) {
+			camera._cur.y -= 20;
+			camera._last.y -= 20;
 		}
 	}
 
@@ -1543,6 +1527,11 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 				_cursor.hotspotX = _cursor.hotspotY = 0;
 			}
 		}
+	} else if ((_cursor.width <= 0 || _cursor.width > 640 || _cursor.height <= 0 || _cursor.height > 480) && _game.platform == Common::kPlatformMacintosh) {
+		_cursor.width = 11;
+		_cursor.height = 16;
+		_cursor.hotspotX = 1;
+		_cursor.hotspotY = 1;
 	}
 
 	s.syncAsByte(_cursor.animate, VER(20));
@@ -1550,7 +1539,7 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 
 	// Don't restore the mouse position when using
 	// the original GUI, since the originals didn't
-	if (isUsingOriginalGUI()) {
+	if (s.isLoading() && isUsingOriginalGUI()) {
 		s.skip(2);
 		s.skip(2);
 	} else {
@@ -1609,19 +1598,12 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 	s.syncAsUint16LE(_screenB, VER(8));
 	s.syncAsUint16LE(_screenH, VER(8));
 
-	// Other screen offset corrections for Mac games savestates...
+	// Post-load fix for some savegame versions which offset the engine elements
+	// instead of offsetting the final screen texture and the mouse coordinates...
 	if (s.isLoading()) {
-		if (s.getVersion() < VER(112)) {
-			_screenB += _screenDrawOffset;
-			_screenH += _screenDrawOffset;
-		} else {
-			if (currentSessionUsesCorrection && !_useMacScreenCorrectHeight) {
-				_screenB -= _screenDrawOffset;
-				_screenH -= _screenDrawOffset;
-			} else if (!currentSessionUsesCorrection && _useMacScreenCorrectHeight) {
-				_screenB += _screenDrawOffset;
-				_screenH += _screenDrawOffset;
-			}
+		if (_game.version == 3 && _game.platform == Common::kPlatformMacintosh && s.getVersion() >= VER(112) && s.getVersion() < VER(121)) {
+			_screenB -= 20;
+			_screenH -= 20;
 		}
 	}
 
@@ -1675,6 +1657,9 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 			x += (kHercWidth - _screenWidth * 2) / 2;
 			y = y * 7 / 4;
 		} else if (_textSurfaceMultiplier == 2 || _renderMode == Common::kRenderCGA_BW || _enableEGADithering) {
+			x *= 2;
+			y *= 2;
+		} else if (_macScreen) {
 			x *= 2;
 			y *= 2;
 		}
@@ -1749,7 +1734,8 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 	// Save/load misc stuff
 	//
 	s.syncArray(_verbs, _numVerbs, (_game.version < 7 && _language != Common::HE_ISR) ? syncWithSerializerDef : syncWithSerializerV7orISR);
-	s.syncArray(vm.nest, 16, syncWithSerializer);
+	s.syncArray(vm.nest, 16, syncWithSerializer, VER(0), VER(119));
+	s.syncArray(vm.nest, kMaxScriptNestingHE, syncWithSerializer, VER(120));
 	s.syncArray(_sentence, 6, syncWithSerializer);
 	s.syncArray(_string, 6, syncWithSerializer);
 	s.syncArray(_colorCycle, 16, syncWithSerializer);
@@ -1944,10 +1930,19 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 	//
 	// Save/load script variables
 	//
-	var120Backup = _scummVars[120];
+
+	// From disasm...
+	int32 dottVarsBackup[5];
+	if (_game.id == GID_TENTACLE) {
+		for (int j = 0; j < 5; j++)
+			dottVarsBackup[j] = _scummVars[120 + j];
+	}
+
 	var98Backup = _scummVars[98];
 
 	s.syncArray(_roomVars, _numRoomVariables, Common::Serializer::Sint32LE, VER(38));
+
+	int currentSoundCard = VAR_SOUNDCARD != 0xFF ? VAR(VAR_SOUNDCARD) : -1;
 
 	// The variables grew from 16 to 32 bit.
 	if (s.getVersion() < VER(15))
@@ -1955,8 +1950,32 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 	else
 		s.syncArray(_scummVars, _numVariables, Common::Serializer::Sint32LE);
 
-	if (_game.id == GID_TENTACLE)	// Maybe misplaced, but that's the main idea
-		_scummVars[120] = var120Backup;
+	if (_game.platform == Common::kPlatformDOS && s.isLoading() && VAR_SOUNDCARD != 0xFF && (_game.heversion < 70 && _game.version <= 6)) {
+		if (currentSoundCard != VAR(VAR_SOUNDCARD)) {
+			const char *soundCards[] = {
+				"PC Speaker", "IBM PCjr/Tandy", "Creative Music System", "AdLib", "Roland MT-32/CM-32L"
+			};
+
+			GUI::MessageDialog dialog(
+				Common::U32String::format(_("Warning: incompatible sound settings detected between the current configuration and this saved game.\n\n"
+					"Current music device: %s (id %d)\nSave file music device: %s (id %d)\n\n"
+					"Loading will be attempted, but the game may behave incorrectly or crash.\n"
+					"Please change the audio configuration accordingly in order to properly load this save file."),
+					currentSoundCard < ARRAYSIZE(soundCards) ? soundCards[currentSoundCard] : "invalid", currentSoundCard,
+					VAR(VAR_SOUNDCARD) < ARRAYSIZE(soundCards) ? soundCards[VAR(VAR_SOUNDCARD)] : "invalid", VAR(VAR_SOUNDCARD))
+			);
+			runDialog(dialog);
+		}
+	}
+
+	// This is again from disasm...
+	if (_game.id == GID_TENTACLE) {
+		for (int j = 0; j < 5; j++)
+			_scummVars[120 + j] = dottVarsBackup[j];
+
+		_scummVars[70] = 1;
+	}
+
 	if (_game.id == GID_INDY4)
 		_scummVars[98] = var98Backup;
 
@@ -2027,20 +2046,7 @@ void ScummEngine::saveLoadWithSerializer(Common::Serializer &s) {
 		syncWithSerializer(s, info);
 
 		if (s.isLoading() && info.playing) {
-			if (info.numLoops < 0 && _game.platform != Common::kPlatformFMTowns) {
-				// If we are loading, and the music being loaded was supposed to loop
-				// forever, then resume playing it. This helps a lot when the audio CD
-				// is used to provide ambient music (see bug #1150).
-				// FM-Towns versions handle this in Player_Towns_v1::restoreAfterLoad().
-				_sound->playCDTrackInternal(info.track, info.numLoops, info.start, info.duration);
-			} else if (_game.id == GID_LOOM && info.start != 0 && info.duration != 0) {
-				// Reload audio for LOOM CD/Steam. We move the offset forward by a little bit
-				// to restore the correct sync.
-				int startOffset = (int)(VAR(VAR_MUSIC_TIMER) * 1.25);
-
-				_sound->_cdMusicTimer = VAR(VAR_MUSIC_TIMER);
-				_sound->playCDTrackInternal(info.track, info.numLoops, info.start + startOffset, info.duration - VAR(VAR_MUSIC_TIMER));
-			}
+			_sound->restoreCDAudioAfterLoad(info);
 		}
 	}
 
@@ -2150,6 +2156,12 @@ void ScummEngine_v5::saveLoadWithSerializer(Common::Serializer &s) {
 
 	if (s.isLoading() && _game.platform == Common::kPlatformMacintosh) {
 		if ((_game.id == GID_LOOM && !_macCursorFile.empty()) || _macGui) {
+			setBuiltinCursor(0);
+		}
+
+		// Also reset Mac cursors if the original GUI isn't enabled for games
+		// which replace cursors that override the default cursor palette - bug #15520.
+		if (_game.version == 5 && !_macGui) {
 			setBuiltinCursor(0);
 		}
 	}

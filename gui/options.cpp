@@ -38,6 +38,7 @@
 #include "common/config-manager.h"
 #include "common/gui_options.h"
 #include "common/rendermode.h"
+#include "common/rotationmode.h"
 #include "common/savefile.h"
 #include "common/system.h"
 #include "common/textconsole.h"
@@ -205,6 +206,8 @@ void OptionsDialog::init() {
 	_gfxPopUpDesc = nullptr;
 	_renderModePopUp = nullptr;
 	_renderModePopUpDesc = nullptr;
+	_rotationModePopUp = nullptr;
+	_rotationModePopUpDesc = nullptr;
 	_stretchPopUp = nullptr;
 	_stretchPopUpDesc = nullptr;
 	_scalerPopUp = nullptr;
@@ -341,6 +344,21 @@ void OptionsDialog::build() {
 					sel = p->id;
 			}
 			_renderModePopUp->setSelectedTag(sel);
+		}
+
+		if (g_system->hasFeature(OSystem::kFeatureRotationMode)) {
+			_rotationModePopUp->setSelected(0);
+
+			if (ConfMan.hasKey("rotation_mode", _domain)) {
+				const Common::RotationModeDescription *p = Common::g_rotationModes;
+				const Common::RotationMode rotationMode = Common::parseRotationMode(ConfMan.getInt("rotation_mode", _domain));
+				int sel = 0;
+				for (int i = 0; p->description; ++p, ++i) {
+					if (rotationMode == p->id)
+						sel = p->id;
+				}
+				_rotationModePopUp->setSelectedTag(sel);
+			}
 		}
 
 		// Fullscreen setting
@@ -660,6 +678,24 @@ void OptionsDialog::apply() {
 				}
 			}
 
+			if (g_system->hasFeature(OSystem::kFeatureRotationMode)) {
+				if ((int32)_rotationModePopUp->getSelectedTag() >= 0) {
+					int rotationModeCode = ((Common::RotationMode)_rotationModePopUp->getSelectedTag());
+					if (!ConfMan.hasKey("rotation_mode", _domain) ||
+						ConfMan.getInt("rotation_mode", _domain) != rotationModeCode) {
+						ConfMan.setInt("rotation_mode", rotationModeCode, _domain);
+						_rotationModePopUpDesc->setFontColor(ThemeEngine::FontColor::kFontColorNormal);
+						graphicsModeChanged = true;
+					}
+				} else {
+					// default selected
+					if (ConfMan.hasKey("rotation_mode", _domain)) {
+						ConfMan.removeKey("rotation_mode", _domain);
+						graphicsModeChanged = true;
+					}
+				}
+			}
+
 			if (g_system->hasFeature(OSystem::kFeatureStretchMode)) {
 				isSet = false;
 				if ((int32)_stretchPopUp->getSelectedTag() >= 0) {
@@ -746,6 +782,7 @@ void OptionsDialog::apply() {
 			ConfMan.removeKey("scaler", _domain);
 			ConfMan.removeKey("scale_factor", _domain);
 			ConfMan.removeKey("render_mode", _domain);
+			ConfMan.removeKey("rotation_mode", _domain);
 			ConfMan.removeKey("renderer", _domain);
 			ConfMan.removeKey("antialiasing", _domain);
 			ConfMan.removeKey("vsync", _domain);
@@ -796,6 +833,10 @@ void OptionsDialog::apply() {
 			g_system->setFeatureState(OSystem::kFeatureFilteringMode, ConfMan.getBool("filtering", _domain));
 		if (ConfMan.hasKey("vsync"))
 			g_system->setFeatureState(OSystem::kFeatureVSync, ConfMan.getBool("vsync", _domain));
+
+		if (g_system->hasFeature(OSystem::kFeatureRotationMode)) {
+			g_system->setFeatureState(OSystem::kFeatureRotationMode, ConfMan.hasKey("rotation_mode", _domain));
+		}
 
 		OSystem::TransactionError gfxError = g_system->endGFXTransaction();
 
@@ -1232,6 +1273,10 @@ void OptionsDialog::setGraphicSettingsState(bool enabled) {
 	_gfxPopUp->setEnabled(enabled);
 	_renderModePopUpDesc->setEnabled(enabled);
 	_renderModePopUp->setEnabled(enabled);
+	if (_rotationModePopUp) {
+		_rotationModePopUpDesc->setEnabled(enabled);
+		_rotationModePopUp->setEnabled(enabled);
+	}
 
 	if (_rendererTypePopUp) {
 		_rendererTypePopUpDesc->setEnabled(enabled);
@@ -1626,6 +1671,21 @@ void OptionsDialog::addGraphicControls(GuiObject *boss, const Common::String &pr
 
 		_scaleFactorPopUp = new PopUpWidget(boss, prefix + "grScaleFactorPopup");
 		updateScaleFactors(_scalerPopUp->getSelectedTag());
+	}
+
+	if (g_system->hasFeature(OSystem::kFeatureRotationMode)) {
+		const Common::RotationModeDescription *rotm = Common::g_rotationModes;
+		_rotationModePopUpDesc = new StaticTextWidget(boss, prefix + "grRotationModePopupDesc", _("Rotation mode:"));
+		if (ConfMan.isKeyTemporary("rotation_mode"))
+			_rotationModePopUpDesc->setFontColor(ThemeEngine::FontColor::kFontColorOverride);
+		_rotationModePopUp = new PopUpWidget(boss, prefix + "grRotationModePopup");
+
+		_rotationModePopUp->appendEntry(_("<default>"));
+		_rotationModePopUp->appendEntry(Common::U32String());
+		while (rotm->description) {
+			_rotationModePopUp->appendEntry(_c(rotm->description, context), rotm->id);
+			rotm++;
+		}
 	}
 
 	if (!g_gui.useLowResGUI())
@@ -2046,6 +2106,10 @@ void OptionsDialog::setupGraphicsTab() {
 		_stretchPopUpDesc->setVisible(true);
 		_stretchPopUp->setVisible(true);
 	}
+	if (g_system->hasFeature(OSystem::kFeatureRotationMode)) {
+		_rotationModePopUpDesc->setVisible(true);
+		_rotationModePopUp->setVisible(true);
+	}
 	_fullscreenCheckbox->setVisible(true);
 	if (g_system->hasFeature(OSystem::kFeatureFilteringMode))
 		_filteringCheckbox->setVisible(true);
@@ -2432,9 +2496,11 @@ void GlobalOptionsDialog::build() {
 	_rendererPopUp->setSelectedTag(mode);
 
 #ifdef USE_SDL_NET
+#ifdef USE_CLOUD
 	Common::Path rootPath(ConfMan.getPath("rootpath", "cloud"));
 	_rootPath->setLabel(rootPath);
-#endif
+#endif // USE_CLOUD
+#endif // USE_SDL_NET
 }
 
 void GlobalOptionsDialog::clean() {
@@ -2982,11 +3048,13 @@ void GlobalOptionsDialog::apply() {
 #endif // DYNAMIC_MODULES
 
 #ifdef USE_SDL_NET
+#ifdef USE_CLOUD
 	Common::Path rootPath(_rootPath->getLabel());
 	if (!rootPath.empty())
 		ConfMan.setPath("rootpath", rootPath, "cloud");
 	else
 		ConfMan.removeKey("rootpath", "cloud");
+#endif // USE_CLOUD
 #endif // USE_SDL_NET
 
 	int oldGuiScale = ConfMan.getInt("gui_scale");
@@ -3274,6 +3342,7 @@ void GlobalOptionsDialog::handleCommand(CommandSender *sender, uint32 cmd, uint3
 		break;
 	}
 #endif
+
 #ifdef USE_CLOUD
 #ifdef USE_SDL_NET
 	case kChooseRootDirCmd: {

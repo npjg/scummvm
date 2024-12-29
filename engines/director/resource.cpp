@@ -662,7 +662,7 @@ bool ProjectorArchive::loadArchive(Common::SeekableReadStream *stream) {
 	tag = stream->readUint32BE();
 	found = false;
 
-	// This loop has neglible performance impact due to the stream being buffered.
+	// This loop has negligible performance impact due to the stream being buffered.
 	// Furthermore, comparing 4 bytes at a time should be pretty fast on modern systems.
 	while (!stream->eos()) {
 		if (tag == MKTAG('D', 'i', 'c', 't') || tag == MKTAG('t', 'c', 'i', 'D')) {
@@ -735,12 +735,6 @@ bool ProjectorArchive::loadArchive(Common::SeekableReadStream *stream) {
 	for (uint32 i = 0; i < cnt; i++) {
 		tag = stream->readUint32BE();
 		size = bigEndian ? stream->readUint32BE() : stream->readUint32LE();
-
-		// endianness issue, swap size and continue
-		if (size > stream->pos()) {
-			bigEndian = !bigEndian;
-			size = SWAP_BYTES_32(size);
-		}
 
 		Common::Path path = toSafePath(arr[i]);
 

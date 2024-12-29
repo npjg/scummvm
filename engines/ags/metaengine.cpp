@@ -151,8 +151,8 @@ SaveStateDescriptor AGSMetaEngine::querySaveMetaInfos(const char *target, int sl
 	return SaveStateDescriptor();
 }
 
-void AGSMetaEngine::removeSaveState(const char *target, int slot) const {
-	g_system->getSavefileManager()->removeSavefile(getSavegameFile(slot, target));
+bool AGSMetaEngine::removeSaveState(const char *target, int slot) const {
+	return g_system->getSavefileManager()->removeSavefile(getSavegameFile(slot, target));
 }
 
 int AGSMetaEngine::getAutosaveSlot() const {
@@ -164,6 +164,22 @@ int AGSMetaEngine::getAutosaveSlot() const {
 
 const Common::AchievementDescriptionList* AGSMetaEngine::getAchievementDescriptionList() const {
 	return AGS::achievementDescriptionList;
+}
+
+Common::StringArray AGSMetaEngine::getGameTranslations(const Common::String &domain) {
+	Common::Path path = ConfMan.getPath("path", domain);
+	Common::FSDirectory dir(path);
+	Common::ArchiveMemberList traFileList;
+	dir.listMatchingMembers(traFileList, "*.tra");
+	Common::StringArray traFileNames;
+
+	for (Common::ArchiveMemberList::iterator iter = traFileList.begin(); iter != traFileList.end(); ++iter) {
+		Common::String traFileName = (*iter)->getName();
+		traFileName.erase(traFileName.size() - 4); // remove .tra extension
+		traFileNames.push_back(traFileName);
+	}
+
+	return traFileNames;
 }
 
 #if PLUGIN_ENABLED_DYNAMIC(AGS)

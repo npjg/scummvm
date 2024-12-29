@@ -42,6 +42,11 @@ byte kEGADefaultPalette[16][3] = {
 	{0xff, 0xff, 0xff}
 };
 
+byte kHerculesPaletteGreen[2][3] = {
+	{0x00, 0x00, 0x00},
+	{0x00, 0xff, 0x00},
+};
+
 byte kDrillerC64Palette[16][3] = {
 	{0x00, 0x00, 0x00},
 	{0xFF, 0xFF, 0xFF},
@@ -76,14 +81,14 @@ byte kDrillerZXPalette[9][3] = {
 byte kDrillerCPCPalette[32][3] = {
 	{0x80, 0x80, 0x80}, // 0: special case?
 	{0x00, 0x00, 0x00}, // 1: used in dark only?
-	{0x80, 0xff, 0x80}, // 2
+	{0x00, 0x80, 0xff}, // 2
 	{0xff, 0xff, 0x80}, // 3
-	{0x11, 0x22, 0x33},
+	{0x00, 0x00, 0x80}, // 4
 	{0xff, 0x00, 0x80}, // 5
 	{0x00, 0x80, 0x80}, // 6
 	{0xff, 0x80, 0x80}, // 7
 	{0x11, 0x22, 0x33},
-	{0x11, 0x22, 0x33},
+	{0x00, 0x80, 0x00}, // 9
 	{0xff, 0xff, 0x00}, // 10
 	{0xff, 0xff, 0xff}, // 11
 	{0xff, 0x00, 0x00}, // 12
@@ -104,7 +109,7 @@ byte kDrillerCPCPalette[32][3] = {
 	{0x00, 0xff, 0xff}, // 27
 	{0x80, 0x00, 0x00}, // 28
 	{0x11, 0x22, 0x33},
-	{0x11, 0x22, 0x33},
+	{0x80, 0x80, 0x00}, // 30
 	{0x80, 0x80, 0xff}, // 31
 };
 
@@ -117,6 +122,8 @@ void FreescapeEngine::loadColorPalette() {
 		_gfx->_palette = (byte *)kDrillerZXPalette;
 	} else if (_renderMode == Common::kRenderCPC) {
 		_gfx->_palette = (byte *)kDrillerCPCPalette;
+	} else if (_renderMode == Common::kRenderHercG) {
+		_gfx->_palette = (byte *)&kHerculesPaletteGreen;
 	} else if (_renderMode == Common::kRenderCGA) {
 		// palette depends on the area
 	} else if (_renderMode == Common::kRenderAmiga || _renderMode == Common::kRenderAtariST) {
@@ -125,6 +132,25 @@ void FreescapeEngine::loadColorPalette() {
 		error("Invalid render mode, no palette selected");
 
 	_gfx->setColorMap(&_colorMap);
+}
+
+byte *FreescapeEngine::loadPalette(Common::SeekableReadStream *file) {
+	int r, g, b;
+	auto palette = new byte[16][3];
+	for (int c = 0; c < 16; c++) {
+		int v = file->readUint16BE();
+		r = (v & 0xf00) >> 8;
+		r = r << 4 | r;
+		palette[c][0] = r & 0xff;
+		g = (v & 0xf0) >> 4;
+		g = g << 4 | g;
+		palette[c][1] = g & 0xff;
+		b = v & 0xf;
+		b = b << 4 | b;
+		palette[c][2] = b & 0xff;
+		debugC(1, kFreescapeDebugParser, "Color %d: (%04x) %02x %02x %02x", c, v, palette[c][0], palette[c][1], palette[c][2]);
+	}
+	return (byte *)palette;
 }
 
 void FreescapeEngine::loadPalettes(Common::SeekableReadStream *file, int offset) {
@@ -139,13 +165,15 @@ void FreescapeEngine::loadPalettes(Common::SeekableReadStream *file, int offset)
 		numberOfAreas += 2;
 	else if (isDark())
 		numberOfAreas += 5;
+	else if (isCastle())
+		numberOfAreas += 20;
 
 	for (uint i = 0; i < numberOfAreas; i++) {
 		int label = readField(file, 8);
 		if (label == 255)
 			break;
 		auto palette = new byte[16][3];
-		debugC(1, kFreescapeDebugParser, "Loading palette for area: %d at %lx", label, file->pos());
+		debugC(1, kFreescapeDebugParser, "Loading palette for area: %d at %" PRIx64, label, file->pos());
 		for (int c = 0; c < 16; c++) {
 			int v = file->readUint16BE();
 			r = (v & 0xf00) >> 8;
@@ -157,8 +185,8 @@ void FreescapeEngine::loadPalettes(Common::SeekableReadStream *file, int offset)
 			b = v & 0xf;
 			b = b << 4 | b;
 			palette[c][2] = b & 0xff;
+			debugC(1, kFreescapeDebugParser, "Color %d: (%04x) %02x %02x %02x", c, v, palette[c][0], palette[c][1], palette[c][2]);
 		}
-
 		assert(!_paletteByArea.contains(label));
 		_paletteByArea[label] = (byte *)palette;
 	}

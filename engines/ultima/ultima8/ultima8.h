@@ -32,6 +32,7 @@
 #include "ultima/ultima8/misc/common_types.h"
 #include "ultima/ultima8/games/game_info.h"
 #include "ultima/ultima8/gfx/render_surface.h"
+#include "ultima/ultima8/metaengine.h"
 #include "ultima/detection.h"
 
 namespace Ultima {
@@ -103,7 +104,7 @@ private:
 	InverterGump *_inverterGump;
 	AvatarMoverProcess *_avatarMoverProcess;
 
-	// Various dependancy flags
+	// Various dependency flags
 	// Timing stuff
 	int32 _lerpFactor;       //!< Interpolation factor for this frame (0-256)
 	bool _inBetweenFrame;    //!< Set true if we are doing an inbetween frame
@@ -196,6 +197,9 @@ public:
 
 	Common::Error runGame();
 	virtual void handleEvent(const Common::Event &event);
+
+	void handleActionDown(KeybindingAction action);
+	void handleActionUp(KeybindingAction action);
 
 	void paint();
 

@@ -77,14 +77,16 @@ bool DgdsParser::parse(ParserData *data, const Common::String &filename) {
 Common::HashMap<uint16, Common::String> DgdsParser::readTags(Common::SeekableReadStream *stream) {
 	Common::HashMap<uint16, Common::String> tags;
 	uint16 count = stream->readUint16LE();
-	debug("        %u tags:", count);
+	debug(1, "        %u tags:", count);
 
 	for (uint16 i = 0; i < count; i++) {
 		uint16 idx = stream->readUint16LE();
-		Common::String string = stream->readString();
-		debug("        %2u: %2u, \"%s\"", i, idx, string.c_str());
-
-		tags[idx] = string;
+		const Common::String tagVal = stream->readString();
+		debug(1, "        %2u: %2u, \"%s\"", i, idx, tagVal.c_str());
+		// TODO: How to handle when these IDs overlap? (eg, see
+		// BBEDROOM.TTM in RotD)
+		if (!tags.contains(idx))
+			tags[idx] = tagVal;
 	}
 
 	return tags;
@@ -115,7 +117,7 @@ bool TTMParser::handleChunk(DgdsChunkReader &chunk, ParserData *data) {
 		scriptData->_frameOffsets.resize(scriptData->_totalFrames + 1, -1);
 		break;
 	default:
-		warning("Unexpected chunk '%s' of size %d found in file '%s'", tag2str(chunk.getId()), chunk.getSize(), _filename.c_str());
+		debug("TTMParser: Unexpected chunk '%s' of size %d found in file '%s'", tag2str(chunk.getId()), chunk.getSize(), _filename.c_str());
 		//chunk._contentStream->skip(chunk._size);
 		break;
 	}
@@ -139,9 +141,7 @@ bool ADSParser::handleChunk(DgdsChunkReader &chunk, ParserData *data) {
 			if (idx > scriptData->_scriptNames.size())
 				scriptData->_scriptNames.resize(idx);
 
-
-			Common::String string = chunkStream->readString();
-			scriptData->_scriptNames[idx - 1] = string;
+			scriptData->_scriptNames[idx - 1] = chunkStream->readString();
 		}
 	} break;
 	case ID_SCR:
@@ -153,7 +153,7 @@ bool ADSParser::handleChunk(DgdsChunkReader &chunk, ParserData *data) {
 	case ID_VER: // Version - ignore
 		break;
 	default:
-		warning("Unexpected chunk '%s' of size %d found in file '%s'", tag2str(chunk.getId()), chunk.getSize(), _filename.c_str());
+		warning("ADSParser: Unexpected chunk '%s' of size %d found in file '%s'", tag2str(chunk.getId()), chunk.getSize(), _filename.c_str());
 		break;
 	}
 	return false;

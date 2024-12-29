@@ -176,6 +176,11 @@ void EngineState::initGlobals() {
 	}
 }
 
+void EngineState::initMessageState() {
+	delete _msgState;
+	_msgState = new MessageState(_segMan);
+}
+
 uint16 EngineState::currentRoomNumber() const {
 	return variables[VAR_GLOBAL][kGlobalVarNewRoomNo].toUint16();
 }
@@ -294,11 +299,7 @@ Common::String SciEngine::getSciLanguageString(const Common::String &str, kLangu
 }
 
 kLanguage SciEngine::getSciLanguage() {
-	kLanguage lang = (kLanguage)_resMan->getAudioLanguage();
-	if (lang != K_LANG_NONE)
-		return lang;
-
-	lang = K_LANG_ENGLISH;
+	kLanguage lang = K_LANG_ENGLISH;
 
 	if (SELECTOR(printLang) != -1) {
 		lang = (kLanguage)readSelectorValue(_gamestate->_segMan, _gameObjectAddress, SELECTOR(printLang));

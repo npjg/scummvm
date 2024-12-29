@@ -183,12 +183,12 @@ Common::StringArray *MacMenu::readMenuFromResource(Common::SeekableReadStream *r
 }
 
 static Common::U32String readUnicodeString(Common::SeekableReadStream *stream) {
-	Common::Array<uint32> strData;
+	Common::U32String strData;
 	uint16 wchar;
 	while ((wchar = stream->readUint16LE()) != '\0') {
-		strData.push_back(wchar);
+		strData += wchar;
 	}
-	return strData.empty() ? Common::U32String() : Common::U32String(strData.data(), strData.size());
+	return strData;
 }
 
 void MacMenu::setAlignment(Graphics::TextAlign align) {
@@ -795,7 +795,7 @@ const Font *MacMenu::getMenuFont(int slant) {
 	}
 #endif
 
-	return _wm->_fontMan->getFont(Graphics::MacFont(kMacFontChicago, 12, slant));
+	return _wm->_fontMan->getFont(Graphics::MacFont(kMacFontSystem, 12, slant));
 }
 
 const Common::String MacMenu::getAcceleratorString(MacMenuItem *item, const char *prefix) {
@@ -1249,7 +1249,8 @@ void MacMenu::renderSubmenu(MacMenuSubMenu *menu, bool recursive) {
 		if (r->top + h >= _screen.h)
 			h = _screen.h - 1 - r->top;
 
-		Graphics::ManagedSurface g = *_wm->_screenCopy;
+		Graphics::ManagedSurface g;
+		g.copyFrom(*_wm->_screenCopy);
 		g.transBlitFrom(_screen, _wm->_colorGreen);
 		g_system->copyRectToScreen(g.getBasePtr(r->left, r->top), g.pitch, r->left, r->top, w, h);
 	}

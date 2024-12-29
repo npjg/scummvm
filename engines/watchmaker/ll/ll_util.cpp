@@ -221,7 +221,7 @@ int16 getRoomFromStr(Init &init, const Common::String &s) {
  *              CreateTooltipBitmap
  * --------------------------------------------------*/
 int32 CreateTooltipBitmap(Renderer &renderer, char *tooltip, FontColor color, uint8 r, uint8 g, uint8 b) {
-	int32 dimx, dimy, surf, enlarge = 5;
+	int32 dimx, dimy, enlarge = 5;
 	char info[100];
 
 	if (!tooltip || !strcmp(tooltip, "")) return -1;
@@ -231,7 +231,7 @@ int32 CreateTooltipBitmap(Renderer &renderer, char *tooltip, FontColor color, ui
 	dimx += renderer.rFitX(enlarge * 2);
 	dimy += renderer.rFitY(enlarge * 2);
 
-	surf = rCreateSurface(dimx, dimy, 0);
+	int32 surf = rCreateSurface(dimx, dimy, 0);
 	if (surf <= 0) return -1;
 
 	Common::strlcpy(info, "tooltip: ", 400);
@@ -364,7 +364,7 @@ void UpdateRoomVisibility(WGame &game) {
 		}
 	}
 
-//	Accende le animazioni di backgorund delle stanze che si vedono
+//	Accende le animazioni di background delle stanze che si vedono
 //	DebugFile("RoomVisibility %s",t3dCurRoom->Name);
 	for (i = 0; i < MAX_ROOMS; i++) {
 		if (init.Room[i].flags & ROOM_VISIBLE) {
@@ -544,8 +544,8 @@ void ChangeRoom(WGame &game, Common::String n, uint8 pos, int32 an) {
 		PortalCrossed = t3dCurRoom;
 		t3dCurCamera = &t3dCurRoom->CameraTable[0];
 		t3dVectCopy(&t3dCurCamera->Target, &Player->Mesh->Trasl);
-		ResetCameraSource();
-		ResetCameraTarget();
+		game._cameraMan->ResetCameraSource();
+		game._cameraMan->ResetCameraTarget();
 		CurFloorY = t3dCurRoom->PanelHeight[t3dCurRoom->CurLevel];
 	}
 
@@ -556,7 +556,7 @@ void ChangeRoom(WGame &game, Common::String n, uint8 pos, int32 an) {
 	game.UpdateAll();
 	if (pos)
 		CharSetPosition(ocCURPLAYER, pos, nullptr);
-	ProcessCamera(game);
+	game._cameraMan->ProcessCamera(game);
 	if (an)
 		StartAnim(game, an);
 }

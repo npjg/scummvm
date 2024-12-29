@@ -583,7 +583,7 @@ bool BaseFontTT::initFont() {
 		fallbackFilename = "FreeSans.ttf";
 	}
 
-	Common::SeekableReadStream *file = BaseFileManager::getEngineInstance()->openFile(_fontFile);
+	Common::SeekableReadStream *file = BaseFileManager::getEngineInstance()->openFile(_fontFile, true, false);
 	if (!file) {
 		if (Common::String(_fontFile) != "arial.ttf") {
 			warning("%s has no replacement font yet, using FreeSans for now (if available)", _fontFile);
@@ -593,10 +593,8 @@ bool BaseFontTT::initFont() {
 	}
 
 	if (file) {
-		_deletableFont = Graphics::loadTTFFont(*file, _fontHeight, Graphics::kTTFSizeModeCharacter, 96); // Use the same dpi as WME (96 vs 72).
+		_deletableFont = Graphics::loadTTFFont(file, DisposeAfterUse::YES, _fontHeight, Graphics::kTTFSizeModeCharacter, 96); // Use the same dpi as WME (96 vs 72).
 		_font = _deletableFont;
-		BaseFileManager::getEngineInstance()->closeFile(file);
-		file = nullptr;
 	}
 
 	// Fallback2: Try load the font from the common fonts archive:
@@ -607,7 +605,7 @@ bool BaseFontTT::initFont() {
 
 	// Fallback3: Try to ask FontMan for the FreeSans.ttf ScummModern.zip uses:
 	if (!_font) {
-		// Really not desireable, as we will get a font with dpi-72 then
+		// Really not desirable, as we will get a font with dpi-72 then
 		Common::String fontName = Common::String::format("%s-%s@%d", fallbackFilename, "ASCII", _fontHeight);
 		warning("Looking for %s", fontName.c_str());
 		_font = FontMan.getFontByName(fontName);
@@ -616,7 +614,7 @@ bool BaseFontTT::initFont() {
 	warning("BaseFontTT::InitFont - FreeType2-support not compiled in, TTF-fonts will not be loaded");
 #endif // USE_FREETYPE2
 
-	// Fallback4: Just use the Big GUI-font. (REALLY undesireable)
+	// Fallback4: Just use the Big GUI-font. (REALLY undesirable)
 	if (!_font) {
 		_font = _fallbackFont = FontMan.getFontByUsage(Graphics::FontManager::kBigGUIFont);
 		warning("BaseFontTT::InitFont - Couldn't load font: %s", _fontFile);
@@ -640,6 +638,8 @@ void BaseFontTT::measureText(const WideString &text, int maxWidth, int maxHeight
 		Common::Array<WideString>::iterator it;
 		textWidth = 0;
 		for (it = lines.begin(); it != lines.end(); ++it) {
+			if (!it)
+				continue;
 			textWidth = MAX(textWidth, _font->getStringWidth(*it));
 		}
 

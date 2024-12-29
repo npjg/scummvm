@@ -69,7 +69,7 @@ public:
 	virtual void setViewport(const Common::Rect &rect) override;
 	virtual Common::Point nativeResolution() override;
 	virtual void positionCamera(const Math::Vector3d &pos, const Math::Vector3d &interest) override;
-	virtual void updateProjectionMatrix(float fov, float yminValue, float ymaxValue, float nearClipPlane, float farClipPlane) override;
+	virtual void updateProjectionMatrix(float fov, float aspectRatio, float nearClipPlane, float farClipPlane) override;
 
 	virtual void useColor(uint8 r, uint8 g, uint8 b) override;
 	virtual void polygonOffset(bool enabled) override;
@@ -78,7 +78,7 @@ public:
 	virtual void setStippleData(byte *data) override;
 	virtual void useStipple(bool enabled) override;
 
-	Texture *createTexture(const Graphics::Surface *surface) override;
+	Texture *createTexture(const Graphics::Surface *surface, bool is3D = false) override;
 	void freeTexture(Texture *texture) override;
 	virtual void drawTexturedRect2D(const Common::Rect &screenRect, const Common::Rect &textureRect, Texture *texture) override;
 

@@ -258,7 +258,7 @@ struct ScriptPatch {
  * always mean a yes response, and "no" should always mean a no response.
  */
 
-const char *kyotoTextEntryFix = " \
+const char *const kyotoTextEntryFix = " \
 on scrubInput inputString \r\
   set result = \"\" \r\
   repeat with x = 1 to the number of chars in inputString \r\
@@ -325,7 +325,7 @@ end \r\
  * to determine which has the CD. This works, but takes forever.
  */
 
-const char *vncSkipDetection = " \
+const char *const vncSkipDetection = " \
 global cdDriveLetter, gMultiDisk \r\
 on findVNCVolume \r\
   set cdDriveLetter to \"D\" \r\
@@ -340,7 +340,7 @@ end \r\
  * released game has this code stubbed out with a return.
  */
 
-const char *vncEnableCheats = " \
+const char *const vncEnableCheats = " \
 on togCh\r\
   if getFlag(#cheats) then\r\
     setFlag(#cheats, 0)\r\
@@ -360,14 +360,53 @@ on togCh\r\
 end\r\
 ";
 
-/* AMBER: Journeys Beyond has a check to ensure that the CD and hard disk data are on
+/*
+ * AMBER: Journeys Beyond has a check to ensure that the CD and hard disk data are on
  * different drive letters. ScummVM will pretend that every drive letter contains the
  * game contents, so we need to hotpatch the CD detection routine to return D:.
  */
-const char *amberDriveDetectionFix = " \
+const char *const amberDriveDetectionFix = " \
 on GetCDLetter tagFile, discNumber\r\
   return \"D:\"\r\
 end \r\
+";
+
+/* Frankenstein: Through The Eyes Of The Monster uses a projector FRANKIE.EXE, which calls an
+ * identically-named submovie FRANKIE.DIR. For now we can work around this mess by referring to
+ * the full "path" of the embedded submovie so path detection doesn't collide with FRANKIE.EXE.
+ */
+const char *const frankensteinSwapFix = " \
+on exitFrame \r\
+  go(1, \"FRANKIE\\FRANKIE.DIR\")\r\
+end \r\
+";
+
+/*
+ * Pink Gear Collection has a check to ensure that the CD and hard disk data are on
+* different drive letters by checking if "PINKPINK.TXT" is the first file in the
+* "PG_WORLD\PINKCD" folder. Later, it iterates over every drive letter to find the CD
+* using the same method. Removing this check as ScummVM will pretend that every drive
+* letter contains the game contents.
+*/
+const char *const pinkGearDriveDetectionFix1 = " \
+on startMovie\r\
+  global oricolor, projname, mtype\r\
+  cursor(200)\r\
+  set oricolor to the colorDepth\r\
+  set projname to the pathName\r\
+  if oricolor <> 8 then\r\
+    sound fadeIn 1, 1 * 60\r\
+    puppetSound(\"BAMEN11k\")\r\
+    go(\"noH2\")\r\
+  else\r\
+    set mtype to 2\r\
+    go(\"01\")\r\
+  end if\r\
+";
+
+const char *const pinkGearDriveDetectionFix2 = " \
+on exitFrame\r\
+  go(1, \"C:\\PG_WORLD\\A_IN01\")\r\
 ";
 
 struct ScriptHandlerPatch {
@@ -378,7 +417,7 @@ struct ScriptHandlerPatch {
 	ScriptType type;
 	uint16 id;
 	uint16 castLib;
-	const char **handlerBody;
+	const char *const *handlerBody;
 } const scriptHandlerPatches[] = {
 	{"kyoto", nullptr, kPlatformWindows, "ck_data\\dd_dairi\\shared.dxr", kMovieScript, 906, DEFAULT_CAST_LIB, &kyotoTextEntryFix},
 	{"kyoto", nullptr, kPlatformWindows, "ck_data\\findfldr\\shared.dxr", kMovieScript, 802, DEFAULT_CAST_LIB, &kyotoTextEntryFix},
@@ -395,6 +434,9 @@ struct ScriptHandlerPatch {
 	{"vnc", nullptr, kPlatformWindows, "VNC\\VNC.EXE", kMovieScript, 57, DEFAULT_CAST_LIB, &vncSkipDetection},
 	{"vnc", nullptr, kPlatformWindows, "VNC2\\SHARED.DXR", kMovieScript, 1248, DEFAULT_CAST_LIB, &vncEnableCheats},
 	{"amber", nullptr, kPlatformWindows, "AMBER_F\\AMBER_JB.EXE", kMovieScript, 7, DEFAULT_CAST_LIB, &amberDriveDetectionFix},
+	{"frankenstein", nullptr, kPlatformWindows, "FRANKIE.EXE", kScoreScript, 21, DEFAULT_CAST_LIB, &frankensteinSwapFix},
+	{"pinkgear", nullptr, kPlatformWindows, "GOTOPINK.EXE", kMovieScript, 4, DEFAULT_CAST_LIB, &pinkGearDriveDetectionFix1},
+	{"pinkgear", nullptr, kPlatformWindows, "GOTOPINK.EXE", kScoreScript, 6, DEFAULT_CAST_LIB, &pinkGearDriveDetectionFix2},
 	{nullptr, nullptr, kPlatformUnknown, nullptr, kNoneScript, 0, 0, nullptr},
 
 };

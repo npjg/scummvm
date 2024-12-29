@@ -2494,6 +2494,7 @@ const PlainGameDescriptor ZCODE_GAME_LIST[] = {
 	{ "starrider",          "Star Rider" },
 	{ "trampelviecher",     "Trampelvieche: Eine Halloween-Kurzgeschichte" },
 	{ "wasserhasser",       "Wasser-Hasser" },
+	{ "whisperedworldta",   "The Whispered World" },
 	{ "wichtel",            "Wichtel" },
 
 	// Textfire Grand Prix 2002 (German)
@@ -6782,6 +6783,7 @@ const FrotzGameDescription FROTZ_GAMES[] = {
 	ENTRY1("deklinator", "040630", "1ca69e16e8e3e1941eb5c4cd403b2022", 103424, Common::DE_DEU),
 	ENTRY1("dermantel", "100913", "81155fc7363968d2a47612d13d12830d", 281564, Common::DE_DEU),
 	ENTRY1("diegerechtenricht", "101024", "47f0308a684a569ed6df68dbdc92387e", 439064, Common::DE_DEU),
+	ENTRY1("drakdiamanten_zcode", "230707", "8d1c7c9aeaf4ed6e55fb8eda0a7d4c61", 475998, Common::DE_DEU),
 	ENTRY1("drakdiamanten_zcode", "240103", "484eead39ed34619a3af8a23e1e94b6e", 476510, Common::DE_DEU),
 	ENTRY1("eskmausden", "130714", "71d37a2c11f9c0b085ff1ce06ba488f9", 199168, Common::DE_DEU),
 	ENTRY1("halb2", "020523", "d424290a37b5efc67482e4fc9224bc0e", 30208, Common::DE_DEU),
@@ -6798,6 +6800,7 @@ const FrotzGameDescription FROTZ_GAMES[] = {
 	ENTRY1("starrider", "040110", "6c42a3e46e29419d9d0e3786117ab94b", 222208, Common::DE_DEU),
 	ENTRY1("wasserhasser", "140105/z5", "b87ebdaca633e964a575abd70cb88c5a", 151040, Common::DE_DEU),
 	ENTRY1("wasserhasser", "140105/zblorb", "1d332f660aec117a4460d0555a2b30f6", 165336, Common::DE_DEU),
+	ENTRY1("whisperedworldta", "090401/Demo", "863627aea7e6095d75d175375072bdef", 146432, Common::DE_DEU),
 	ENTRY1("wichtel", "021006", "f52166e02c6bd5e0311145683f415ef5", 88576, Common::DE_DEU),
 
 	// Textfire Grand Prix 2002 (German)

@@ -31,6 +31,7 @@
 
 #include "engines/wintermute/dctypes.h"
 #include "engines/wintermute/math/rect32.h"
+#include "engines/wintermute/base/gfx/xmath.h"
 #include "engines/savestate.h"
 #include "common/stream.h"
 #include "common/str.h"
@@ -69,7 +70,7 @@ public:
 	void putDouble(double val);
 	void cleanup();
 	void getSaveStateDesc(int slot, SaveStateDescriptor &desc);
-	void deleteSaveSlot(int slot);
+	bool deleteSaveSlot(int slot);
 	uint32 getMaxUsedSlot();
 	bool getSaveExists(int slot);
 	bool initLoad(const Common::String &filename);
@@ -97,11 +98,10 @@ public:
 	bool transferCharPtr(const char *name, char **val);
 	bool transferString(const char *name, Common::String *val);
 	bool transferVector2(const char *name, Vector2 *val);
-#ifdef ENABLE_WME3D
-	bool transferVector3d(const char *name, Math::Vector3d *val);
-	bool transferMatrix4(const char *name, Math::Matrix4 *val);
-	bool transferAngle(const char *name, Math::Angle *val);
-#endif
+	bool transferVector3d(const char *name, DXVector3 *val);
+	bool transferVector4d(const char *name, DXVector4 *val);
+	bool transferMatrix4(const char *name, DXMatrix *val);
+	bool transferAngle(const char *name, float *val);
 	BasePersistenceManager(const Common::String &savePrefix = "", bool deleteSingleton = false);
 	virtual ~BasePersistenceManager();
 	bool checkVersion(byte  verMajor, byte verMinor, byte verBuild);

@@ -38,7 +38,7 @@
 #include "engines/wintermute/base/gfx/base_renderer.h"
 #include "engines/wintermute/utils/utils.h"
 #include "common/str.h"
-#include "common/math.h"
+#include "math/utils.h"
 
 namespace Wintermute {
 
@@ -214,7 +214,7 @@ bool PartEmitter::initParticle(PartParticle *particle, uint32 currentTime, uint3
 	Vector2 vecVel(0, velocity);
 
 	Matrix4 matRot;
-	float radZrot = Common::deg2rad<float>(BaseUtils::normalizeAngle(angle - 180.0));
+	float radZrot = Math::deg2rad<float>(BaseUtils::normalizeAngle(angle - 180.0));
 	matRot.rotationZ(radZrot);
 	matRot.transformVector2(vecVel);
 
@@ -369,17 +369,23 @@ bool PartEmitter::start() {
 //////////////////////////////////////////////////////////////////////////
 bool PartEmitter::sortParticlesByZ() {
 	// sort particles by _posY
-	Common::sort(_particles.begin(), _particles.end(), PartEmitter::compareZ);
+	qsort(_particles.data(), _particles.size(), sizeof(PartParticle *), PartEmitter::compareZ);
 	return STATUS_OK;
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool PartEmitter::compareZ(const PartParticle *p1, const PartParticle *p2) {
-	if (p1->_posZ < p2->_posZ) {
-		return true;
-	} else { // p1->_posZ >= p2->_posZ
-		return false;
-	}
+int PartEmitter::compareZ(const void *obj1, const void *obj2) {
+	void *o1 = const_cast<void *>(obj1);
+	void *o2 = const_cast<void *>(obj2);
+	PartParticle *p1 = *(PartParticle **)o1;
+	PartParticle *p2 = *(PartParticle **)o2;
+
+	if (p1->_posZ < p2->_posZ)
+		return -1;
+	else if (p1->_posZ > p2->_posZ)
+		return 1;
+	else
+		return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -432,7 +438,7 @@ bool PartEmitter::addForce(const Common::String &name, PartForce::TForceType typ
 
 	force->_direction = Vector2(0, strength);
 	Matrix4 matRot;
-	float radZrot = Common::deg2rad<float>(BaseUtils::normalizeAngle(angle - 180.0));
+	float radZrot = Math::deg2rad<float>(BaseUtils::normalizeAngle(angle - 180.0));
 	matRot.rotationZ(radZrot);
 	matRot.transformVector2(force->_direction);
 

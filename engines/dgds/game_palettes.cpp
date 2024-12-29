@@ -28,6 +28,25 @@
 
 namespace Dgds {
 
+static const byte EGA_COLORS[16][3] = {
+	{ 0x00, 0x00, 0x00 },
+	{ 0x00, 0x00, 0xAA },
+	{ 0x00, 0xAA, 0x00 },
+	{ 0x00, 0xAA, 0xAA },
+	{ 0xAA, 0x00, 0x00 },
+	{ 0xAA, 0x00, 0xAA },
+	{ 0xAA, 0x55, 0x00 },
+	{ 0xAA, 0xAA, 0xAA },
+	{ 0x55, 0x55, 0x55 },
+	{ 0x55, 0x55, 0xFF },
+	{ 0x55, 0xFF, 0x55 },
+	{ 0x55, 0xFF, 0xFF },
+	{ 0xFF, 0x55, 0x55 },
+	{ 0xFF, 0x55, 0xFF },
+	{ 0xFF, 0xFF, 0x55 },
+	{ 0xFF, 0xFF, 0xFF },
+};
+
 DgdsPal::DgdsPal() : Palette(256) {
 }
 
@@ -56,13 +75,39 @@ int GamePalettes::loadPalette(const Common::String &filename) {
 	while (chunk.readNextHeader(EX_PAL, filename)) {
 		chunk.readContent(_decompressor);
 		Common::SeekableReadStream *chunkStream = chunk.getContent();
-		if (chunk.isSection(ID_VGA)) {
+		if (chunk.isSection(ID_PAL)) {
+			assert(chunk.isContainer());
+		} else if (chunk.isSection(ID_VGA)) {
 			for (uint k = 0; k < 256; k++) {
 				byte r = chunkStream->readByte() << 2;
 				byte g = chunkStream->readByte() << 2;
 				byte b = chunkStream->readByte() << 2;
 				pal.set(k, r, g, b);
 			}
+			break;
+		} else if (chunk.isSection(ID_EGA)) {
+			if (chunk.getSize() > 20) {
+				for (uint k = 0; k < chunk.getSize() / 2; k++) {
+					byte egaCol = (chunkStream->readUint16LE() & 0xF);
+					byte r = EGA_COLORS[egaCol][0];
+					byte g = EGA_COLORS[egaCol][1];
+					byte b = EGA_COLORS[egaCol][2];
+					pal.set(k, r, g, b);
+				}
+			} else {
+				for (uint k = 0; k < chunk.getSize(); k++) {
+					byte egaCol = (chunkStream->readByte());
+					byte r = EGA_COLORS[egaCol][0];
+					byte g = EGA_COLORS[egaCol][1];
+					byte b = EGA_COLORS[egaCol][2];
+					pal.set(k, r, g, b);
+				}
+			}
+			break;
+		} else if (chunk.isSection(ID_CGA)) {
+			warning("Skipping CGA palette data");
+		} else {
+			error("Unknown Palette chunk in %s: %s size %d", filename.c_str(), chunk.getIdStr(), chunk.getSize());
 		}
 	}
 	pal.setName(filename);
@@ -101,16 +146,16 @@ void GamePalettes::setFade(int col, int ncols, int targetcol, int fade) {
 	const DgdsPal &pal = _palettes[_curPalNum];
 
 	byte r2, b2, g2;
-	pal.get(targetcol, r2, b2, g2);
+	pal.get(targetcol, r2, g2, b2);
 
 	for (int c = col; c < col + ncols; c++) {
 		byte r, g, b;
 		pal.get(c, r, g, b);
 
 		_curPal.set(c,
-			r2 * fade / 255 + r * (255 - fade) / 255,
-			g2 * fade / 255 + g * (255 - fade) / 255,
-			b2 * fade / 255 + b * (255 - fade) / 255);
+			(r2 * fade + r * (255 - fade)) / 255,
+			(g2 * fade + g * (255 - fade)) / 255,
+			(b2 * fade + b * (255 - fade)) / 255);
 	}
 	g_system->getPaletteManager()->setPalette(_curPal.data(), 0, 256);
 }

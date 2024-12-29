@@ -355,7 +355,7 @@ bool GfxSurface::displayText(const Common::String &msg, const Common::Point &pt)
 
 	// Wait for a mouse or keypress
 	Event event;
-	while (!g_globals->_events.getEvent(event, EVENT_BUTTON_DOWN | EVENT_KEYPRESS) && !g_vm->shouldQuit())
+	while (!g_globals->_events.getEvent(event, EVENT_BUTTON_DOWN | EVENT_CUSTOM_ACTIONSTART | EVENT_KEYPRESS) && !g_vm->shouldQuit())
 		;
 
 	// Restore the display area
@@ -363,7 +363,7 @@ bool GfxSurface::displayText(const Common::String &msg, const Common::Point &pt)
 	delete savedArea;
 
 	gfxManager.deactivate();
-	return (event.eventType == EVENT_KEYPRESS) && (event.kbd.keycode == Common::KEYCODE_RETURN);
+	return (event.eventType == EVENT_CUSTOM_ACTIONSTART) && (event.customType == kActionReturn);
 }
 
 /**
@@ -608,7 +608,7 @@ void GfxElement::highlight() {
 	GfxManager &gfxManager = g_globals->gfxManager();
 	Graphics::Surface surface = gfxManager.lockSurface();
 
-	// Scan through the contents of the element, switching any occurances of the foreground
+	// Scan through the contents of the element, switching any occurrences of the foreground
 	// color with the background color and vice versa
 	Rect tempRect(_bounds);
 	tempRect.collapse(g_globals->_gfxEdgeAdjust - 1, g_globals->_gfxEdgeAdjust - 1);
@@ -1069,11 +1069,11 @@ GfxButton *GfxDialog::execute(GfxButton *defaultButton) {
 				breakFlag = true;
 				break;
 			} else if (!event.handled) {
-				if ((event.eventType == EVENT_KEYPRESS) && (event.kbd.keycode == Common::KEYCODE_ESCAPE)) {
+				if ((event.eventType == EVENT_CUSTOM_ACTIONSTART) && (event.customType == kActionEscape)) {
 					selectedButton = NULL;
 					breakFlag = true;
 					break;
-				} else if ((event.eventType == EVENT_KEYPRESS) && (event.kbd.keycode == Common::KEYCODE_RETURN)) {
+				} else if ((event.eventType == EVENT_CUSTOM_ACTIONSTART) && (event.customType == kActionReturn)) {
 					selectedButton = defaultButton;
 					breakFlag = true;
 					break;
@@ -1275,7 +1275,7 @@ void GfxFont::setFontNumber(uint32 fontNumber) {
 		_fontData = g_resourceManager->getResource(RES_FONT, _fontNumber, 0);
 
 	// Since some TsAGE game versions don't have a valid character count at offset 4, use the offset of the
-	// first charactre data to calculate the number of characters in the offset table preceeding it
+	// first character data to calculate the number of characters in the offset table preceding it
 	_numChars = (READ_LE_UINT32(_fontData + 12) - 12) / 4;
 	assert(_numChars <= 256);
 

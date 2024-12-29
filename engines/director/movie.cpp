@@ -127,6 +127,7 @@ void Movie::setArchive(Archive *archive) {
 	if ((r = archive->getMovieResourceIfPresent(MKTAG('M', 'C', 's', 'L'))) != nullptr) {
 		// D5 archive, can contain multiple internal/external casts
 		loadCastLibMapping(*r);
+		delete r;
 	} else {
 		// D4 or lower, only 1 cast
 		_cast->setArchive(archive);
@@ -179,7 +180,7 @@ void Movie::loadCastLibMapping(Common::SeekableReadStreamEndian &stream) {
 		if (_casts.contains(libId)) {
 			cast = _casts.getVal(libId);
 		} else {
-			cast = new Cast(this, libId, false, isExternal);
+			cast = new Cast(this, libId, false, isExternal, libResourceId);
 			_casts.setVal(libId, cast);
 		}
 		_castNames[name] = libId;
@@ -458,7 +459,9 @@ CastMember* Movie::createOrReplaceCastMember(CastMemberID memberID, CastMember* 
 
 bool Movie::eraseCastMember(CastMemberID memberID) {
 	if (_casts.contains(memberID.castLib)) {
-		return _casts.getVal(memberID.castLib)->eraseCastMember(memberID.member);
+		bool result = _casts.getVal(memberID.castLib)->eraseCastMember(memberID.member);
+		_score->refreshPointersForCastMemberID(memberID);
+		return result;
 	}
 
 	return false;
@@ -489,7 +492,9 @@ bool Movie::duplicateCastMember(CastMemberID source, CastMemberID target) {
 		CastMember *sourceMember = sourceCast->getCastMember(source.member);
 		CastMemberInfo *sourceInfo = sourceCast->getCastMemberInfo(source.member);
 		debugC(3, kDebugLoading, "Movie::DuplicateCastMember(): copying cast data from %s to %s (%s)", source.asString().c_str(), target.asString().c_str(), castType2str(sourceMember->_type));
-		return targetCast->duplicateCastMember(sourceMember, sourceInfo, target.member);
+		bool result = targetCast->duplicateCastMember(sourceMember, sourceInfo, target.member);
+		_score->refreshPointersForCastMemberID(target);
+		return result;
 	}
 	return false;
 }

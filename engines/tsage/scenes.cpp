@@ -428,7 +428,7 @@ void Scene::loadBackground(int xAmount, int yAmount) {
 
 	if ((g_globals->_sceneOffset.x != g_globals->_prevSceneOffset.x) ||
 		(g_globals->_sceneOffset.y != g_globals->_prevSceneOffset.y)) {
-		// Change has happend, so refresh background
+		// Change has happened, so refresh background
 		g_globals->_prevSceneOffset = g_globals->_sceneOffset;
 		refreshBackground(xAmount, yAmount);
 	}
@@ -463,8 +463,8 @@ void Scene::refreshBackground(int xAmount, int yAmount) {
 				// Check if the section is already loaded
 				if ((_enabledSections[xp * 16 + yp] == 0xffff) || ((xAmount == 0) && (yAmount == 0))) {
 					// Chunk isn't loaded, so load it in
-					Graphics::ManagedSurface s = _backSurface.lockSurface();
-					GfxSurface::loadScreenSection(s, xp - xHalfOffset, yp - yHalfOffset, xp, yp);
+					Graphics::ManagedSurface *s = &_backSurface.lockSurface();
+					GfxSurface::loadScreenSection(*s, xp - xHalfOffset, yp - yHalfOffset, xp, yp);
 					_backSurface.unlockSurface();
 					changedFlag = true;
 				} else {

@@ -24,7 +24,7 @@
 #if defined(USE_OPENGL_GAME) || defined(USE_OPENGL_SHADERS)
 
 #include "backends/graphics3d/opengl/surfacerenderer.h"
-#include "backends/graphics3d/opengl/texture.h"
+#include "graphics/opengl/texture.h"
 
 #include "graphics/opengl/context.h"
 
@@ -108,9 +108,9 @@ void FixedSurfaceRenderer::prepareState() {
 	glDepthMask(GL_FALSE);
 }
 
-void FixedSurfaceRenderer::render(const TextureGL *tex, const Math::Rect2d &dest) {
-	float texcropX = tex->getWidth() / float(tex->getTexWidth());
-	float texcropY = tex->getHeight() / float(tex->getTexHeight());
+void FixedSurfaceRenderer::render(const Texture *tex, const Math::Rect2d &dest) {
+	float texcropX = tex->getLogicalWidth() / float(tex->getWidth());
+	float texcropY = tex->getLogicalHeight() / float(tex->getHeight());
 	float texTop    = _flipY ? 0.0f : texcropY;
 	float texBottom = _flipY ? texcropY : 0.0f;
 
@@ -139,7 +139,7 @@ void FixedSurfaceRenderer::render(const TextureGL *tex, const Math::Rect2d &dest
 
 	glColor4f(1.0, 1.0, 1.0, 1.0);
 
-	glBindTexture(GL_TEXTURE_2D, tex->getTextureName());
+	tex->bind();
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -238,17 +238,20 @@ void ShaderSurfaceRenderer::prepareState() {
 	glGetBooleanv(GL_DEPTH_WRITEMASK, &_prevStateDepthWriteMask);
 	glDepthMask(GL_FALSE);
 	_prevStateBlend = glIsEnabled(GL_BLEND);
-	glGetIntegerv(GL_BLEND_SRC_ALPHA, &_prevStateBlendFunc);
+	glGetIntegerv(GL_BLEND_SRC_RGB, &_prevStateBlendSrcRGB);
+	glGetIntegerv(GL_BLEND_DST_RGB, &_prevStateBlendDstRGB);
+	glGetIntegerv(GL_BLEND_SRC_ALPHA, &_prevStateBlendSrcAlpha);
+	glGetIntegerv(GL_BLEND_DST_ALPHA, &_prevStateBlendDstAlpha);
 	glGetIntegerv(GL_VIEWPORT, _prevStateViewport);
 	_prevStateScissorTest = glIsEnabled(GL_SCISSOR_TEST);
 	glDisable(GL_SCISSOR_TEST);
 }
 
-void ShaderSurfaceRenderer::render(const TextureGL *tex, const Math::Rect2d &dest) {
-	glBindTexture(GL_TEXTURE_2D, tex->getTextureName());
+void ShaderSurfaceRenderer::render(const Texture *tex, const Math::Rect2d &dest) {
+	tex->bind();
 
-	float texcropX = tex->getWidth() / float(tex->getTexWidth());
-	float texcropY = tex->getHeight() / float(tex->getTexHeight());
+	float texcropX = tex->getLogicalWidth() / float(tex->getWidth());
+	float texcropY = tex->getLogicalHeight() / float(tex->getHeight());
 	_boxShader->setUniform("texcrop", Math::Vector2d(texcropX, texcropY));
 	_boxShader->setUniform("flipY", _flipY);
 
@@ -264,7 +267,8 @@ void ShaderSurfaceRenderer::restorePreviousState() {
 	glDepthMask(_prevStateDepthWriteMask);
 	_prevStateScissorTest ? glEnable(GL_SCISSOR_TEST) : glDisable(GL_SCISSOR_TEST);
 	_prevStateBlend ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
-	glBlendFunc(GL_BLEND_SRC_ALPHA, _prevStateBlendFunc);
+	glBlendFuncSeparate(_prevStateBlendSrcRGB, _prevStateBlendDstRGB,
+		_prevStateBlendSrcAlpha, _prevStateBlendDstAlpha);
 	glViewport(_prevStateViewport[0], _prevStateViewport[1], _prevStateViewport[2], _prevStateViewport[3]);
 
 	_flipY = false;

@@ -125,7 +125,7 @@ static Common::String convertSierraGameId(Common::String sierraId, SciVersion sc
 			return "msastrochicken";
 	}
 
-	for (const GameIdStrToEnum *cur = s_gameIdStrToEnum; cur->gameidStr; ++cur) {
+	for (const GameIdStrToEnum *cur = gameIdStrToEnum; cur->gameidStr; ++cur) {
 		if (sierraId == cur->sierraIdStr) {
 			// Distinguish same IDs via the SCI version
 			if (cur->version != SCI_VERSION_NONE && cur->version != sciVersion)
@@ -190,7 +190,7 @@ public:
 
 	SaveStateList listSaves(const char *target) const override;
 	int getMaximumSaveSlot() const override;
-	void removeSaveState(const char *target, int slot) const override;
+	bool removeSaveState(const char *target, int slot) const override;
 	SaveStateDescriptor querySaveMetaInfos(const char *target, int slot) const override;
 	// Disable autosave (see mirrored method in sci.h for detailed explanation)
 	int getAutosaveSlot() const override { return -1; }
@@ -204,7 +204,7 @@ public:
 };
 
 Common::Error SciMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const {
-	const GameIdStrToEnum *g = s_gameIdStrToEnum;
+	const GameIdStrToEnum *g = gameIdStrToEnum;
 	for (; g->gameidStr; ++g) {
 		if (0 == strcmp(desc->gameId, g->gameidStr)) {
 #ifndef ENABLE_SCI32
@@ -215,7 +215,7 @@ Common::Error SciMetaEngine::createInstance(OSystem *syst, Engine **engine, cons
 			*engine = new SciEngine(syst, desc, g->gameidEnum);
 
 			// If the GUI options were updated, we catch this here and update them in the users config file transparently.
-			Common::updateGameGUIOptions(customizeGuiOptions(ConfMan.getPath("path"), desc->guiOptions, g->version), getGameGUIOptionsDescriptionLanguage(desc->language));
+			Common::updateGameGUIOptions(customizeGuiOptions(ConfMan.getPath("path"), desc->guiOptions, desc->platform, g->gameidStr, g->version), getGameGUIOptionsDescriptionLanguage(desc->language));
 
 			return Common::kNoError;
 		}
@@ -345,9 +345,9 @@ SaveStateDescriptor SciMetaEngine::querySaveMetaInfos(const char *target, int sl
 
 int SciMetaEngine::getMaximumSaveSlot() const { return 99; }
 
-void SciMetaEngine::removeSaveState(const char *target, int slot) const {
+bool SciMetaEngine::removeSaveState(const char *target, int slot) const {
 	Common::String fileName = Common::String::format("%s.%03d", target, slot);
-	g_system->getSavefileManager()->removeSavefile(fileName);
+	return g_system->getSavefileManager()->removeSavefile(fileName);
 }
 
 Common::Error SciEngine::loadGameState(int slot) {
@@ -505,6 +505,67 @@ bool isSciCDVersion(const AdvancedMetaEngineBase::FileMap &allFiles) {
 	return false;
 }
 
+Common::Language determineGameLanguage(ResourceManager &resMan, const SciMetaEngine::FileMap &allFiles) {
+	Common::Language language = Common::EN_ANY;
+
+	// Try to determine the game language
+	// Load up text 0 and start looking for "#" characters
+	// Non-English versions contain strings like XXXX#YZZZZ
+	// Where XXXX is the English string, #Y a separator indicating the language
+	// (e.g. #G for German) and ZZZZ is the translated text
+	// NOTE: This doesn't work for games which use message instead of text resources
+	// (like, for example, Eco Quest 1 and all SCI1.1 games and newer, e.g. Freddy Pharkas).
+	// As far as we know, these games store the messages of each language in separate
+	// resources, and it's not possible to detect that easily
+	// Also look for "%J" which is used in japanese games
+	Resource *text = resMan.findResource(ResourceId(kResourceTypeText, 0), false);
+	if (text) {
+		uint seeker = 0;
+		while (seeker < text->size()) {
+			if (text->getUint8At(seeker) == '#') {
+				if (seeker + 1 < text->size())
+					language = charToScummVMLanguage(text->getUint8At(seeker + 1));
+				break;
+			}
+			if (text->getUint8At(seeker) == '%') {
+				if ((seeker + 1 < text->size()) && (text->getUint8At(seeker + 1) == 'J')) {
+					language = charToScummVMLanguage(text->getUint8At(seeker + 1));
+					break;
+				}
+			}
+			seeker++;
+		}
+	}
+
+	// Try to determine the game language from config file (SCI1.1 and later)
+	const char *configNames[] = {"resource.cfg", "resource.win"};
+	for (int i = 0; i < ARRAYSIZE(configNames) && language == Common::EN_ANY; i++) {
+		Common::File file;
+		if (allFiles.contains(configNames[i]) && file.open(allFiles[configNames[i]])) {
+			while (!file.eos()) {
+				Common::String line = file.readLine();
+				uint32 separatorPos = line.find('=');
+				if (separatorPos == Common::String::npos) {
+					continue;
+				}
+				Common::String key = line.substr(0, separatorPos);
+				key.trim();
+				if (key.equalsIgnoreCase("language")) {
+					Common::String val = line.substr(separatorPos + 1);
+					val.trim();
+					Common::Language parsedLanguage = sciToScummVMLanguage(atoi(val.c_str()));
+					if (parsedLanguage != Common::UNK_LANG) {
+						language = parsedLanguage;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	return language;
+}
+
 void constructFallbackDetectionEntry(const Common::String &gameId, Common::Platform platform, SciVersion sciVersion, Common::Language language, bool hasEgaViews, bool isCD, bool isDemo) {
 	Common::strlcpy(s_fallbackGameIdBuf, gameId.c_str(), sizeof(s_fallbackGameIdBuf));
 
@@ -600,65 +661,7 @@ ADDetectedGame SciMetaEngine::fallbackDetectExtern(uint md5Bytes, const FileMap 
 
 	bool isDemo = false;
 	Common::String gameId = convertSierraGameId(sierraGameId, sciVersion, resMan, &isDemo);
-	Common::Language language = Common::EN_ANY;
-
-	// Try to determine the game language
-	// Load up text 0 and start looking for "#" characters
-	// Non-English versions contain strings like XXXX#YZZZZ
-	// Where XXXX is the English string, #Y a separator indicating the language
-	// (e.g. #G for German) and ZZZZ is the translated text
-	// NOTE: This doesn't work for games which use message instead of text resources
-	// (like, for example, Eco Quest 1 and all SCI1.1 games and newer, e.g. Freddy Pharkas).
-	// As far as we know, these games store the messages of each language in separate
-	// resources, and it's not possible to detect that easily
-	// Also look for "%J" which is used in japanese games
-	Resource *text = resMan.findResource(ResourceId(kResourceTypeText, 0), false);
-	uint seeker = 0;
-	if (text) {
-		while (seeker < text->size()) {
-			if (text->getUint8At(seeker) == '#')  {
-				if (seeker + 1 < text->size())
-					language = charToScummVMLanguage(text->getUint8At(seeker + 1));
-				break;
-			}
-			if (text->getUint8At(seeker) == '%') {
-				if ((seeker + 1 < text->size()) && (text->getUint8At(seeker + 1) == 'J')) {
-					language = charToScummVMLanguage(text->getUint8At(seeker + 1));
-					break;
-				}
-			}
-			seeker++;
-		}
-	}
-
-	// Try to determine the game language from config file (SCI1.1 and later)
-	const char *configNames[] = { "resource.cfg", "resource.win" };
-	for (int i = 0; i < ARRAYSIZE(configNames) && language == Common::EN_ANY; i++) {
-		Common::File file;
-		if (allFiles.contains(configNames[i]) && file.open(allFiles[configNames[i]])) {
-			while (true) {
-				Common::String line = file.readLine();
-				if (file.eos()) {
-					break;
-				}
-				uint32 separatorPos = line.find('=');
-				if (separatorPos == Common::String::npos) {
-					continue;
-				}
-				Common::String key = line.substr(0, separatorPos);
-				key.trim();
-				if (key.equalsIgnoreCase("language")) {
-					Common::String val = line.substr(separatorPos + 1);
-					val.trim();
-					Common::Language parsedLanguage = sciToScummVMLanguage(atoi(val.c_str()));
-					if (parsedLanguage != Common::UNK_LANG) {
-						language = parsedLanguage;
-					}
-					break;
-				}
-			}
-		}
-	}
+	Common::Language language = determineGameLanguage(resMan, allFiles);
 
 	constructFallbackDetectionEntry(gameId, platform, sciVersion, language, gameViews == kViewEga, isCD, isDemo);
 
@@ -671,6 +674,14 @@ void SciMetaEngine::registerDefaultSettings(const Common::String &target) const 
 
 	for (const PopUpOptionsMap *entry = popUpOptionsList; entry->guioFlag; ++entry)
 		ConfMan.registerDefault(entry->configOption, entry->defaultState);
+
+	// enable_high_resolution_graphics is normally enabled by default,
+	// except for KQ6 where it overrides the DOS platform with Windows.
+	// If it were enabled by default for KQ6, then the DOS platform
+	// would produce the Windows experience by default instead of DOS.
+	if (ConfMan.get("gameid", target) == "kq6" && ConfMan.get("platform", target) == "pc") {
+		ConfMan.registerDefault("enable_high_resolution_graphics", false);
+	}
 }
 
 GUI::OptionsContainerWidget *SciMetaEngine::buildEngineOptionsWidget(GUI::GuiObject *boss, const Common::String &name, const Common::String &target) const {

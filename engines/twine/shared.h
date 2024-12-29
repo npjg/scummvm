@@ -24,12 +24,15 @@
 
 #include "common/scummsys.h"
 
-#define NUM_GAME_FLAGS 255
+// lba1 255 - lba2 256
+#define NUM_GAME_FLAGS 256
+#define NUM_GAME_FLAGS_LBA1 255
 
 /** Number of colors used in the game */
 #define NUMOFCOLORS 256
 
-#define NUM_LOCATIONS 334 /* 150 for lba1 */
+#define MAX_HOLO_POS 150   /* lba1 */
+#define MAX_HOLO_POS_2 334 /* lba2 */
 
 #define NUM_INVENTORY_ITEMS 28
 /**
@@ -77,6 +80,12 @@
 // Twinsun explosion
 #define GAMEFLAG_VIDEO_EXPLODE2 219
 
+// lba2 Kashes or Zlitos
+#define GAMEFLAG_MONEY 8
+// FLAG_ARDOISE
+#define GAMEFLAG_ARDOISE 28
+
+// NUM_PERSO
 #define OWN_ACTOR_SCENE_INDEX 0
 #define IS_HERO(x) ((x) == OWN_ACTOR_SCENE_INDEX)
 
@@ -97,13 +106,13 @@ struct IVec2 {
 	int32 x;
 	int32 y;
 
-	inline IVec2& operator+=(const IVec2 &other) {
+	inline IVec2 &operator+=(const IVec2 &other) {
 		x += other.x;
 		y += other.y;
 		return *this;
 	}
 
-	inline IVec2& operator-=(const IVec2 &other) {
+	inline IVec2 &operator-=(const IVec2 &other) {
 		x -= other.x;
 		y -= other.y;
 		return *this;
@@ -117,21 +126,21 @@ struct IVec3 {
 	int32 y;
 	int32 z;
 
-	inline IVec3 &operator=(const I16Vec3& other) {
+	inline IVec3 &operator=(const I16Vec3 &other) {
 		x = other.x;
 		y = other.y;
 		z = other.z;
 		return *this;
 	}
 
-	inline IVec3& operator+=(const IVec3 &other) {
+	inline IVec3 &operator+=(const IVec3 &other) {
 		x += other.x;
 		y += other.y;
 		z += other.z;
 		return *this;
 	}
 
-	inline IVec3& operator-=(const IVec3 &other) {
+	inline IVec3 &operator-=(const IVec3 &other) {
 		x -= other.x;
 		y -= other.y;
 		z -= other.z;
@@ -179,6 +188,10 @@ int32 getDistance3D(const IVec3 &v1, const IVec3 &v2);
 struct BoundingBox {
 	IVec3 mins;
 	IVec3 maxs;
+
+	bool isValid() const {
+		return mins.x <= maxs.x && mins.y <= maxs.y && mins.z <= maxs.z;
+	}
 };
 
 struct ActorBoundingBox {
@@ -310,15 +323,15 @@ enum class AnimationTypes {
 
 enum class AnimType {
 	kAnimationTypeRepeat = 0, // ANIM_REPEAT
-	kAnimationThen = 1,
+	kAnimationThen = 1, // ANIM_THEN
 	// play animation and let animExtra follow as next animation
 	// if there is already a next animation set - replace the value
-	kAnimationAllThen = 2,
+	kAnimationAllThen = 2, // ANIM_ALL_THEN
 	// replace animation and let the current animation follow
-	kAnimationInsert = 3,
+	kAnimationInsert = 3, // ANIM_TEMPO
 	// play animation and let animExtra follow as next animation
 	// but don't take the current state in account
-	kAnimationSet = 4
+	kAnimationSet = 4 // ANIM_FINAL
 };
 
 /** Hero behaviour
@@ -334,11 +347,11 @@ enum class AnimType {
  * @note The values must match the @c TextId indices
  */
 enum class HeroBehaviourType {
-	kNormal = 0,          // C_NORMAL
-	kAthletic = 1,        // C_SPORTIF
-	kAggressive = 2,      // C_AGRESSIF
-	kDiscrete = 3,        // C_DISCRET
-	kProtoPack = 4,       // C_PROTOPACK
+	kNormal = 0,     // C_NORMAL
+	kAthletic = 1,   // C_SPORTIF
+	kAggressive = 2, // C_AGRESSIF
+	kDiscrete = 3,   // C_DISCRET
+	kProtoPack = 4,  // C_PROTOPACK
 #if 0
 	kDOUBLE = 5,          // C_DOUBLE Twinsen + Zoé
 	kCONQUE = 6,          // C_CONQUE Conque
@@ -354,8 +367,8 @@ enum class HeroBehaviourType {
 };
 
 // lba2
-#define CUBE_INTERIEUR	0
-#define	CUBE_EXTERIEUR	1
+#define CUBE_INTERIEUR 0
+#define CUBE_EXTERIEUR 1
 
 /**
  * 0: tunic + medallion
@@ -586,7 +599,7 @@ enum class TextId : int16 {
 	kVolumeSettings = 30,
 	kDetailsPolygonsHigh = 31,
 	kDetailsShadowHigh = 32,
-	//kSceneryZoomOn = 33, // duplicate with 133 - TODO check if this is the same in all languages
+	// kSceneryZoomOn = 33, // duplicate with 133 - TODO check if this is the same in all languages
 	kCreateNewPlayer = 40,
 	kCreateSaveGame = 41,
 	kEnterYourName = 42,
@@ -669,7 +682,7 @@ enum InventoryItems {
 
 struct TwineResource {
 	const char *hqr;
-	const int32 index;
+	int32 index;
 
 	constexpr TwineResource(const char *_hqr, int32 _index) : hqr(_hqr), index(_index) {
 	}
@@ -731,6 +744,7 @@ inline int32 NormalizeAngle(int32 angle) {
  * @return The value as it is used at runtime
  */
 inline constexpr int32 ToAngle(int32 angle) {
+	// TODO: lba2 handling of factor 4
 	return angle;
 }
 
@@ -742,8 +756,12 @@ inline constexpr int32 FromAngle(int32 angle) {
 	return angle;
 }
 
-inline double AngleToRadians(int32 angle) {
-	return 2.0 * M_PI * angle / (double)LBAAngles::ANGLE_360;
+inline double AngleToDegree(int32 angle) {
+	return (double)angle / (double)LBAAngles::ANGLE_360 * 360.0;
+}
+
+inline int DegreeToAngle(double degree) {
+	return (int)(degree * (double)LBAAngles::ANGLE_360) / 360.0;
 }
 
 inline int32 ClampAngle(int32 angle) {
@@ -765,12 +783,13 @@ inline constexpr T bits(T value, uint8 offset, uint8 bits) {
 // color 20 - 24 = orange to yellow
 // color 25 orange
 // color 26 - 30 = bright gray or white
-#define COlOR_31 31 // green dark
-#define COlOR_47 47 // green bright
-#define COLOR_48 48 // brown dark
-#define COLOR_63 63 // brown bright
-#define COLOR_64 64 // blue dark
-#define COLOR_68 68 // blue
+#define COlOR_31 31          // green dark
+#define COlOR_47 47          // green bright
+#define COLOR_48 48          // brown dark
+#define COLOR_63 63          // brown bright
+#define COLOR_64 64          // blue dark
+#define COLOR_SELECT_MENU 68 // blue
+// TODO #define COLOR_SELECT_MENU 166 // blue lba2
 #define COLOR_73 73 // blue
 #define COLOR_75 75
 #define COLOR_79 79 // blue bright
@@ -782,10 +801,19 @@ inline constexpr T bits(T value, uint8 offset, uint8 bits) {
 #define COLOR_158 158
 
 enum kDebugLevels {
-	kDebugScripts =   1 << 0,
-	kDebugTime    =   1 << 1
+	kDebugScriptsMove = 1 << 0,
+	kDebugScriptsLife = 1 << 1,
+	kDebugTimers = 1 << 2,
+	kDebugResources = 1 << 3,
+	kDebugImGui = 1 << 4,
+	kDebugInput = 1 << 5,
+	kDebugMovies = 1 << 6,
+	kDebugPalette = 1 << 7,
+	kDebugCollision = 1 << 8,
+	kDebugAnimation = 1 << 9,
+	kDebugHolomap = 1 << 10
 };
 
-}
+} // namespace TwinE
 
 #endif

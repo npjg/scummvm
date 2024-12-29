@@ -633,6 +633,15 @@ void OpenGLGraphicsManager::renderCursor() {
 }
 
 void OpenGLGraphicsManager::updateScreen() {
+	int rotation = getRotationMode();
+	int rotatedWidth = _windowWidth;
+	int rotatedHeight = _windowHeight;
+
+	if (rotation == Common::kRotation90 || rotation == Common::kRotation270) {
+		rotatedWidth = _windowHeight;
+		rotatedHeight = _windowWidth;
+	}
+
 	if (!_gameScreen || !_pipeline) {
 		return;
 	}
@@ -726,8 +735,8 @@ void OpenGLGraphicsManager::updateScreen() {
 
 	// Third step: Draw the overlay if visible.
 	if (_overlayVisible) {
-		int dstX = (_windowWidth - _overlayDrawRect.width()) / 2;
-		int dstY = (_windowHeight - _overlayDrawRect.height()) / 2;
+		int dstX = (rotatedWidth - _overlayDrawRect.width()) / 2;
+		int dstY = (rotatedHeight - _overlayDrawRect.height()) / 2;
 		_targetBuffer->enableBlend(Framebuffer::kBlendModeTraditionalTransparency);
 		_pipeline->drawTexture(_overlay->getGLTexture(), dstX, dstY, _overlayDrawRect.width(), _overlayDrawRect.height());
 	}
@@ -762,8 +771,8 @@ void OpenGLGraphicsManager::updateScreen() {
 		// Set the OSD transparency.
 		_pipeline->setColor(1.0f, 1.0f, 1.0f, _osdMessageAlpha / 100.0f);
 
-		int dstX = (_windowWidth - _osdMessageSurface->getWidth()) / 2;
-		int dstY = (_windowHeight - _osdMessageSurface->getHeight()) / 2;
+		int dstX = (rotatedWidth - _osdMessageSurface->getWidth()) / 2;
+		int dstY = (rotatedHeight - _osdMessageSurface->getHeight()) / 2;
 
 		// Draw the OSD texture.
 		_pipeline->drawTexture(_osdMessageSurface->getGLTexture(),
@@ -783,7 +792,7 @@ void OpenGLGraphicsManager::updateScreen() {
 	}
 
 	if (_osdIconSurface) {
-		int dstX = _windowWidth - _osdIconSurface->getWidth() - kOSDIconRightMargin;
+		int dstX = rotatedWidth - _osdIconSurface->getWidth() - kOSDIconRightMargin;
 		int dstY = kOSDIconTopMargin;
 
 		// Draw the OSD icon texture.
@@ -905,15 +914,11 @@ void OpenGLGraphicsManager::setMouseCursor(const void *buf, uint w, uint h, int 
 
 	Graphics::PixelFormat inputFormat;
 	Graphics::PixelFormat maskFormat;
-#ifdef USE_RGB_COLOR
 	if (format) {
 		inputFormat = *format;
 	} else {
 		inputFormat = Graphics::PixelFormat::createFormatCLUT8();
 	}
-#else
-	inputFormat = Graphics::PixelFormat::createFormatCLUT8();
-#endif
 
 #ifdef USE_SCALERS
 	bool wantScaler = (_currentState.scaleFactor > 1) && !dontScale && _scalerPlugins[_currentState.scalerIndex]->get<ScalerPluginObject>().canDrawCursor();
@@ -1267,10 +1272,21 @@ void OpenGLGraphicsManager::grabPalette(byte *colors, uint start, uint num) cons
 
 void OpenGLGraphicsManager::handleResizeImpl(const int width, const int height) {
 	// Setup backbuffer size.
-	_targetBuffer->setSize(width, height);
+	_targetBuffer->setSize(width, height, getRotationMode());
 
+	int rotation = getRotationMode();
 	uint overlayWidth = width;
 	uint overlayHeight = height;
+
+	int rotatedWidth = _windowWidth;
+	int rotatedHeight = _windowHeight;
+
+	if (rotation == Common::kRotation90 || rotation == Common::kRotation270) {
+		overlayWidth = height;
+		overlayHeight = width;
+		rotatedWidth = _windowHeight;
+		rotatedHeight = _windowWidth;
+	}
 
 	// WORKAROUND: We can only support surfaces up to the maximum supported
 	// texture size. Thus, in case we encounter a physical size bigger than
@@ -1280,7 +1296,7 @@ void OpenGLGraphicsManager::handleResizeImpl(const int width, const int height) 
 	// anyway. Thus, it should not be a real issue for modern hardware.
 	if (   overlayWidth  > (uint)OpenGLContext.maxTextureSize
 	    || overlayHeight > (uint)OpenGLContext.maxTextureSize) {
-		const frac_t outputAspect = intToFrac(_windowWidth) / _windowHeight;
+		const frac_t outputAspect = intToFrac(rotatedWidth) / rotatedHeight;
 
 		if (outputAspect > (frac_t)FRAC_ONE) {
 			overlayWidth  = OpenGLContext.maxTextureSize;
@@ -1476,12 +1492,12 @@ Surface *OpenGLGraphicsManager::createSurface(const Graphics::PixelFormat &forma
 	if (wantScaler) {
 		// TODO: Ensure that the requested pixel format is supported by the scaler
 		if (getGLPixelFormat(format, glIntFormat, glFormat, glType)) {
-			return new ScaledTexture(glIntFormat, glFormat, glType, format, format);
+			return new ScaledTextureSurface(glIntFormat, glFormat, glType, format, format);
 		} else {
 #ifdef SCUMM_LITTLE_ENDIAN
-			return new ScaledTexture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24), format);
+			return new ScaledTextureSurface(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24), format);
 #else
-			return new ScaledTexture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0), format);
+			return new ScaledTextureSurface(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0), format);
 #endif
 		}
 	}
@@ -1489,8 +1505,8 @@ Surface *OpenGLGraphicsManager::createSurface(const Graphics::PixelFormat &forma
 
 	if (format.bytesPerPixel == 1) {
 #if !USE_FORCED_GLES
-		if (TextureCLUT8GPU::isSupportedByContext() && !wantMask) {
-			return new TextureCLUT8GPU();
+		if (TextureSurfaceCLUT8GPU::isSupportedByContext() && !wantMask) {
+			return new TextureSurfaceCLUT8GPU();
 		}
 #endif
 
@@ -1499,27 +1515,27 @@ Surface *OpenGLGraphicsManager::createSurface(const Graphics::PixelFormat &forma
 		if (!supported) {
 			return nullptr;
 		} else {
-			return new FakeTexture(glIntFormat, glFormat, glType, virtFormat, format);
+			return new FakeTextureSurface(glIntFormat, glFormat, glType, virtFormat, format);
 		}
 	} else if (getGLPixelFormat(format, glIntFormat, glFormat, glType)) {
-		return new Texture(glIntFormat, glFormat, glType, format);
+		return new TextureSurface(glIntFormat, glFormat, glType, format);
 	} else if (OpenGLContext.packedPixelsSupported && format == Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0)) {
 		// OpenGL ES does not support a texture format usable for RGB555.
 		// Since SCUMM uses this pixel format for some games (and there is no
 		// hope for this to change anytime soon) we use pixel format
 		// conversion to a supported texture format.
-		return new TextureRGB555();
+		return new TextureSurfaceRGB555();
 #ifdef SCUMM_LITTLE_ENDIAN
 	} else if (format == Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0)) { // RGBA8888
 #else
 	} else if (format == Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24)) { // ABGR8888
 #endif
-		return new TextureRGBA8888Swap();
+		return new TextureSurfaceRGBA8888Swap();
 	} else {
 #ifdef SCUMM_LITTLE_ENDIAN
-		return new FakeTexture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24), format);
+		return new FakeTextureSurface(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24), format);
 #else
-		return new FakeTexture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0), format);
+		return new FakeTextureSurface(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0), format);
 #endif
 	}
 }
@@ -1617,9 +1633,10 @@ bool OpenGLGraphicsManager::gameNeedsAspectRatioCorrection() const {
 		const uint height = getHeight();
 
 		// In case we enable aspect ratio correction we force a 4/3 ratio.
-		// But just for 320x200, 640x400 and Hercules games, since other
+		// But just for 320x200, 640x400, 640x350 (16 color EGA) and Hercules games, since other
 		// games do not need this.
 		return (width == 320 && height == 200) || (width == 640 && height == 400) ||
+			   (width == 640 && height == 350) ||
 		       (width == 720 && height == 348) || (width == 720 && height == 350);
 	}
 
@@ -1639,7 +1656,7 @@ void OpenGLGraphicsManager::recalculateDisplayAreas() {
 
 #if !USE_FORCED_GLES
 	if (_libretroPipeline) {
-		const GLTexture &gameScreenTexture = _gameScreen->getGLTexture();
+		const Texture &gameScreenTexture = _gameScreen->getGLTexture();
 		_libretroPipeline->setDisplaySizes(gameScreenTexture.getLogicalWidth(), gameScreenTexture.getLogicalHeight(),
 				_gameDrawRect);
 	}
@@ -1648,10 +1665,21 @@ void OpenGLGraphicsManager::recalculateDisplayAreas() {
 	// Setup drawing limitation for game graphics.
 	// This involves some trickery because OpenGL's viewport coordinate system
 	// is upside down compared to ours.
-	_targetBuffer->setScissorBox(_gameDrawRect.left,
-	                          _windowHeight - _gameDrawRect.height() - _gameDrawRect.top,
-	                          _gameDrawRect.width(),
-	                          _gameDrawRect.height());
+	switch (getRotationMode()) {
+	case Common::kRotation90:
+	case Common::kRotation180:
+		_targetBuffer->setScissorBox(_gameDrawRect.top,
+					     _gameDrawRect.left,
+					     _gameDrawRect.height(),
+					     _gameDrawRect.width());
+		break;
+	default:
+		_targetBuffer->setScissorBox(_gameDrawRect.left,
+					     _windowHeight - _gameDrawRect.height() - _gameDrawRect.top,
+					     _gameDrawRect.width(),
+					     _gameDrawRect.height());
+	}
+
 
 	_shakeOffsetScaled = Common::Point(_gameScreenShakeXOffset * _gameDrawRect.width() / (int)_currentState.gameWidth,
 		_gameScreenShakeYOffset * _gameDrawRect.height() / (int)_currentState.gameHeight);

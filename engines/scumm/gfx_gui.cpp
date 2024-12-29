@@ -39,6 +39,8 @@
 namespace Scumm {
 
 void ScummEngine::initBanners() {
+	memset(_bannerColors, 0, sizeof(_bannerColors));
+
 	setPalColor(7, 0x5A, 0x5A, 0x5A);
 	setPalColor(8, 0x46, 0x46, 0x46);
 	setPalColor(15, 0x8C, 0x8C, 0x8C);
@@ -120,7 +122,7 @@ Common::KeyState ScummEngine::showBannerAndPause(int bannerId, int32 waitTime, c
 	// Backup the text surface...
 	if (_game.version < 7 && !_mainMenuIsActive && _game.platform != Common::kPlatformFMTowns) {
 		saveSurfacesPreGUI();
-		if (_charset->_textScreenID == kMainVirtScreen && !(_game.version == 4 && _game.id == GID_LOOM))
+		if (_currentRoom != 0 && _charset->_textScreenID == kMainVirtScreen && !(_game.version == 4 && _game.id == GID_LOOM))
 			restoreCharsetBg();
 	}
 
@@ -328,6 +330,8 @@ Common::KeyState ScummEngine::showBannerAndPause(int bannerId, int32 waitTime, c
 
 Common::KeyState ScummEngine::printMessageAndPause(const char *msg, int color, int32 waitTime, bool drawOnSentenceLine) {
 	Common::Rect sentenceline;
+	int pixelYOffset = (_game.platform == Common::kPlatformC64) ? 1 : 0;
+	int pixelXOffset = (_game.platform == Common::kPlatformC64) ? 1 : 0;
 
 	// Pause the engine
 	PauseToken pt = pauseEngine();
@@ -336,14 +340,14 @@ Common::KeyState ScummEngine::printMessageAndPause(const char *msg, int color, i
 		setSnailCursor();
 
 		_string[2].charset = 1;
-		_string[2].ypos = _virtscr[kVerbVirtScreen].topline;
-		_string[2].xpos = 0;
-		_string[2].right = _virtscr[kVerbVirtScreen].w - 1;
+		_string[2].ypos = _virtscr[kVerbVirtScreen].topline + pixelYOffset;
+		_string[2].xpos = 0 + pixelXOffset;
+		_string[2].right = _virtscr[kVerbVirtScreen].w - 1 + pixelXOffset;
 		if (_game.platform == Common::kPlatformNES) {
 			_string[2].xpos = 16;
 			_string[2].color = 0;
-		} else if (_game.platform == Common::kPlatformC64) {
-			_string[2].color = 16;
+		} else if (_game.platform == Common::kPlatformC64 || _game.platform == Common::kPlatformApple2GS) {
+			_string[2].color = (_game.platform == Common::kPlatformApple2GS && !enhancementEnabled(kEnhVisualChanges)) ? 1 : 16;
 		} else {
 			_string[2].color = 13;
 		}
@@ -376,18 +380,18 @@ Common::KeyState ScummEngine::printMessageAndPause(const char *msg, int color, i
 			sentenceline.left = 16;
 			sentenceline.right = _virtscr[kVerbVirtScreen].w - 1;
 		} else {
-			sentenceline.top = _virtscr[kVerbVirtScreen].topline;
-			sentenceline.bottom = _virtscr[kVerbVirtScreen].topline + 8;
-			sentenceline.left = 0;
-			sentenceline.right = _virtscr[kVerbVirtScreen].w - 1;
+			sentenceline.top = _virtscr[kVerbVirtScreen].topline + pixelYOffset;
+			sentenceline.bottom = _virtscr[kVerbVirtScreen].topline + 8 + pixelYOffset;
+			sentenceline.left = 0 + pixelXOffset;
+			sentenceline.right = _virtscr[kVerbVirtScreen].w - 1 + pixelXOffset;
 		}
 		restoreBackground(sentenceline);
 		drawString(2, (byte *)string);
 		drawDirtyScreenParts();
 	} else {
-		_string[0].xpos = 0;
+		_string[0].xpos = 0 + pixelXOffset;
 		_string[0].ypos = 0;
-		_string[0].right = _screenWidth - 1;
+		_string[0].right = _screenWidth - 1 + pixelXOffset;
 		_string[0].center = false;
 		_string[0].overhead = false;
 
@@ -412,7 +416,9 @@ Common::KeyState ScummEngine::printMessageAndPause(const char *msg, int color, i
 	if (waitTime) {
 		ScummEngine::drawDirtyScreenParts();
 		waitForBannerInput(waitTime, ks, leftBtnPressed, rightBtnPressed);
-		stopTalk();
+
+		if (!drawOnSentenceLine)
+			stopTalk();
 	}
 
 	if (drawOnSentenceLine) {
@@ -456,7 +462,7 @@ Common::KeyState ScummEngine::showOldStyleBannerAndPause(const char *msg, int co
 	// Backup the text surface...
 	if (!_mainMenuIsActive) {
 		saveSurfacesPreGUI();
-		if (_charset->_textScreenID == kMainVirtScreen && _game.id != GID_LOOM) {
+		if (_currentRoom != 0 && _charset->_textScreenID == kMainVirtScreen && _game.id != GID_LOOM) {
 			restoreCharsetBg();
 		}
 	}
@@ -1686,7 +1692,7 @@ void ScummEngine::setUpDraftsInventory() {
 	}
 }
 
-static const char *loomDraftsNames[7][18] = {
+static const char *const loomDraftsNames[7][18] = {
 	// ENGLISH
 	{
 		"Drafts",
@@ -1809,7 +1815,7 @@ void ScummEngine::drawDraftsInventory() {
 		namesWidth, notesWidth;
 
 	char notesBuf[6];
-	const char **names;
+	const char *const *names;
 	const char *notes = "cdefgabC";
 
 	int yConstant = _virtscr[kMainVirtScreen].topline + (_virtscr[kMainVirtScreen].h / 2);
@@ -2027,6 +2033,9 @@ void ScummEngine::setMusicVolume(int volume) {
 		_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, volume * 2);
 	ConfMan.setInt("music_volume", volume * 2);
 	ConfMan.flushToDisk();
+
+	if (_game.version < 7)
+		ScummEngine::syncSoundSettings(); // Immediately update volume for old iMUSE and sound systems
 }
 
 void ScummEngine::setSpeechVolume(int volume) {
@@ -2035,6 +2044,9 @@ void ScummEngine::setSpeechVolume(int volume) {
 		_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, volume * 2);
 	ConfMan.setInt("speech_volume", volume * 2);
 	ConfMan.flushToDisk();
+
+	if (_game.version < 7)
+		ScummEngine::syncSoundSettings(); // Immediately update volume for old iMUSE and sound systems
 }
 
 void ScummEngine::setSFXVolume(int volume) {
@@ -2043,6 +2055,9 @@ void ScummEngine::setSFXVolume(int volume) {
 		_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, volume * 2);
 	ConfMan.setInt("sfx_volume", volume * 2);
 	ConfMan.flushToDisk();
+
+	if (_game.version < 7)
+		ScummEngine::syncSoundSettings(); // Immediately update volume for old iMUSE and sound systems
 }
 
 int ScummEngine::getMusicVolume() {
@@ -2116,7 +2131,9 @@ void ScummEngine::queryQuit(bool returnToLauncher) {
 				event.type = Common::EVENT_RETURN_TO_LAUNCHER;
 				getEventManager()->pushEvent(event);
 			} else {
-				quitGame();
+				Common::Event event;
+				event.type = Common::EVENT_QUIT;
+				getEventManager()->pushEvent(event);
 			}
 		}
 	}
@@ -2205,18 +2222,18 @@ void ScummEngine::fillSavegameLabels() {
 
 	_savegameNames.clear();
 
-	for (int i = 0; i < 9; i++) {
+	for (int i = GUI_CTRL_FIRST_SG; i <= GUI_CTRL_LAST_SG; i++) {
 		curSaveSlot = i + (isLoomVga ? _firstSaveStateOfList : _curDisplayedSaveSlotPage * 9);
-		if (_game.version > 4 || (_game.version == 4 && _game.id == GID_LOOM)) {
+		if (_game.version > 4 || isLoomVga) {
 			if (availSaves[curSaveSlot]) {
 				if (getSavegameName(curSaveSlot, name)) {
-					_savegameNames.push_back(Common::String::format("%2d. %s", curSaveSlot + 1, name.c_str()));
+					_savegameNames.push_back(Common::String::format("%2d. %s", curSaveSlot, name.c_str()));
 				} else {
 					// The original printed "WARNING... old savegame", but we do support old savegames :-)
-					_savegameNames.push_back(Common::String::format("%2d. WARNING: wrong save version", curSaveSlot + 1));
+					_savegameNames.push_back(Common::String::format("%2d. WARNING: wrong save version", curSaveSlot));
 				}
 			} else {
-				_savegameNames.push_back(Common::String::format("%2d. ", curSaveSlot + 1));
+				_savegameNames.push_back(Common::String::format("%2d. ", curSaveSlot));
 			}
 		} else {
 			if (availSaves[curSaveSlot]) {
@@ -2242,7 +2259,7 @@ bool ScummEngine::canWriteGame(int slotId) {
 		return true;
 
 	listSavegames(saveList, ARRAYSIZE(saveList));
-	if (saveList[slotId - 1]) {
+	if (saveList[slotId]) {
 		convertMessageToString((const byte *)getGUIString(gsReplacePrompt), (byte *)msgLabelPtr, sizeof(msgLabelPtr));
 
 		// Fallback to a hardcoded string
@@ -2270,7 +2287,7 @@ bool ScummEngine::userWriteLabelRoutine(Common::KeyState &ks, bool &leftMsClicke
 	bool hasLoadedState = false;
 	int firstChar = (_game.version == 4 && _game.id != GID_LOOM) ? 0 : 4;
 	bool opResult = true;
-	_system->setFeatureState(OSystem::kFeatureVirtualKeyboard, true);
+	beginTextInput();
 
 	while (!shouldQuit()) {
 		waitForTimer(1);
@@ -2281,7 +2298,7 @@ bool ScummEngine::userWriteLabelRoutine(Common::KeyState &ks, bool &leftMsClicke
 			clearClickedStatus();
 			opResult = executeMainMenuOperation(GUI_CTRL_OK_BUTTON, -1, -1, hasLoadedState);
 
-			_system->setFeatureState(OSystem::kFeatureVirtualKeyboard, false);
+			endTextInput();
 			return opResult;
 		} else if (leftMsClicked) {
 			clearClickedStatus();
@@ -2312,7 +2329,7 @@ bool ScummEngine::userWriteLabelRoutine(Common::KeyState &ks, bool &leftMsClicke
 		clearClickedStatus();
 	}
 
-	_system->setFeatureState(OSystem::kFeatureVirtualKeyboard, false);
+	endTextInput();
 	return false;
 }
 
@@ -2588,7 +2605,7 @@ void ScummEngine::showMainMenu() {
 		!(_game.platform == Common::kPlatformSegaCD && hasLoadedState)) {
 		restoreCursorPostMenu();
 	} else if (_saveLoadFlag == 2) {
-		_cursor.state = 0;
+		_cursor.state = (_game.id == GID_MONKEY && _game.platform == Common::kPlatformMacintosh) ? 1 : 0;
 	}
 
 	// Run the exit savescreen script, if available
@@ -2838,7 +2855,7 @@ bool ScummEngine::executeMainMenuOperation(int op, int mouseX, int mouseY, bool 
 					// Temporarily restore the shake effect to save it...
 					setShake(_shakeTempSavedState);
 
-					if (saveState(curSlot - 1, false, dummyString)) {
+					if (saveState(curSlot, false, dummyString)) {
 						setShake(0);
 						saveCursorPreMenu();
 						_saveScriptParam = GAME_PROPER_SAVE;
@@ -2900,7 +2917,7 @@ bool ScummEngine::executeMainMenuOperation(int op, int mouseX, int mouseY, bool 
 				}
 
 				curSlot = _mainMenuSavegameLabel + (isLoomVga ? _firstSaveStateOfList : _curDisplayedSaveSlotPage * 9);
-				if (loadState(curSlot - 1, false)) {
+				if (loadState(curSlot, false)) {
 					hasLoadedState = true;
 
 #ifdef ENABLE_SCUMM_7_8

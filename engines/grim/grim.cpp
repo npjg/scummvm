@@ -403,11 +403,19 @@ Common::Error GrimEngine::run() {
 	}
 
 	if (getGameType() == GType_MONKEY4 && getGameLanguage() == Common::Language::ZH_TWN) {
-		Common::File img, imgmap;
-		if (img.open("font.tga") && imgmap.open("map.bin")) {
-			BitmapFont *f = new BitmapFont();
-			f->loadTGA("font.tga", &imgmap, &img);
+		_transcodeChineseToSimplified = ConfMan.hasKey("language") && (Common::parseLanguage(ConfMan.get("language")) == Common::Language::ZH_CHN);
+
+		if (_transcodeChineseToSimplified) {
+			FontTTF *f = new FontTTF();
+			f->loadTTFFromArchive("NotoSansSC-Regular.otf", 1200);
 			_overrideFont = f;
+		} else {
+			Common::File img, imgmap;
+			if (img.open("font.tga") && imgmap.open("map.bin")) {
+				BitmapFont *f = new BitmapFont();
+				f->loadTGA("font.tga", &imgmap, &img);
+				_overrideFont = f;
+			}
 		}
 	}
 
@@ -653,9 +661,7 @@ void GrimEngine::playAspyrLogo() {
 		uint32 startTime = g_system->getMillis();
 
 		updateDisplayScene();
-		if (_doFlip) {
-			doFlip();
-		}
+		doFlip();
 		// Process events to allow the user to skip the logo.
 		Common::Event event;
 		while (g_system->getEventManager()->pollEvent(event)) {
@@ -839,7 +845,7 @@ void GrimEngine::updateDisplayScene() {
 		if (g_movie->isPlaying()) {
 			_movieTime = g_movie->getMovieTime();
 			if (g_movie->isUpdateNeeded()) {
-				g_driver->prepareMovieFrame(g_movie->getDstSurface());
+				g_driver->prepareMovieFrame(g_movie->getDstSurface(), g_movie->getDstPalette());
 				g_movie->clearUpdateNeeded();
 			}
 			int frame = g_movie->getFrame();
@@ -908,7 +914,7 @@ void GrimEngine::drawNormalMode() {
 	if (g_movie->isPlaying() && _movieSetup == _currSet->getCurrSetup()->_name) {
 		_movieTime = g_movie->getMovieTime();
 		if (g_movie->isUpdateNeeded()) {
-			g_driver->prepareMovieFrame(g_movie->getDstSurface());
+			g_driver->prepareMovieFrame(g_movie->getDstSurface(), g_movie->getDstPalette());
 			g_movie->clearUpdateNeeded();
 		}
 		if (g_movie->getFrame() >= 0)
@@ -957,7 +963,11 @@ void GrimEngine::drawNormalMode() {
 
 void GrimEngine::doFlip() {
 	_frameCounter++;
-	if (!_doFlip) {
+	// When possible, flip the buffer
+	// This makes sure the screen is refreshed on a regular basis
+	// The image is properly resized if needed and backend overlays are displayed
+	if (!_doFlip || (_mode == PauseMode)) {
+		g_driver->flipBuffer(true);
 		return;
 	}
 
@@ -1060,7 +1070,7 @@ void GrimEngine::mainLoop() {
 						continue;
 					}
 
-					if (_mode != DrawMode && _mode != SmushMode && (event.kbd.ascii == 'q')) {
+					if (_mode != DrawMode && _mode != SmushMode && ((event.kbd.ascii == 'q') || (event.kbd.ascii == 'x' && (event.kbd.flags & Common::KBD_ALT)))) {
 						handleExit();
 						break;
 					} else if (_mode != DrawMode && (event.kbd.keycode == Common::KEYCODE_PAUSE)) {
@@ -1131,9 +1141,7 @@ void GrimEngine::mainLoop() {
 			updateDisplayScene();
 		}
 
-		if (_mode != PauseMode) {
-			doFlip();
-		}
+		doFlip();
 
 		// We do not want the scripts to update while a movie is playing in the PS2-version.
 		if (!(getGamePlatform() == Common::kPlatformPS2 && _mode == SmushMode)) {
@@ -1255,6 +1263,16 @@ void GrimEngine::savegameRestore() {
 	lua_Restore(_savedState);
 	Debug::debug(Debug::Engine, "Lua restored successfully.");
 
+	if (getGameType() == GType_GRIM && !(getGameFlags() & ADGF_DEMO) &&
+		_savedState->saveMajorVersion() == 22 &&
+		_savedState->saveMinorVersion() >= 7 &&
+		_savedState->saveMinorVersion() <= 28) {
+		// Since ResidualVM 0.2.0, a ResidualVM/ScummVM specific patch was provided broken.
+		// We patch here the code to fix all saves containing this invalid code.
+		// cf. bug #13139 and #14987
+		lua_PatchGrimSave();
+	}
+
 	delete _savedState;
 
 	_justSaveLoaded = true;
@@ -1269,6 +1287,7 @@ void GrimEngine::savegameRestore() {
 	if (g_imuse)
 		g_imuse->pause(false);
 	g_movie->pause(false);
+
 	debug(2, "GrimEngine::savegameRestore() finished.");
 
 	_shortFrame = true;
@@ -1664,19 +1683,6 @@ void GrimEngine::pauseEngineIntern(bool pause) {
 	} else {
 		_frameStart += _system->getMillis() - _pauseStartTime;
 	}
-}
-
-
-Graphics::Surface *loadPNG(const Common::Path &filename) {
-	Image::PNGDecoder d;
-	Common::SeekableReadStream *s = SearchMan.createReadStreamForMember(filename);
-	if (!s)
-		return nullptr;
-	d.loadStream(*s);
-	delete s;
-
-	Graphics::Surface *srf = d.getSurface()->convertTo(Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24));
-	return srf;
 }
 
 void GrimEngine::debugLua(const Common::String &str) {

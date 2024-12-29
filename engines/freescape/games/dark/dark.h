@@ -52,7 +52,7 @@ public:
 	uint32 _jetFuelSeconds;
 	void addSkanner(Area *area);
 
-	void initKeymaps(Common::Keymap *engineKeyMap, const char *target) override;
+	void initKeymaps(Common::Keymap *engineKeyMap, Common::Keymap *infoScreenKeyMap, const char *target) override;
 	void initGameState() override;
 	void borderScreen() override;
 	bool checkIfGameEnded() override;
@@ -92,9 +92,11 @@ public:
 	void drawCPCUI(Graphics::Surface *surface) override;
 	void drawAmigaAtariSTUI(Graphics::Surface *surface) override;
 
-	Common::BitArray _fontBig;
-	Common::BitArray _fontMedium;
-	Common::BitArray _fontSmall;
+	Font _fontBig;
+	Font _fontMedium;
+	Font _fontSmall;
+	int _soundIndexRestoreECD;
+	int _soundIndexDestroyECD;
 
 	void drawString(const DarkFontSize size, const Common::String &str, int x, int y, uint32 primaryColor, uint32 secondaryColor, uint32 backColor, Graphics::Surface *surface);
 	void drawInfoMenu() override;
@@ -110,7 +112,6 @@ private:
 	bool tryDestroyECD(int index);
 	bool tryDestroyECDFullGame(int index);
 	void addWalls(Area *area);
-	Common::HashMap<uint16, bool> _exploredAreas;
 };
 
 }

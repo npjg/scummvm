@@ -466,7 +466,7 @@ void ScummEngine_v7::drawBlastTexts() {
 
 		_charset->setCurID(_blastTextQueue[i].charset);
 
-		if (_game.version == 7)
+		if (_game.version == 7 && _charset->getCurID() != -1)
 			memcpy(_charsetColorMap, _charsetData[_charset->getCurID()], _game.id == GID_DIG ? sizeof(_charsetColorMap) : 4);
 
 		if (bt.flags & kStyleWordWrap) {
@@ -653,7 +653,7 @@ void ScummEngine_v7::displayDialog() {
 		_charset->_center = _string[0].center;
 	}
 
-	if (_game.version == 7)
+	if (_game.version == 7 && _charset->getCurID() != -1)
 		memcpy(_charsetColorMap, _charsetData[_charset->getCurID()], _game.id == GID_DIG ? sizeof(_charsetColorMap) : 4);
 
 	if (usingOldSystem && a && a->_charset) {
@@ -719,7 +719,7 @@ void ScummEngine_v7::displayDialog() {
 			if (c == 13) {
 				// New line
 				if (subtitleLine != subtitleBuffer) {
-					addSubtitleToQueue(subtitleBuffer, subtitlePos, _charsetColor, _charset->getCurID(), false, false);
+					addSubtitleToQueue(subtitleBuffer, subtitlePos, _charsetColor, _charset->getCurID(), _haveActorSpeechMsg, false);
 					subtitleLine = subtitleBuffer;
 				}
 
@@ -743,7 +743,7 @@ void ScummEngine_v7::displayDialog() {
 		}
 
 		if (subtitleLine != subtitleBuffer) {
-			addSubtitleToQueue(subtitleBuffer, subtitlePos, _charsetColor, _charset->getCurID(), false, false);
+			addSubtitleToQueue(subtitleBuffer, subtitlePos, _charsetColor, _charset->getCurID(), _haveActorSpeechMsg, false);
 		}
 	} else {
 		_talkDelay = VAR(VAR_DEFAULT_TALK_DELAY);

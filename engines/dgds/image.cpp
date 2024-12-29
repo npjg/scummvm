@@ -20,6 +20,7 @@
  */
 
 #include "common/debug.h"
+#include "common/endian.h"
 #include "common/rect.h"
 #include "common/textconsole.h"
 #include "common/str.h"
@@ -37,7 +38,7 @@
 
 namespace Dgds {
 
-Image::Image(ResourceManager *resourceMan, Decompressor *decompressor) : _resourceMan(resourceMan), _decompressor(decompressor) {
+Image::Image(ResourceManager *resourceMan, Decompressor *decompressor) : _resourceMan(resourceMan), _decompressor(decompressor), _matrixX(0), _matrixY(0) {
 }
 
 Image::~Image() {
@@ -73,18 +74,34 @@ void Image::drawScreen(const Common::String &filename, Graphics::ManagedSurface 
 
 	_filename = filename;
 
-	surface.fillRect(Common::Rect(SCREEN_WIDTH, SCREEN_HEIGHT), 0);
+	surface.fillRect(Common::Rect(surface.w, surface.h), 0);
+
+	uint16 xsize = surface.w;
+	uint16 ysize = surface.h;
 
 	DgdsChunkReader chunk(fileStream);
 	while (chunk.readNextHeader(ex, filename)) {
+		if (chunk.isContainer()) {
+			continue;
+		}
+
 		chunk.readContent(_decompressor);
 		Common::SeekableReadStream *stream = chunk.getContent();
 		if (chunk.isSection(ID_BIN)) {
-			loadBitmap4(&surface, 0, stream, false);
+			loadBitmap4(&surface, 0, stream, false, xsize, ysize);
+		} else if (chunk.isSection(ID_DIM)) {
+			xsize = stream->readUint16LE();
+			ysize = stream->readUint16LE();
+			if (xsize > surface.w || ysize > surface.h) {
+				error("Trying to load SCR size %d x %d which is larger than screen %d x %d",
+					xsize, ysize, surface.w, surface.h);
+			}
+			debug(1, "screen file %s dims %d x %d into surface %d x %d",
+				filename.c_str(), xsize, ysize, surface.w, surface.h);
 		} else if (chunk.isSection(ID_VGA)) {
-			loadBitmap4(&surface, 0, stream, true);
+			loadBitmap4(&surface, 0, stream, true, xsize, ysize);
 		} else if (chunk.isSection(ID_MA8)) {
-			loadBitmap8(&surface, 0, stream);
+			loadBitmap8(&surface, 0, stream, xsize, ysize);
 		} else if (chunk.isSection(ID_VQT)) {
 			loadVQT(&surface, 0, stream);
 		}
@@ -101,6 +118,10 @@ int Image::frameCount(const Common::String &filename) {
 	int tileCount = -1;
 	DgdsChunkReader chunk(fileStream);
 	while (chunk.readNextHeader(EX_BMP, filename)) {
+		if (chunk.isContainer()) {
+			continue;
+		}
+
 		chunk.readContent(_decompressor);
 		Common::SeekableReadStream *stream = chunk.getContent();
 		if (chunk.isSection(ID_INF)) {
@@ -125,8 +146,8 @@ void Image::loadBitmap(const Common::String &filename) {
 		ex = 0;
 	}
 
-	if (ex != EX_BMP) {
-		warning("Unknown bitmap tag: %d", ex);
+	if (ex != EX_BMP && ex != EX_CDS) {
+		warning("Unknown bitmap extension: %d", ex);
 		delete fileStream;
 		return;
 	}
@@ -138,12 +159,16 @@ void Image::loadBitmap(const Common::String &filename) {
 
 	DgdsChunkReader chunk(fileStream);
 	while (chunk.readNextHeader(ex, filename)) {
+		if (chunk.isContainer()) {
+			continue;
+		}
+
 		chunk.readContent(_decompressor);
 		Common::SeekableReadStream *stream = chunk.getContent();
 		if (chunk.isSection(ID_INF)) {
 			Common::Array<Common::Point> tileSizes;
 			uint16 tileCount = stream->readUint16LE();
-			if (tileCount > 256)
+			if (tileCount > 1024)
 				error("Image::loadBitmap: Unexpectedly large number of tiles in image (%d)", tileCount);
 			_frames.resize(tileCount);
 			tileSizes.resize(tileCount);
@@ -159,27 +184,24 @@ void Image::loadBitmap(const Common::String &filename) {
 			}
 		} else if (chunk.isSection(ID_MTX)) {
 			// Scroll offset
-			Common::Array<uint16> mtxVals;
-			uint16 mw, mh;
-			mw = stream->readUint16LE();
-			mh = stream->readUint16LE();
-			uint32 mcount = uint32(mw) * mh;
-			mtxVals.resize(mcount);
-			debug("		%ux%u: mtx vals", mw, mh);
+			_matrixX = stream->readUint16LE();
+			_matrixY = stream->readUint16LE();
+			uint32 mcount = (uint32)_matrixX * _matrixY;
+			_tileMatrix.resize(mcount);
+			debug(1, "		%u x %u: mtx vals", _matrixX, _matrixY);
 
 			for (uint32 k = 0; k < mcount; k++) {
 				uint16 tile;
 				tile = stream->readUint16LE();
-				mtxVals[k] = tile;
+				_tileMatrix[k] = tile;
 			}
-			// TODO: Use mtxVals ?
 		} else if (chunk.isSection(ID_BIN)) {
 			for (auto & frame : _frames) {
-				loadBitmap4(frame.get(), 0, stream, false);
+				loadBitmap4(frame.get(), 0, stream, false, frame->w, frame->h);
 			}
 		} else if (chunk.isSection(ID_VGA)) {
 			for (auto & frame : _frames) {
-				loadBitmap4(frame.get(), 0, stream, true);
+				loadBitmap4(frame.get(), 0, stream, true, frame->w, frame->h);
 			}
 		} else if (chunk.isSection(ID_VQT)) {
 			// Postpone parsing this until we have the offsets, which come after.
@@ -283,33 +305,80 @@ void Image::drawBitmap(uint frameno, int x, int y, const Common::Rect &drawWin, 
 	}
 }
 
-void Image::loadBitmap4(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream, bool highByte) {
-	uint32 tw = surf->w;
-	uint32 th = surf->h;
+void Image::drawScrollBitmap(int16 x, int16 y, int16 width, int16 height, int16 scrollX, int16 scrollY, const Common::Rect &drawWin, Graphics::ManagedSurface &dstSurf) const {
+	if (_frames.empty())
+		error("Trying to draw scroll for empty image.");
+	if (_tileMatrix.empty())
+		error("Trying to draw scroll with non-tiled image.");
+	int tileW = _frames[0]->w;
+	int tileH = _frames[0]->h;
+	byte *dst = (byte *)dstSurf.getBasePtr(0, 0);
+
+	int nXTiles = (width + tileW - 1) / tileW;
+	int nYTiles = (height + tileH - 1) / tileH;
+
+	for (int yTile = 0; yTile < nYTiles; yTile++) {
+		int tileDstY = y + yTile * tileH;
+		int tileRowIndex = (yTile + scrollY) % _matrixY;
+		if (tileRowIndex < 0)
+			tileRowIndex += _matrixY;
+		assert(tileRowIndex >= 0 && tileRowIndex < _matrixY);
+
+		for (int xTile = 0; xTile < nXTiles; xTile++) {
+			int tileDstX = x + xTile * tileW;
+			Common::Rect tileDest(Common::Point(tileDstX, tileDstY), tileW, tileH);
+			tileDest.clip(drawWin);
+			if (tileDest.isEmpty())
+				continue;
+
+			int tileColIndex = (xTile + scrollX) % _matrixX;
+			if (tileColIndex < 0)
+				tileColIndex += _matrixX;
+			assert(tileColIndex >= 0 && tileColIndex < _matrixX);
+
+			uint16 tileNo = _tileMatrix[tileRowIndex + tileColIndex * _matrixY];
+			Common::SharedPtr<Graphics::ManagedSurface> tile = _frames[tileNo];
+			const byte *src = (const byte *)tile->getBasePtr(0, 0);
+
+			for (int dstY = tileDstY; dstY < tileDstY + tileH; dstY++) {
+				for (int dstX = tileDstX; dstX < tileDstX + tileW; dstX++) {
+					if (!tileDest.contains(dstX, dstY))
+						continue;
+					dst[dstY * dstSurf.pitch + dstX] = src[(dstY - tileDstY) * tile->pitch + (dstX - tileDstX)];
+				}
+			}
+		}
+	}
+}
+
+int16 Image::getFrameFromMatrix(int16 x, int16 y) {
+	assert(x >= 0 && y >= 0 && x < _matrixX && y < _matrixY);
+	return _tileMatrix[_matrixY * x + y];
+}
+
+
+void Image::loadBitmap4(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream, bool highByte, uint16 tw, uint16 th) {
 	assert(th != 0);
 	byte *data = (byte *)surf->getPixels();
-	byte buf;
 
 	stream->skip(toffset >> 1);
 
 	if (highByte) {
 		for (uint i = 0; i < tw * th; i += 2) {
-			buf = stream->readByte();
-			data[i + 0] |= buf & 0xF0;
-			data[i + 1] |= (buf & 0x0F) << 4;
+			byte val = stream->readByte();
+			data[i + 0] |= val & 0xF0;
+			data[i + 1] |= (val & 0x0F) << 4;
 		}
 	} else {
 		for (uint i = 0; i < tw * th; i += 2) {
-			buf = stream->readByte();
-			data[i + 0] |= (buf & 0xF0) >> 4;
-			data[i + 1] |= buf & 0x0F;
+			byte val = stream->readByte();
+			data[i + 0] |= (val & 0xF0) >> 4;
+			data[i + 1] |= val & 0x0F;
 		}
 	}
 }
 
-void Image::loadBitmap8(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream) {
-	uint32 tw = surf->w;
-	uint32 th = surf->h;
+void Image::loadBitmap8(Graphics::ManagedSurface *surf, uint32 toffset, Common::SeekableReadStream *stream, uint16 tw, uint16 th) {
 	assert(th != 0);
 	byte *data = (byte *)surf->getPixels();
 
@@ -321,7 +390,7 @@ struct VQTDecodeState {
 	uint32 offset;
 	const byte *srcPtr;
 	byte *dstPtr;
-	uint16 rowStarts[200];
+	uint16 rowStarts[SCREEN_HEIGHT_FIXED];
 };
 
 static inline byte _getVqtBits(struct VQTDecodeState *state, uint16 nbits) {
@@ -330,7 +399,7 @@ static inline byte _getVqtBits(struct VQTDecodeState *state, uint16 nbits) {
 	const uint32 index = offset >> 3;
 	const uint32 shift = offset & 7;
 	state->offset += nbits;
-	return (*(const uint16 *)(state->srcPtr + index) >> (shift)) & (byte)(0xff00 >> (16 - nbits));
+	return (READ_LE_UINT16(state->srcPtr + index) >> (shift)) & (byte)(0xff00 >> (16 - nbits));
 }
 
 static void _doVqtDecode2(struct VQTDecodeState *state, const uint16 x, const uint16 y, const uint16 w, const uint16 h) {
@@ -436,7 +505,8 @@ uint32 Image::loadVQT(Graphics::ManagedSurface *surf, uint32 toffset, Common::Se
 	uint32 tw = surf->w;
 	uint32 th = surf->h;
 	assert(th != 0);
-	if (th > 200)
+	assert(DgdsEngine::getInstance()->getGameId() != GID_CASTAWAY);
+	if (th > SCREEN_HEIGHT)
 		error("Max VQT height supported is 200px");
 	VQTDecodeState state;
 	state.dstPtr = (byte *)surf->getPixels();
@@ -444,6 +514,8 @@ uint32 Image::loadVQT(Graphics::ManagedSurface *surf, uint32 toffset, Common::Se
 	// FIXME: This sometimes reads more than it needs to..
 	uint64 nbytes = stream->size() - stream->pos();
 	byte *buf = (byte *)malloc(nbytes + 8);
+	if (!buf)
+		error("Image::loadVQT: Alloc failed");
 	memset(buf, 0, nbytes + 8);
 	stream->read(buf, nbytes);
 	state.srcPtr = buf;

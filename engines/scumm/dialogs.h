@@ -67,7 +67,7 @@ protected:
 
 /**
  * A dialog which displays an arbitrary message to the user and returns
- * ther users reply as its result value. More specifically, it returns
+ * the users reply as its result value. More specifically, it returns
  * the ASCII code of the key used to close the dialog (0 if a mouse
  * click closed the dialog).
  */
@@ -151,11 +151,11 @@ protected:
 		kDisplayDelay = 1500
 	};
 	Common::U32String _label;
-	const int _min, _max;
-	const uint16 _incKey, _decKey;
-	int _percentBarWidth;
-	int _value;
-	uint32 _timer;
+	const int _min = 0, _max = 0;
+	const uint16 _incKey = 0, _decKey = 0;
+	int _percentBarWidth = 0;
+	int _value = 0;
+	uint32 _timer = 0;
 };
 
 /**
@@ -301,12 +301,12 @@ private:
 };
 
 /**
-* Options widget for Mac Loom.
+* Options widget for various Macintosh games.
 */
-class LoomMonkeyMacGameOptionsWidget : public ScummOptionsContainerWidget {
+class MacGameOptionsWidget : public ScummOptionsContainerWidget {
 public:
-	LoomMonkeyMacGameOptionsWidget(GuiObject *boss, const Common::String &name, const Common::String &domain, int gameId);
-	~LoomMonkeyMacGameOptionsWidget() override {};
+	MacGameOptionsWidget(GuiObject *boss, const Common::String &name, const Common::String &domain, int gameId, const Common::String &extra);
+	~MacGameOptionsWidget() override {};
 
 	void load() override;
 	bool save() override;

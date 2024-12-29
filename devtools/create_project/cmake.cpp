@@ -61,7 +61,9 @@ const CMakeProvider::Library *CMakeProvider::getLibraryFromFeature(const char *f
 		LibraryProps("discord", "discord").Libraries("discord-rpc"),
 		LibraryProps("tts").WinLibraries("sapi ole32"),
 		LibraryProps("enet").WinLibraries("winmm ws2_32"),
-		LibraryProps("retrowave", "retrowave").Libraries("retrowave")
+		LibraryProps("retrowave", "retrowave").Libraries("retrowave"),
+		LibraryProps("a52", "a52").Libraries("a52"),
+		LibraryProps("mpc", "mpcdec").Libraries("mpcdec")
 	};
 
 	for (unsigned int i = 0; i < sizeof(s_libraries) / sizeof(s_libraries[0]); i++) {
@@ -186,6 +188,8 @@ link_directories(/opt/local/lib)
 		if (!feature.enable || featureExcluded(feature.name)) continue;
 
 		writeFeatureLibSearch(setup, workspace, feature.name);
+
+		if (!feature.define || !feature.define[0]) continue;
 		workspace << "add_definitions(-D" << feature.define << ")\n";
 	}
 	workspace << "\n";

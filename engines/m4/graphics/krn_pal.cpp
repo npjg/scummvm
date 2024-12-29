@@ -38,13 +38,16 @@ namespace M4 {
 
 #define BACKGROUND_HEIGHT  (int32)639
 
-#define GREY_START   32
-#define NUM_GREYS    32					// gotta have 32 greys to fade to (hardcoded algorithm) 
-#define GREY_END     GREY_START+NUM_GREYS      		
+#define IS_RIDDLE   g_engine->getGameType() == GType_Riddle
+#define GREY_START	(IS_RIDDLE ? 21 : 32)
+#define NUM_GREYS	(IS_RIDDLE ? 64 : 32)
+#define GREY_END	(IS_RIDDLE ? 58 : 63)
 
-#define FREE_START   GREY_END+1
-#define FREE_END     255
-#define NUM_FREE     FREE_END-(FREE_START)+1
+#define FREE_START	(IS_RIDDLE ? 59 : 64)
+#define FREE_END	255
+#define NUM_FREE	(IS_RIDDLE ? 255 - 59 + 1 : 255 - 64 + 1)
+
+static HotkeyCB remember_esc_key;
 
 void krn_pal_game_task() {
 	g_engine->pal_game_task();
@@ -110,10 +113,6 @@ static void create_luminance_map(RGB8 *pal) {
 		_GP(fadeToMe)[i].r = _GP(fadeToMe)[i].b = 0;
 	}
 }
-
-
-static HotkeyCB remember_esc_key;
-
 
 // finds the best macthes for the in the greys in the grey ramp range using the free range greys
 // used to map greys out of the grey ramp area, and then again to map the grey ramp out of the grey ramp area!
@@ -228,7 +227,6 @@ void krn_fade_to_grey(RGB8 *pal, int32 steps, int32 delay) {
 	RestoreScreens(MIN_VIDEO_X, MIN_VIDEO_Y, MAX_VIDEO_X, MAX_VIDEO_Y);
 }
 
-
 void krn_fade_from_grey(RGB8 *pal, int32 steps, int32 delay, int32 fadeType) {
 	uint8 *tempPtr;
 	int32 i;
@@ -289,7 +287,65 @@ void krn_fade_from_grey(RGB8 *pal, int32 steps, int32 delay, int32 fadeType) {
 	gr_pal_set(_G(master_palette));
 }
 
-bool examining_inventory_object = false;
+void kernel_examine_inventory_object(const char *picName, RGB8 *pal, int steps, int delay,
+	int32 x, int32 y, int32 triggerNum, const char *digiName, int32 digiTrigger) {
+
+	remember_esc_key = GetSystemHotkey(KEY_ESCAPE);
+	RemoveSystemHotkey(KEY_ESCAPE);
+
+	interface_hide();
+
+	_GP(exam_saved_hotspots) = _G(currentSceneDef).hotspots;
+	_G(currentSceneDef).hotspots = nullptr;
+
+	_GP(myFadeTrigger) = kernel_trigger_create(triggerNum);
+
+	krn_fade_to_grey(pal, steps, delay);
+
+	_GP(seriesHash) = series_load(picName, -1, pal);	// Preload sprite so we can unload it
+	gr_pal_set_range(pal, FREE_START, NUM_FREE);		// Set that series colors into VGA
+	RestoreScreens(MIN_VIDEO_X, MIN_VIDEO_Y, MAX_VIDEO_X, MAX_VIDEO_Y);
+
+	Buffer *grey_screen = _G(gameDrawBuff)->get_buffer();
+	krn_SetGreyVideoMode(
+		// Grey rectangle
+		0, 0, MAX_VIDEO_X, screen_height(grey_screen) + _G(kernel).letter_box_y,
+
+		// Color rectangle
+		x, y, x + ws_get_sprite_width(_GP(seriesHash), 0) - 1, y + ws_get_sprite_height(_GP(seriesHash), 0) - 1);
+	_G(gameDrawBuff)->release();
+
+	// Play the sprite series as a loop
+	int32 status;
+	ScreenContext *game_buff_ptr = vmng_screen_find(_G(gameDrawBuff), &status);
+	_GP(seriesAnim8) = series_play_xy(picName, -1, FORWARD,
+		x - game_buff_ptr->x1, y - game_buff_ptr->y1, 100, 0, 7, -1);
+
+	if (digiName) {
+		digi_play(digiName, 1, 255, digiTrigger);
+	}
+
+	player_set_commands_allowed(true);
+
+	cycleEngines(_G(game_bgBuff)->get_buffer(),
+		&(_G(currentSceneDef).depth_table[0]),
+		_G(screenCodeBuff)->get_buffer(),
+		(uint8 *)&_G(master_palette)[0],
+		_G(inverse_pal)->get_ptr(), true);
+
+	game_pause(true);
+
+	_G(inverse_pal)->release();
+	_G(game_bgBuff)->release();
+
+	pauseEngines();
+}
+
+void kernel_examine_inventory_object(const char *picName, int steps, int delay,
+		int32 x, int32 y, int32 triggerNum, const char *digiName, int32 digiTrigger) {
+	kernel_examine_inventory_object(picName, _G(master_palette), steps, delay,
+		x, y, triggerNum, digiName, digiTrigger);
+}
 
 void kernel_unexamine_inventory_object(RGB8 *pal, int steps, int delay) {
 	if (!_GP(seriesAnim8) || _GP(seriesHash) < 0)
@@ -314,10 +370,8 @@ void kernel_unexamine_inventory_object(RGB8 *pal, int steps, int delay) {
 
 	krn_pal_game_task();
 
-	// set in kernel_examine_inventory_object (above)
+	// Set in kernel_examine_inventory_object (above)
 	kernel_trigger_dispatchx(_GP(myFadeTrigger));
-
-	//	gr_pal_set(master_palette);
 
 	RestoreScreens(0, 0, MAX_VIDEO_X, MAX_VIDEO_Y);
 
@@ -329,7 +383,7 @@ void kernel_unexamine_inventory_object(RGB8 *pal, int steps, int delay) {
 
 
 // This is an inplace remap
-// _GP(fadeToMe) must already have been set up to correspond to the image on the screen
+// fadeToMe must already have been set up to correspond to the image on the screen
 void remap_buffer_with_luminance_map(Buffer *src, int32 x1, int32 y1, int32 x2, int32 y2) {
 	uint8 *ptr;
 	int32 x, y;

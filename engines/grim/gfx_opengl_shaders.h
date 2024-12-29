@@ -65,7 +65,7 @@ public:
 	/**
 	 * Swap the buffers, making the drawn screen visible
 	 */
-	void flipBuffer() override;
+	void flipBuffer(bool opportunistic = false) override;
 
 	void getScreenBoundingBox(const Mesh *mesh, int *x1, int *y1, int *x2, int *y2) override;
 	void getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, int *x2, int *y2) override;
@@ -177,6 +177,8 @@ public:
 	void drawLine(const PrimitiveObject *primitive) override;
 	void drawPolygon(const PrimitiveObject *primitive) override;
 
+	const Graphics::PixelFormat getMovieFormat() const override;
+
 	/**
 	 * Prepare a movie-frame for drawing
 	 * performing any necessary conversion
@@ -241,8 +243,6 @@ private:
 	int _smushWidth;
 	int _smushHeight;
 	GLuint _smushTexId;
-	bool _smushSwizzle;
-	bool _smushSwap;
 	void setupTexturedQuad();
 	void setupQuadEBO();
 

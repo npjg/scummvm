@@ -45,6 +45,7 @@
 #include "director/lingo/xlibs/consumer.h"
 #include "director/lingo/xlibs/cursorxobj.h"
 #include "director/lingo/xlibs/darkenscreen.h"
+#include "director/lingo/xlibs/dateutil.h"
 #include "director/lingo/xlibs/developerStack.h"
 #include "director/lingo/xlibs/dialogsxobj.h"
 #include "director/lingo/xlibs/dirutil.h"
@@ -68,6 +69,7 @@
 #include "director/lingo/xlibs/findwin.h"
 #include "director/lingo/xlibs/flushxobj.h"
 #include "director/lingo/xlibs/fplayxobj.h"
+#include "director/lingo/xlibs/fsutil.h"
 #include "director/lingo/xlibs/genutils.h"
 #include "director/lingo/xlibs/getscreenrectsxfcn.h"
 #include "director/lingo/xlibs/getscreensizexfcn.h"
@@ -102,7 +104,6 @@
 #include "director/lingo/xlibs/panel.h"
 #include "director/lingo/xlibs/popupmenuxobj.h"
 #include "director/lingo/xlibs/porta.h"
-#include "director/lingo/xlibs/portaxcmd.h"
 #include "director/lingo/xlibs/prefpath.h"
 #include "director/lingo/xlibs/printomatic.h"
 #include "director/lingo/xlibs/processxobj.h"
@@ -140,7 +141,7 @@
 
 namespace Director {
 
-static struct PredefinedProto {
+static const struct PredefinedProto {
 	const char *name;
 	void (*func)(int);
 	int minArgs;	// -1 -- arglist
@@ -168,7 +169,7 @@ static struct PredefinedProto {
 	{ nullptr, nullptr, 0, 0, 0, 0 }
 };
 
-static MethodProto windowMethods[] = {
+static const MethodProto windowMethods[] = {
 	// window / stage
 	{ "close",					LM::m_close,				 0, 0,	400 },			// D4
 	{ "forget",					LM::m_forget,				 0, 0,	400 },			// D4
@@ -179,7 +180,7 @@ static MethodProto windowMethods[] = {
 };
 
 void Lingo::initMethods() {
-	for (PredefinedProto *mtd = predefinedMethods; mtd->name; mtd++) {
+	for (const PredefinedProto *mtd = predefinedMethods; mtd->name; mtd++) {
 		if (mtd->version > _vm->getVersion())
 			continue;
 
@@ -203,7 +204,7 @@ void Lingo::cleanupMethods() {
 #define XLIBDEF(class, flags, version) \
 	{ class::fileNames, class::open, class::close, flags, version }
 
-static struct XLibProto {
+static const struct XLibProto {
 	const XlibFileDesc *names;
 	XLibOpenerFunc opener;
 	XLibCloserFunc closer;
@@ -228,6 +229,7 @@ static struct XLibProto {
 	XLIBDEF(DPWAVIXObj,			kXObj,			300),	// D3
 	XLIBDEF(DPWQTWXObj,			kXObj,			300),	// D3
 	XLIBDEF(DarkenScreen,		kXObj,			300),	// D3
+	XLIBDEF(DateUtilXObj,			kXObj,					400),	// D4
 	XLIBDEF(DeveloperStack,		kXObj,			300),	// D3
 	XLIBDEF(DialogsXObj,		kXObj,			400),	// D4
 	XLIBDEF(DirUtilXObj,		kXObj,			400),	// D4
@@ -238,6 +240,7 @@ static struct XLibProto {
 	XLIBDEF(FEDraculXObj,		kXObj,			400),	// D4
 	XLIBDEF(FEIMasksXObj,		kXObj,			400),	// D4
 	XLIBDEF(FEIPrefsXObj,		kXObj,			400),	// D4
+	XLIBDEF(FSUtilXObj,			kXObj,					400),	// D4
 	XLIBDEF(FadeGammaDownXCMD,	kXObj,			400),	// D4
 	XLIBDEF(FadeGammaUpXCMD,	kXObj,			400),	// D4
 	XLIBDEF(FadeGammaXCMD,		kXObj,			400),	// D4
@@ -272,7 +275,6 @@ static struct XLibProto {
 	XLIBDEF(MiscX,				kXObj,			400),	// D4
 	XLIBDEF(MMaskXObj,			kXObj,			400),	// D4
 	XLIBDEF(MoovXObj,			kXObj,			300),	// D3
-	XLIBDEF(MovUtilsXObj,		kXObj,			400),	// D4
 	XLIBDEF(MoveMouseJPXObj,			kXObj,					400),	// D4
 	XLIBDEF(MoveMouseXObj,		kXObj,			400),	// D4
 	XLIBDEF(MovieIdxXObj,		kXObj,			400),	// D4
@@ -285,7 +287,6 @@ static struct XLibProto {
 	XLIBDEF(PanelXObj,			kXObj,			200),	// D2
 	XLIBDEF(PopUpMenuXObj,		kXObj,			200),	// D2
 	XLIBDEF(Porta,				kXObj,			300),	// D3
-	XLIBDEF(PortaXCMD,			kXObj,			300),	// D3
 	XLIBDEF(PrefPath,			kXObj,			400),	// D4
 	XLIBDEF(PrintOMaticXObj,	kXObj,			400),	// D4
 	XLIBDEF(ProcessXObj,		kXObj,			400),	// D4
@@ -322,7 +323,7 @@ static struct XLibProto {
 };
 
 void Lingo::initXLibs() {
-	for (XLibProto *lib = xlibs; lib->names; lib++) {
+	for (const XLibProto *lib = xlibs; lib->names; lib++) {
 		if (lib->version > _vm->getVersion())
 			continue;
 

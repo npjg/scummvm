@@ -243,6 +243,19 @@ bool GobEngine::isDemo() const {
 	return (isSCNDemo() || isBATDemo());
 }
 
+const char *GobEngine::getGameVersion() const {
+	// Making sure that we return a set of predetermined versions
+	const Common::String extra = _extra;
+	if (extra.hasSuffix("1.01"))
+		return "1.01";
+	else if (extra.hasSuffix("1.02"))
+		return "1.02";
+	else if (extra.hasSuffix("1.07"))
+		return "1.07";
+	else
+		return "1.00";
+}
+
 bool GobEngine::hasResourceSizeWorkaround() const {
 	return _resourceSizeWorkaround;
 }
@@ -416,7 +429,7 @@ void GobEngine::pauseGame() {
 Common::Error GobEngine::initGameParts() {
 	_resourceSizeWorkaround = false;
 
-	// just detect some devices some of which will be always there if the music is not disabled
+	// Just detect some devices some of which will be always there if the music is not disabled
 	_noMusic = MidiDriver::getMusicType(MidiDriver::detectDevice(MDT_PCSPK | MDT_MIDI | MDT_ADLIB)) == MT_NULL ? true : false;
 
 	_endiannessMethod = kEndiannessMethodSystem;

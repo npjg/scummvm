@@ -31,7 +31,7 @@ namespace Riddle {
 
 #define FLAGS_COUNT 512
 
-enum {
+enum Flag {
 	V000 =   0,
 	V001 =   1,
 	V002 =   2,
@@ -55,7 +55,7 @@ enum {
 	V020 =  20,
 	V021 =  21,
 	V022 =  22,
-	kHarryComingToRoof =  23,
+	V023 =  23,
 	V024 =  24,
 	V025 =  25,
 	V026 =  26,
@@ -108,8 +108,8 @@ enum {
 	V073 =  73,
 	V074 =  74,
 	V075 =  75,
-	V076 =  76,
-	V077 =  77,
+	kChinshiCartoon =  76,
+	kTabletsCartoon =  77,
 	V078 =  78,
 	V079 =  79,
 	V080 =  80,
@@ -162,18 +162,18 @@ enum {
 	V126 = 126,
 	V127 = 127,
 	V128 = 128,
-	V129 = 129,
-	V130 = 130,
+	kTravelDest = 129,
+	kCastleCartoon = 130,
 	V131 = 131,
 	V132 = 132,
 	V133 = 133,
 	V134 = 134,
 	V135 = 135,
-	V136 = 136,
-	V137 = 137,
-	V138 = 138,
+	kEmeraldCartoon = 136,
+	kEpitaphCartoon = 137,
+	kGraveyardCartoon = 138,
 	V139 = 139,
-	V140 = 140,
+	kMocaMocheCartoon = 140,
 	V141 = 141,
 	V142 = 142,
 	V143 = 143,
@@ -213,7 +213,7 @@ enum {
 	V177 = 177,
 	V178 = 178,
 	V179 = 179,
-	V180 = 180,
+	kEasterIslandCartoon = 180,
 	V181 = 181,
 	V182 = 182,
 	V183 = 183,
@@ -249,13 +249,13 @@ enum {
 	V212 = 212,
 	V213 = 213,
 	V214 = 214,
-	V215 = 215,
+	kTempleCartoon = 215,
 	V216 = 216,
-	V217 = 217,
+	V217 = 217, // Prayer wheel in niche, room 703
 	V218 = 218,
-	V219 = 219,
-	V220 = 220,
-	V221 = 221,
+	V219 = 219, // Prayer wheel in niche, room 704 / 706
+	V220 = 220, // prayer wheel (left), room 705
+	V221 = 221, // prayer wheel (right), room 705
 	V222 = 222,
 	V223 = 223,
 	V224 = 224,
@@ -344,7 +344,7 @@ enum {
 	V306 = 306,
 	V307 = 307,
 	V308 = 308,
-	V309 = 309,
+	kWritingDeskDrawerOpen = 309,
 	V310 = 310,
 	V311 = 311,
 	V312 = 312,
@@ -368,12 +368,12 @@ enum {
 	V330 = 330,
 	V331 = 331,
 	V332 = 332,
-	V333 = 333,
+	kPaintingOpen = 333,
 	V334 = 334,
 	V335 = 335,
 	V336 = 336,
 	V337 = 337,
-	V338 = 338,
+	kGermanBanknoteFound = 338,
 	V339 = 339,
 	V340 = 340,
 	V341 = 341,
@@ -566,9 +566,9 @@ public:
 	size_t size() const {
 		return FLAGS_COUNT;
 	}
-	int32 &operator[](uint idx) {
-		assert(idx < FLAGS_COUNT);
-		return _flags[idx];
+	int32 &operator[](Flag flag) {
+		assert((int)flag < FLAGS_COUNT);
+		return _flags[flag];
 	}
 
 	/**

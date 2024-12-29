@@ -23,7 +23,6 @@
 // available at https://github.com/TomHarte/Phantasma/ (MIT)
 
 #include "common/config-manager.h"
-#include "common/math.h"
 #include "common/system.h"
 #include "math/glmath.h"
 
@@ -53,7 +52,7 @@ OpenGLShaderRenderer::OpenGLShaderRenderer(int screenW, int screenH, Common::Ren
 	_bitmapShader = nullptr;
 	_bitmapVBO = 0;
 
-	_texturePixelFormat = OpenGLTexture::getRGBAPixelFormat();
+	_texturePixelFormat = getRGBAPixelFormat();
 	_isAccelerated = true;
 }
 
@@ -65,7 +64,7 @@ OpenGLShaderRenderer::~OpenGLShaderRenderer() {
 	free(_verts);
 }
 
-Texture *OpenGLShaderRenderer::createTexture(const Graphics::Surface *surface) {
+Texture *OpenGLShaderRenderer::createTexture(const Graphics::Surface *surface, bool is3D) {
 	return new OpenGLTexture(surface);
 }
 
@@ -137,13 +136,10 @@ void OpenGLShaderRenderer::drawTexturedRect2D(const Common::Rect &screenRect, co
 	_bitmapShader->unbind();
 }
 
-void OpenGLShaderRenderer::updateProjectionMatrix(float fov, float yminValue, float ymaxValue, float nearClipPlane, float farClipPlane) {
-	// Determining xmaxValue and ymaxValue still needs some work for matching the 3D view in freescape games
-	/*float aspectRatio = _screenW / (float)_screenH;
-	float xmaxValue = nearClipPlane * tan(Common::deg2rad(fov) / 2);
+void OpenGLShaderRenderer::updateProjectionMatrix(float fov, float aspectRatio, float nearClipPlane, float farClipPlane) {
+	float xmaxValue = nearClipPlane * tan(Math::deg2rad(fov) / 2);
 	float ymaxValue = xmaxValue / aspectRatio;
-	_projectionMatrix = Math::makeFrustumMatrix(xmaxValue, -xmaxValue, -ymaxValue, ymaxValue, nearClipPlane, farClipPlane);*/
-	_projectionMatrix = Math::makeFrustumMatrix(1.5, -1.5, yminValue, ymaxValue, nearClipPlane, farClipPlane);
+	_projectionMatrix = Math::makeFrustumMatrix(xmaxValue, -xmaxValue, -ymaxValue, ymaxValue, nearClipPlane, farClipPlane);
 }
 
 void OpenGLShaderRenderer::positionCamera(const Math::Vector3d &pos, const Math::Vector3d &interest) {
@@ -224,7 +220,6 @@ void OpenGLShaderRenderer::renderPlayerShootBall(byte color, const Common::Point
 	Common::Point initial_position(viewArea.left + viewArea.width() / 2 + 2, _screenH - (viewArea.height() + viewArea.top));
 	Common::Point ball_position = coef * position + (1 - coef) * initial_position;
 
-	glEnableClientState(GL_VERTEX_ARRAY);
 	copyToVertexArray(0, Math::Vector3d(remap(ball_position.x, _screenW), remap(ball_position.y, _screenH), 0));
 
 	for(int i = 0; i <= triangleAmount; i++) {
@@ -327,7 +322,6 @@ void OpenGLShaderRenderer::drawCelestialBody(Math::Vector3d position, float radi
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
 	copyToVertexArray(0, position);
 
 	for(int i = 0; i <= triangleAmount; i++) {
@@ -436,6 +430,8 @@ void OpenGLShaderRenderer::renderFace(const Common::Array<Math::Vector3d> &verti
 
 void OpenGLShaderRenderer::depthTesting(bool enabled) {
 	if (enabled) {
+		// If we re-enable depth testing, we need to clear the depth buffer
+		glClear(GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 	} else {
 		glDisable(GL_DEPTH_TEST);
@@ -469,14 +465,22 @@ void OpenGLShaderRenderer::setStippleData(byte *data) {
 void OpenGLShaderRenderer::useStipple(bool enabled) {
 	_triangleShader->use();
 	if (enabled) {
+		GLfloat factor = 0;
+		glGetFloatv(GL_POLYGON_OFFSET_FACTOR, &factor);
 		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(0.0f, -1.0f);
-		_triangleShader->setUniform("useStipple", true);
+		glPolygonOffset(factor - 1.0f, -1.0f);
+		if (_renderMode == Common::kRenderZX    ||
+			_renderMode == Common::kRenderCPC   ||
+			_renderMode == Common::kRenderCGA   ||
+			_renderMode == Common::kRenderHercG)
+			setStippleData((byte *)_variableStippleArray);
+		else
+			setStippleData(_defaultStippleArray);
 	} else {
 		glPolygonOffset(0, 0);
 		glDisable(GL_POLYGON_OFFSET_FILL);
-		_triangleShader->setUniform("useStipple", false);
 	}
+	_triangleShader->setUniform("useStipple", enabled);
 }
 
 void OpenGLShaderRenderer::useColor(uint8 r, uint8 g, uint8 b) {
@@ -515,7 +519,7 @@ void OpenGLShaderRenderer::flipBuffer() {}
 Graphics::Surface *OpenGLShaderRenderer::getScreenshot() {
 	Common::Rect screen = viewport();
 	Graphics::Surface *s = new Graphics::Surface();
-	s->create(screen.width(), screen.height(), OpenGLTexture::getRGBAPixelFormat());
+	s->create(screen.width(), screen.height(), getRGBAPixelFormat());
 	glReadPixels(screen.left, screen.top, screen.width(), screen.height(), GL_RGBA, GL_UNSIGNED_BYTE, s->getPixels());
 	flipVertical(s);
 	return s;

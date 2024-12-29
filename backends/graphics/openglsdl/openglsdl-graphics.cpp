@@ -146,6 +146,10 @@ OpenGLSdlGraphicsManager::OpenGLSdlGraphicsManager(SdlEventSource *eventSource, 
 	// Thus SDL always use the desktop resolution and it is useless to try to use something else.
 	// Do nothing here as adding the desktop resolution to _fullscreenVideoModes is done as a fallback.
 	_fullscreenVideoModes.push_back(VideoMode(desktopRes.width(), desktopRes.height()));
+
+	if (ConfMan.hasKey("force_frame_update")) {
+		_forceFrameUpdate = ConfMan.getInt("force_frame_update", Common::ConfigManager::kApplicationDomain);
+	}
 #else
 	const SDL_Rect *const *availableModes = SDL_ListModes(NULL, SDL_OPENGL | SDL_FULLSCREEN);
 	// TODO: NULL means that there are no fullscreen modes supported. We
@@ -212,6 +216,7 @@ bool OpenGLSdlGraphicsManager::hasFeature(OSystem::Feature f) const {
 	case OSystem::kFeatureVSync:
 #if SDL_VERSION_ATLEAST(2, 0, 0)
 	case OSystem::kFeatureFullscreenToggleKeepsContext:
+	case OSystem::kFeatureRotationMode:
 #endif
 		return true;
 
@@ -236,6 +241,10 @@ void OpenGLSdlGraphicsManager::setFeatureState(OSystem::Feature f, bool enable) 
 		if (enable) {
 			_window->iconifyWindow();
 		}
+		break;
+
+	case OSystem::kFeatureRotationMode:
+		notifyResize(getWindowWidth(), getWindowHeight());
 		break;
 
 	default:
@@ -292,6 +301,27 @@ void OpenGLSdlGraphicsManager::initSize(uint w, uint h, const Graphics::PixelFor
 }
 
 void OpenGLSdlGraphicsManager::updateScreen() {
+#if SDL_VERSION_ATLEAST(2, 0, 0)
+	static uint32 lastUpdateTime = 0;
+
+	if (_forceFrameUpdate) {
+		if (_forceRedraw) {
+			lastUpdateTime = SDL_GetTicks();
+		} else {
+			// This works for the most part. Anything between 20 and 40 yields
+			// around 24fps. It's not till we set it to 20 that it changes and
+			// jumps to around 40fps.
+			// 50 ~ 16fps
+			// 40 ~ 24fps
+			// 20 ~ 45fps
+			if (SDL_GetTicks() - lastUpdateTime > _forceFrameUpdate) {
+				_forceRedraw = true;
+				lastUpdateTime = SDL_GetTicks();
+			}
+		}
+	}
+#endif
+
 	if (_ignoreResizeEvents) {
 		--_ignoreResizeEvents;
 	}
@@ -405,6 +435,9 @@ bool OpenGLSdlGraphicsManager::loadVideoMode(uint requestedWidth, uint requested
 			ConfMan.setInt("last_window_height", requestedHeight, Common::ConfigManager::kApplicationDomain);
 			ConfMan.flushToDisk();
 		}
+
+		if (requestedHeight == 0)
+			requestedHeight = 100; // Add at least some sane value instead of dividing by zero
 	}
 
 #else
@@ -591,7 +624,7 @@ bool OpenGLSdlGraphicsManager::setupMode(uint width, uint height) {
 
 #ifdef USE_IMGUI
 	// Setup Dear ImGui
-	initImGui(_glContext);
+	initImGui(nullptr, _glContext);
 #endif
 
 	if (SDL_GL_SetSwapInterval(_vsync ? 1 : 0)) {
@@ -885,3 +918,32 @@ bool OpenGLSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 		return SdlGraphicsManager::notifyEvent(event);
 	}
 }
+
+#if defined(USE_IMGUI) && SDL_VERSION_ATLEAST(2, 0, 0)
+void *OpenGLSdlGraphicsManager::getImGuiTexture(const Graphics::Surface &image, const byte *palette, int palCount) {
+	// Create a OpenGL texture identifier
+	GLuint image_texture;
+	glGenTextures(1, &image_texture);
+	glBindTexture(GL_TEXTURE_2D, image_texture);
+
+	// Setup filtering parameters for display
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
+
+	// Upload pixels into texture
+	Graphics::Surface *s = image.convertTo(Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0), palette, palCount);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, s->format.bytesPerPixel);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, s->w, s->h, 0, GL_RGB, GL_UNSIGNED_BYTE, s->getPixels());
+	s->free();
+	delete s;
+	return (void *)(intptr_t)image_texture;
+}
+
+void OpenGLSdlGraphicsManager::freeImGuiTexture(void *texture) {
+	GLuint textureID = (intptr_t)texture;
+	glDeleteTextures(1, &textureID);
+}
+#endif

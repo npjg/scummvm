@@ -35,22 +35,10 @@
 #include "dgds/scripts.h"
 #include "dgds/scene.h"
 #include "dgds/font.h"
+#include "dgds/drawing.h"
+#include "dgds/debug_util.h"
 
 namespace Dgds {
-
-// TODO: This is repeated here and in scene.cpp
-template<class S> static Common::String _dumpStructList(const Common::String &indent, const Common::String &name, const Common::Array<S> &list) {
-	if (list.empty())
-		return "";
-
-	const Common::String nextind = indent + "    ";
-	Common::String str = Common::String::format("\n%s%s=", Common::String(indent + "  ").c_str(), name.c_str());
-	for (const auto &s : list) {
-		str += "\n";
-		str += s.dump(nextind);
-	}
-	return str;
-}
 
 
 int Dialog::_lastSelectedDialogItemNum = 0;
@@ -59,7 +47,7 @@ Dialog *Dialog::_lastDialogSelectionChangedFor = nullptr;
 
 Dialog::Dialog() : _num(0), _bgColor(0), _fontColor(0), _selectionBgCol(0), _selectonFontCol(0),
 	_fontSize(0), _flags(kDlgFlagNone), _frameType(kDlgFramePlain), _time(0), _nextDialogDlgNum(0),
-	_nextDialogFileNum(0), _fileNum(0), _unk1(0), _unk2(0)
+	_nextDialogFileNum(0), _fileNum(0), _talkDataNum(0), _talkDataHeadNum(0)
 {}
 
 
@@ -76,21 +64,18 @@ void Dialog::draw(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 	}
 }
 
-static void _drawPixel(int x, int y, int color, void *data) {
-	Graphics::ManagedSurface *surface = (Graphics::ManagedSurface *)data;
-
-	if (x >= 0 && x < surface->w && y >= 0 && y < surface->h)
-		*((byte *)surface->getBasePtr(x, y)) = (byte)color;
-}
-
 
 const DgdsFont *Dialog::getDlgTextFont() const {
-	const FontManager *fontman = static_cast<DgdsEngine *>(g_engine)->getFontMan();
+	const FontManager *fontman = DgdsEngine::getInstance()->getFontMan();
 	FontManager::FontType fontType = FontManager::kGameDlgFont;
 	if (_fontSize == 1)
 		fontType = FontManager::k8x8Font;
 	else if (_fontSize == 3)
 		fontType = FontManager::k4x5Font;
+	else if (_fontSize == 4 && DgdsEngine::getInstance()->getGameId() == GID_WILLY)
+		fontType = FontManager::kGameDlgFont;
+	else if (_fontSize == 5 && DgdsEngine::getInstance()->getGameId() == GID_HOC)
+		fontType = FontManager::kChinaFont;
 	return fontman->getFont(fontType);
 }
 
@@ -122,9 +107,9 @@ void Dialog::drawType2BackgroundDragon(Graphics::ManagedSurface *dst, const Comm
 	RequestData::drawCorners(dst, 11, _rect.x, _rect.y, _rect.width, _rect.height);
 	if (!title.empty()) {
 		// TODO: Maybe should measure the font?
-		_state->_loc.y += 10;
-		_state->_loc.height -= 10;
-		RequestData::drawHeader(dst, _rect.x, _rect.y, _rect.width, 4, title, 0, true);
+		_state->_loc.y += 11;
+		_state->_loc.height -= 11;
+		RequestData::drawHeader(dst, _rect.x, _rect.y, _rect.width, 4, title, 0, true, 0, 15);
 	}
 
 	if (hasFlag(kDlgFlagFlatBg)) {
@@ -136,6 +121,8 @@ void Dialog::drawType2BackgroundDragon(Graphics::ManagedSurface *dst, const Comm
 	RequestData::drawCorners(dst, 19, _state->_loc.x - 2, _state->_loc.y - 2,
 							_state->_loc.width + 4, _state->_loc.height + 4);
 
+	_state->_loc.y++;
+	_state->_loc.height--;
 	_state->_loc.x += 8;
 	_state->_loc.width -= 16;
 }
@@ -151,7 +138,7 @@ void Dialog::drawType2BackgroundChina(Graphics::ManagedSurface *dst, const Commo
 		// TODO: Maybe should measure the font?
 		_state->_loc.y += 11;
 		_state->_loc.height -= 11;
-		RequestData::drawHeader(dst, _rect.x, _rect.y, _rect.width, 2, title, _fontColor, false);
+		RequestData::drawHeader(dst, _rect.x, _rect.y, _rect.width, 2, title, _fontColor, false, 0, 0);
 	}
 }
 
@@ -159,7 +146,7 @@ void Dialog::drawType2BackgroundBeamish(Graphics::ManagedSurface *dst, const Com
 	// TODO: This needs updating.
 	_state->_loc = DgdsRect(_rect.x + 12, _rect.y + 10, _rect.width - 24, _rect.height - 20);
 	if (title.empty()) {
-		RequestData::fillBackground(dst, _rect.x, _rect.y, _rect.width, _rect.height, 0);
+		dst->fillRect(Common::Rect(Common::Point(_rect.x + 2, _rect.y + 2), _rect.width - 4, _rect.height - 4), 0);
 		RequestData::drawCorners(dst, 54, _rect.x, _rect.y, _rect.width, _rect.height);
 	} else {
 		dst->fillRect(Common::Rect(Common::Point(_rect.x + 2, _rect.y + 2), _rect.width - 4, _rect.height - 4), 0);
@@ -167,7 +154,7 @@ void Dialog::drawType2BackgroundBeamish(Graphics::ManagedSurface *dst, const Com
 		// TODO: Maybe should measure the font?
 		_state->_loc.y += 11;
 		_state->_loc.height -= 11;
-		RequestData::drawHeader(dst, _rect.x, _rect.y, _rect.width, 2, title, _fontColor, false);
+		RequestData::drawHeader(dst, _rect.x, _rect.y + 5, _rect.width, 2, title, _fontColor, false, 0, 0);
 	}
 }
 
@@ -179,7 +166,8 @@ void Dialog::drawType2(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 	Common::String title;
 	Common::String txt;
 	uint32 colonpos = _str.find(':');
-	if (colonpos != Common::String::npos) {
+	uint32 crpos = _str.find('\r');
+	if (colonpos != Common::String::npos && (crpos == Common::String::npos || crpos > colonpos)) {
 		title = _str.substr(0, colonpos);
 		txt = _str.substr(colonpos + 1);
 		// Most have a CR after the colon? trim it to remove a blank line.
@@ -189,8 +177,18 @@ void Dialog::drawType2(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 		txt = _str;
 	}
 
+	// Special case for HoC to update the Shekel count in their description.
+	// This is how the original game does it too.
+	DgdsEngine *engine = DgdsEngine::getInstance();
+	if (_fileNum == 0x5d && _num == 0x32 && engine->getGameId() == GID_HOC) {
+		int16 shekels = engine->getGDSScene()->getGlobal(44);
+		const Common::String numstr = Common::String::format("%3d", shekels);
+		uint32 offset = txt.find("###");
+		if (offset != Common::String::npos)
+			txt.replace(offset, 3, numstr);
+	}
+
 	if (stage == kDlgDrawStageBackground) {
-		DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
 		if (engine->getGameId() == GID_DRAGON)
 			drawType2BackgroundDragon(dst, title);
 		else if (engine->getGameId() == GID_HOC)
@@ -207,9 +205,14 @@ void Dialog::drawType2(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 	}
 }
 
-static void _filledCircle(int x, int y, int xr, int yr, Graphics::ManagedSurface *dst, byte fgcol, byte bgcol) {
-	Graphics::drawEllipse(x - xr, y - yr, x + xr, y + yr, bgcol, true, _drawPixel, dst);
-	Graphics::drawEllipse(x - xr, y - yr, x + xr, y + yr, fgcol, false, _drawPixel, dst);
+// Find the last line that will be printed - we don't use empty lines
+static uint _countPrintedLines(const Common::Array<Common::String> &lines) {
+	uint nprinted = 0;
+	for (uint i = 0; i < lines.size(); i++) {
+		if (!lines[i].empty())
+			nprinted = i;
+	}
+	return nprinted + 1;
 }
 
 // Comic thought box made up of circles with 2 circles going up to it.
@@ -255,32 +258,32 @@ void Dialog::drawType3(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 		}
 
 		for (int i = 1; i < circlesDown; i++) {
-			_filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
+			Drawing::filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
 			y += yradius;
 		}
 		for (int i = 1; i < circlesAcross; i++) {
-			_filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
+			Drawing::filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
 			x += xradius;
 		}
 		for (int i = 1; i < circlesDown; i++) {
-			_filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
+			Drawing::filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
 			y -= yradius;
 		}
 		for (int i = 1; i < circlesAcross; i++) {
-			_filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
+			Drawing::filledCircle(x, y, xradius, yradius, dst, fgcol, bgcol);
 			x -= xradius;
 		}
 
 		uint16 smallCircleX;
 		if (isbig) {
-			_filledCircle((x - xradius) - 5, y + circlesDown * yradius + 5, 10, 8, dst, fgcol, bgcol);
+			Drawing::filledCircle((x - xradius) - 5, y + circlesDown * yradius + 5, 10, 8, dst, fgcol, bgcol);
 			smallCircleX = (x - xradius) - 20;
 		} else {
-			_filledCircle(x + circlesAcross * xradius + 5, y + circlesDown * yradius + 5, 10, 8, dst, fgcol, bgcol);
+			Drawing::filledCircle(x + circlesAcross * xradius + 5, y + circlesDown * yradius + 5, 10, 8, dst, fgcol, bgcol);
 			smallCircleX = x + circlesAcross * xradius + 20;
 		}
 
-		_filledCircle(smallCircleX, y + circlesDown * yradius + 25, 5, 4, dst, fgcol, bgcol);
+		Drawing::filledCircle(smallCircleX, y + circlesDown * yradius + 25, 5, 4, dst, fgcol, bgcol);
 
 		int16 yoff = (yradius * 27) / 32;
 		dst->fillRect(Common::Rect(x, y - yoff,
@@ -304,7 +307,7 @@ void Dialog::drawType3(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 	}
 }
 
-// ellipse
+// ellipse in Dragon, text with no background in HoC
 void Dialog::drawType4(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 	if (!_state)
 		return;
@@ -329,19 +332,51 @@ void Dialog::drawType4(Graphics::ManagedSurface *dst, DialogDrawStage stage) {
 		//int radius = (midy * 5) / 4;
 
 		// This is not exactly the same as the original - might need some work to get pixel-perfect
-		Common::Rect drawRect(x, y, x + w, y + h);
-		Graphics::drawRoundRect(drawRect, midy, fillbgcolor, true, _drawPixel, dst);
-		Graphics::drawRoundRect(drawRect, midy, fillcolor, false, _drawPixel, dst);
+		if (DgdsEngine::getInstance()->getGameId() != GID_HOC) {
+			Common::Rect drawRect(x, y, x + w, y + h);
+			Graphics::drawRoundRect(drawRect, midy, fillbgcolor, true, Drawing::drawPixel, dst);
+			Graphics::drawRoundRect(drawRect, midy, fillcolor, false, Drawing::drawPixel, dst);
+		}
 	} else if (stage == kDlgDrawFindSelectionPointXY) {
 		drawFindSelectionXY();
 	} else if (stage == kDlgDrawFindSelectionTxtOffset) {
 		drawFindSelectionTxtOffset();
 	} else {
 		assert(_state);
-		_state->_loc = DgdsRect(x + midy, y + 1, w - midy, h - 1);
+		if (DgdsEngine::getInstance()->getGameId() != GID_HOC) {
+			_state->_loc = DgdsRect(x + midy, y + 1, w - midy, h - 1);
+		} else {
+			_state->_loc = DgdsRect(x, y, w, h);
+			fillcolor = 25; // ignore the color??
+		}
 		drawForeground(dst, fillcolor, _str);
 	}
 }
+
+int _stringWidthIgnoringTrainingSpace(const DgdsFont *font, const Common::String &line) {
+	if (Common::isSpace(line.lastChar())) {
+		// Find end without trailing spaces
+		int i = line.size() - 2;
+		while (i > 0 && Common::isSpace(line[i]))
+			i--;
+		return font->getStringWidth(line.substr(0, i + 1));
+	} else {
+		return font->getStringWidth(line);
+	}
+}
+
+int _maxWidthIgnoringTrailingSpace(const DgdsFont *font, const Common::Array<Common::String> &lines) {
+	//
+	// The line wrapper returns width including trailing spaces, but for accurate
+	// layout we need to ignore spaces in the string width.
+	//
+	int maxWidth = 0;
+	for (const auto &line : lines) {
+		maxWidth = MAX(_stringWidthIgnoringTrainingSpace(font, line), maxWidth);
+	}
+	return maxWidth;
+}
+
 
 void Dialog::drawFindSelectionXY() {
 	if (!_state)
@@ -359,12 +394,14 @@ void Dialog::drawFindSelectionXY() {
 	_state->_charHeight = font->getFontHeight();
 	if (_state->_strMouseLoc) {
 		Common::Array<Common::String> lines;
-		int maxWidth = font->wordWrapText(_str, _state->_loc.width, lines);
+		font->wordWrapText(_str, _state->_loc.width, lines, 0, Graphics::kWordWrapOnExplicitNewLines | Graphics::kWordWrapAllowTrailingWhitespace);
+		uint nlines = _countPrintedLines(lines);
+		int maxWidth = _maxWidthIgnoringTrailingSpace(font, lines);
 
 		if (hasFlag(kDlgFlagLeftJust)) {
 			x = x + (_state->_loc.width - maxWidth - 1) / 2;
 			_state->_lastMouseX = x;
-			y = y + (_state->_loc.height - ((int)lines.size() * _state->_charHeight) - 1) / 2;
+			y = y + (_state->_loc.height - ((int)nlines * _state->_charHeight) - 1) / 2;
 			_state->_lastMouseY = y;
 		}
 
@@ -383,10 +420,10 @@ void Dialog::drawFindSelectionXY() {
 		}
 
 		// now get width of the remaining string to the mouse str offset
-		x += font->getStringWidth(_str.substr(totalchars, _state->_strMouseLoc - totalchars));
+		x += _stringWidthIgnoringTrainingSpace(font, _str.substr(totalchars, _state->_strMouseLoc - totalchars));
 
 		// TODO: does this make sense?
-		if (_state->_loc.x + _state->_loc.width < (x + font->getCharWidth(_state->_strMouseLoc))) {
+		if (_state->_loc.x + _state->_loc.width < (x + font->getCharWidth(_str[_state->_strMouseLoc]))) {
 			if (_str[_state->_strMouseLoc] < '!') {
 				_state->_charHeight = 0;
 				_state->_charWidth = 0;
@@ -400,7 +437,7 @@ void Dialog::drawFindSelectionXY() {
 
 		_state->_lastMouseX = x;
 		_state->_lastMouseY = y;
-		_state->_charWidth = font->getCharWidth(_state->_strMouseLoc);
+		_state->_charWidth = font->getCharWidth(_str[_state->_strMouseLoc]);
 	}
 }
 
@@ -440,10 +477,12 @@ void Dialog::drawFindSelectionTxtOffset() {
 	int dlgy = _state->_loc.y;
 
 	Common::Array<Common::String> lines;
-	int maxWidth = font->wordWrapText(_str, _state->_loc.width, lines);
+	font->wordWrapText(_str, _state->_loc.width, lines, 0, Graphics::kWordWrapOnExplicitNewLines | Graphics::kWordWrapAllowTrailingWhitespace);
+	uint numPrintedLines = _countPrintedLines(lines);
+	int maxWidth = _maxWidthIgnoringTrailingSpace(font, lines);
 
 	if (hasFlag(kDlgFlagLeftJust)) {
-		int textHeight = lines.size() * lineHeight;
+		int textHeight = numPrintedLines * lineHeight;
 		dlgx += (_state->_loc.width - maxWidth - 1) / 2;
 		dlgy += (_state->_loc.height - textHeight - 1) / 2;
 	}
@@ -485,9 +524,10 @@ void Dialog::drawForeground(Graphics::ManagedSurface *dst, uint16 fontcol, const
 	Common::StringArray lines;
 	const DgdsFont *font = getDlgTextFont();
 	const int h = font->getFontHeight();
-	font->wordWrapText(txt, _state->_loc.width, lines);
+	font->wordWrapText(txt, _state->_loc.width, lines, 0, Graphics::kWordWrapOnExplicitNewLines | Graphics::kWordWrapAllowTrailingWhitespace);
+	uint numPrintedLines = _countPrintedLines(lines);
 
-	int ystart = _state->_loc.y + (_state->_loc.height - (int)lines.size() * h) / 2;
+	int ystart = _state->_loc.y + (_state->_loc.height - (int)numPrintedLines * h) / 2;
 
 	int x = _state->_loc.x;
 
@@ -508,7 +548,7 @@ void Dialog::drawForeground(Graphics::ManagedSurface *dst, uint16 fontcol, const
 		int maxlen = 0;
 		// each line left-aligned, but overall block is still centered
 		for (const auto &line : lines)
-			maxlen = MAX(maxlen, font->getStringWidth(line));
+			maxlen = MAX(maxlen, _stringWidthIgnoringTrainingSpace(font, line));
 		x += (_state->_loc.width - maxlen) / 2;
 		align = Graphics::kTextAlignLeft;
 		xwidth = maxlen;
@@ -589,13 +629,13 @@ void Dialog::updateSelectedAction(int delta) {
 	}
 
 	if (_action.size() > 1 || !delta) {
-		debug("Dialog: update mouse to %d, %d (mouseloc %d, selnum %d)", mouseX, mouseY, _state->_strMouseLoc, _lastSelectedDialogItemNum);
+		debug(1, "Dialog %d: update mouse to %d, %d (mouseloc %d, selnum %d)", _num, mouseX, mouseY, _state->_strMouseLoc, _lastSelectedDialogItemNum);
 		g_system->warpMouse(mouseX, mouseY);
 	}
 }
 
 struct DialogAction *Dialog::pickAction(bool isClosing, bool isForceClose) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 	if (!isForceClose && isClosing) {
 		if (_action.empty())
 			return nullptr;
@@ -634,43 +674,14 @@ struct DialogAction *Dialog::pickAction(bool isClosing, bool isForceClose) {
 	return nullptr;
 }
 
-
-void Dialog::fixupStringAndActions() {
-	//
-	// This is a slight HACK.  The original seems to have accepted any number
-	// of trailing spaces before a CR when doing wrapping, but our wrapper
-	// will wrap the spaces.  This creates too many blank lines.
-	// To correct this, remove sequences of blank before CRs -
-	// but we then have to fix up offsets of actions.
-	//
-	// This code is not efficient, but it only runs once on load and
-	// only on fairly short strings, so it's ok.
-	//
-	for (uint i = 0; i < _str.size(); i++) {
-		if (_str[i] == '\r') {
-			while (i > 0 && _str[i - 1] == ' ') {
-				_str.deleteChar(i - 1);
-				for (auto &action : _action) {
-					if (action.strStart >= i)
-						action.strStart--;
-					if (action.strEnd >= i)
-						action.strEnd--;
-				}
-				i--;
-			}
-		}
-	}
-}
-
-
 Common::String Dialog::dump(const Common::String &indent) const {
 	Common::String str = Common::String::format(
-			"%sDialog<num %d %s bgcol %d fcol %d selbgcol %d selfontcol %d fntsz %d flags 0x%02x frame %d delay %d next %d:%d",
+			"%sDialog<num %d %s bgcol %d fcol %d selbgcol %d selfontcol %d fntsz %d flags 0x%02x frame %d delay %d next %d:%d talkdata %d:%d",
 			indent.c_str(), _num, _rect.dump("").c_str(), _bgColor, _fontColor, _selectionBgCol, _selectonFontCol, _fontSize,
-			_flags, _frameType, _time, _nextDialogFileNum, _nextDialogDlgNum);
+			_flags, _frameType, _time, _nextDialogFileNum, _nextDialogDlgNum, _talkDataNum, _talkDataHeadNum);
 	str += indent + "state=" + (_state ? _state->dump("") : "null");
 	str += "\n";
-	str += _dumpStructList(indent, "actions", _action);
+	str += DebugUtil::dumpStructList(indent, "actions", _action);
 	str += "\n";
 	str += indent + "  str='" + _str + "'>";
 	return str;
@@ -715,7 +726,7 @@ Common::Error DialogState::syncState(Common::Serializer &s) {
 
 Common::String DialogAction::dump(const Common::String &indent) const {
 	Common::String str = Common::String::format("%sDialogueAction<span: %d-%d", indent.c_str(), strStart, strEnd);
-	str += _dumpStructList(indent, "opList", sceneOpList);
+	str += DebugUtil::dumpStructList(indent, "opList", sceneOpList);
 	if (!sceneOpList.empty()) {
 		str += "\n";
 		str += indent;

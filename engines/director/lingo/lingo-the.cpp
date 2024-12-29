@@ -47,7 +47,7 @@ namespace Director {
 
 class Sprite;
 
-TheEntity entities[] = {
+const TheEntity entities[] = {
 	{ kTheActorList,		"actorList",		false, 400, false },	//			D4 property
 	{ kTheBeepOn,			"beepOn",			false, 200, false },	// D2 p
 	{ kTheButtonStyle,		"buttonStyle",		false, 200, false },	// D2 p
@@ -128,6 +128,7 @@ TheEntity entities[] = {
 	{ kTheRightMouseUp,		"rightMouseUp",		false, 500, true },	//					D5 f
 	{ kTheRollOver,			"rollOver",			false, 500, true },	//					D5 f, undocumented
 	{ kTheRomanLingo,		"romanLingo",		false, 300, false },	//		D3.1 p
+	{ kTheRunMode, 			"runMode",			false, 500, false },//					D5 f, documented in D6
 	{ kTheScummvmVersion,	"scummvmVersion",	false, 200, true }, // 					ScummVM only
 	{ kTheSearchCurrentFolder,"searchCurrentFolder",false,400, true },//			D4 f
 	{ kTheSearchPath,		"searchPath",		false, 400, true },	//			D4 f
@@ -167,7 +168,7 @@ TheEntity entities[] = {
 	{ kTheNOEntity, nullptr, false, 0, false }
 };
 
-TheEntityField fields[] = {
+const TheEntityField fields[] = {
 	{ kTheSprite,	"backColor",	kTheBackColor,	200 },// D2 p
 	{ kTheSprite,	"blend",		kTheBlend,		400 },//				D4 p
 	{ kTheSprite,	"bottom",		kTheBottom,		200 },// D2 p
@@ -202,12 +203,14 @@ TheEntityField fields[] = {
 
 	// Common cast fields
 	{ kTheCast,		"backColor",	kTheBackColor,	400 },//				D4 p
+	{ kTheCast,		"castLibNum",	kTheCastLibNum,	500 },// 					D5 p
 	{ kTheCast,		"castType",		kTheCastType,	400 },//				D4 p
 	{ kTheCast,		"filename",		kTheFileName,	400 },//				D4 p
 	{ kTheCast,		"foreColor",	kTheForeColor,	400 },//				D4 p
 	{ kTheCast,		"height",		kTheHeight,		400 },//				D4 p
 	{ kTheCast,		"loaded",		kTheLoaded,		400 },//				D4 p
 	{ kTheCast,		"modified",		kTheModified,	400 },//				D4 p
+	{ kTheCast,		"memberNum",	kTheMemberNum,	500 },//					D5 p
 	{ kTheCast,		"name",			kTheName,		300 },//		D3 p
 	{ kTheCast,		"number",		kTheNumber,		300 },//		D3 p
 	{ kTheCast,		"rect",			kTheRect,		400 },//				D4 p
@@ -249,6 +252,8 @@ TheEntityField fields[] = {
 	{ kTheCast,		"textHeight",	kTheTextHeight,	300 },//		D3 p
 	{ kTheCast,		"textSize",		kTheTextSize,	300 },//		D3 p
 	{ kTheCast,		"textStyle",	kTheTextStyle,	300 },//		D3 p
+	{ kTheCast,		"scrollTop",	kTheScrollTop,  500 },//						D5 p
+
 
 	// Field fields
 	{ kTheField,	"foreColor",	kTheForeColor,	400 },//				D4 p
@@ -260,6 +265,7 @@ TheEntityField fields[] = {
 	{ kTheField,	"textHeight",	kTheTextHeight,	300 },//		D3 p
 	{ kTheField,	"textSize",		kTheTextSize,	300 },//		D3 p
 	{ kTheField,	"textStyle",	kTheTextStyle,	300 },//		D3 p
+	{ kTheField,	"scrollTop",	kTheScrollTop,  500 },//						D5 p
 
 	// Chunk fields
 	{ kTheChunk,	"foreColor",	kTheForeColor,	400 },//				D4 p
@@ -307,7 +313,7 @@ TheEntityField fields[] = {
 void Lingo::initTheEntities() {
 	_objectEntityId = kTheObject;
 
-	TheEntity *e = entities;
+	const TheEntity *e = entities;
 	_entityNames.resize(kTheMaxTheEntityType);
 
 	while (e->entity != kTheNOEntity) {
@@ -320,7 +326,7 @@ void Lingo::initTheEntities() {
 		e++;
 	}
 
-	TheEntityField *f = fields;
+	const TheEntityField *f = fields;
 	_fieldNames.resize(kTheMaxTheFieldType);
 
 	while (f->entity != kTheNOEntity) {
@@ -398,8 +404,8 @@ Datum Lingo::getTheEntity(int entity, Datum &id, int field) {
 	case kTheCast:
 		d = getTheCast(id, field);
 		break;
-	case kTheCastlibs: // D5
-		d = getCastlibsNum();
+	case kTheCastLibs: // D5
+		d = getCastLibsNum();
 		break;
 	case kTheCastMembers:
 		d = getMembersNum();
@@ -786,6 +792,13 @@ Datum Lingo::getTheEntity(int entity, Datum &id, int field) {
 	case kTheRomanLingo:
 		d = g_lingo->_romanLingo;
 		warning("BUILDBOT: the romanLingo is get, value is %d", g_lingo->_romanLingo);
+		break;
+	case kTheRunMode:
+		if (ConfMan.hasKey("director_runMode"))
+			d = Datum(ConfMan.get("director_runMode"));
+		else {
+			d = Datum("Projector");
+		}
 		break;
 	case kTheScummvmVersion:
 		d = _vm->getVersion();
@@ -1215,7 +1228,7 @@ void Lingo::setTheEntity(int entity, Datum &id, int field, Datum &d) {
 			Common::Path logPath = ConfMan.getPath("path").appendComponent(d.asString());
 			Common::FSNode out(logPath);
 			if (!out.exists())
-				out.createWriteStream();
+				out.createWriteStream(false);
 			if (out.isWritable())
 				g_director->_traceLogFile = logPath;
 			else
@@ -1255,7 +1268,7 @@ int Lingo::getMenuNum() {
 	return g_director->_wm->getMenu()->numberOfMenus();
 }
 
-int Lingo::getCastlibsNum() {
+int Lingo::getCastLibsNum() {
 	return _vm->getCurrentMovie()->getCasts()->size();
 }
 
@@ -1327,9 +1340,15 @@ Datum Lingo::getTheSprite(Datum &id1, int field) {
 	case kTheBottom:
 		d = channel->getBbox().bottom;
 		break;
+	case kTheMember:
+		d = sprite->_castId;
+		break;
 	case kTheCastNum:
 	case kTheMemberNum:
 		d = sprite->_castId.member;
+		break;
+	case kTheCastLibNum:
+		d = sprite->_castId.castLib;
 		break;
 	case kTheConstraint:
 		d = (int)channel->_constraint;
@@ -1496,10 +1515,28 @@ void Lingo::setTheSprite(Datum &id1, int field, Datum &d) {
 			sprite->setAutoPuppet(kAPBlend, true);
 		}
 		break;
+	case kTheMember:
+		{
+			CastMemberID targetMember = d.asMemberID();
+
+			if (targetMember != sprite->_castId) {
+				movie->getWindow()->addDirtyRect(channel->getBbox());
+				movie->duplicateCastMember(targetMember, sprite->_castId);
+				channel->_sprite->setCast(sprite->_castId);
+				// Ensure the new sprite, whether larger or smaller, appears correctly on the screen
+				movie->getWindow()->addDirtyRect(channel->getBbox());
+				channel->_dirty = true;
+			}
+		}
+		break;
 	case kTheCastNum:
 	case kTheMemberNum:
 		{
 			CastMemberID castId = d.asMemberID();
+			// Setting the cast ID as a number will preserve whatever is in castLib
+			if (d.isNumeric() && (sprite->_castId.castLib != 0)) {
+				castId = CastMemberID(d.asInt(), sprite->_castId.castLib);
+			}
 			CastMember *castMember = movie->getCastMember(castId);
 
 			if (castMember && castMember->_type == kCastDigitalVideo) {

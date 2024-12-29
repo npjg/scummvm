@@ -47,6 +47,8 @@ Location of saved game files
 
 The save directory can be changed with the savepath setting in the :doc:`Paths tab <../settings/paths>`. It can also be changed in the :doc:`configuration file <../advanced_topics/configuration_file>`.
 
+.. _savelocation:
+
 Default saved game paths are shown below.
 
 .. tab-set::
@@ -58,7 +60,7 @@ Default saved game paths are shown below.
 
     .. tab-item:: macOS
 
-        ``~/Documents/ScummVM Savegames/``
+        ``~/Library/Application Support/ScummVM/Savegames/`` (with versions of ScummVM prior to 2.9 it was in ``~/Documents/ScummVM Savegames/``).
 
 
     .. tab-item:: Linux/Unix
@@ -94,7 +96,3 @@ In grid view, each tile shows a screenshot of the saved state, as well as a desc
 .. figure:: ../images/Launcher/load_game_grid.png
 
   Loading a game, grid view.
-
-
-.. _savelocation:
-

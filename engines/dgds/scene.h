@@ -27,40 +27,21 @@
 #include "common/serializer.h"
 
 #include "dgds/dialog.h"
+#include "dgds/head.h"
 #include "dgds/dgds_rect.h"
+#include "dgds/minigames/shell_game.h"
+#include "dgds/scene_condition.h"
+#include "dgds/scene_op.h"
 
 namespace Dgds {
 
 class ResourceManager;
 class Decompressor;
 class DgdsFont;
+class SoundRaw;
+class TTMInterpreter;
+class TTMEnviro;
 
-enum SceneCondition {
-	kSceneCondNone = 0,
-	kSceneCondLessThan = 1,
-	kSceneCondEqual = 2,
-	kSceneCondNegate = 4,
-	kSceneCondAbsVal = 8,
-	kSceneCondOr = 0x10,
-	kSceneCondNeedItemSceneNum = 0x20,
-	kSceneCondNeedItemQuality = 0x40,
-	kSceneCondSceneState = 0x80
-};
-
-class SceneConditions {
-public:
-	SceneConditions(uint16 num, SceneCondition cond, uint16 val) : _num(num), _flags(cond), _val(val) {}
-	Common::String dump(const Common::String &indent) const;
-
-	uint16 getNum() const { return _num; }
-	SceneCondition getCond() const { return _flags; }
-	uint16 getVal() const { return _val; }
-
-private:
-	uint16 _num;
-	SceneCondition _flags; /* eg, see usage in FUN_1f1a_2106 */
-	uint16 _val;
-};
 
 class HotArea {
 public:
@@ -69,8 +50,8 @@ public:
 	uint16 _cursorNum;
 
 	// Used in Willy Beamish
-	uint16 _unk1;
-	uint16 _unk2;
+	uint16 _cursorNum2;
+	uint16 _objInteractionRectNum;
 
 	Common::Array<SceneConditions> enableConditions;
 	Common::Array<SceneOp> onRClickOps;
@@ -82,85 +63,18 @@ public:
 	virtual Common::String dump(const Common::String &indent) const;
 };
 
-enum SceneOpCode {
-	kSceneOpNone = 0,
-	kSceneOpChangeScene = 1,  	// args: scene num
-	kSceneOpNoop = 2,		 	// args: none. Maybe should close dialogue?
-	kSceneOpGlobal = 3,			// args: array of uints
-	kSceneOpSegmentStateOps = 4,	// args: array of uint pairs [op seg, op seg], term with 0,0 that modify segment states
-	kSceneOpSetItemAttr = 5,	// args: [item num, item param 0x28, item param 0x2c]. set item attrs?
-	kSceneOpSetDragItem = 6,		// args: item num. give item?
-	kSceneOpOpenInventory = 7,	// args: none.
-	kSceneOpShowDlg = 8,		// args: dialogue number.
-	kSceneOpShowInvButton = 9,		// args: none.
-	kSceneOpHideInvButton = 10,	// args: none.
-	kSceneOpEnableTrigger = 11,	// args: trigger num
-	kSceneOpChangeSceneToStored = 12,	// args: none. Change scene to stored number
-	kSceneOpAddFlagToDragItem = 13,			// args: none.
-	kSceneOpOpenInventoryZoom = 14,	// args: none.
-	kSceneOpMoveItemsBetweenScenes = 15,	// args: none.
-	kSceneOpShowClock = 16,		// args: none.  set clock script-visible.
-	kSceneOpHideClock = 17,		// args: none.  set clock script-hidden.
-	kSceneOpShowMouse = 18,		// args: none.
-	kSceneOpHideMouse = 19,		// args: none.
-	// Op 20 onward are common, but not in dragon
-
-	kSceneOpLoadTalkDataAndSetFlags = 20, // args: tdsnum to load, headnum
-	kSceneOpDrawVisibleTalkHeads = 21, // args: none
-	kSceneOpLoadTalkData = 22, 	// args: tds num to load
-	kSceneOpLoadDDSData = 24, 	// args: dds num to load
-	kSceneOpFreeDDSData = 25,	// args: dds num to free
-	kSceneOpFreeTalkData = 26, 	// args: tds num to free
-
-	// Dragon-specific opcodes
-	kSceneOpPasscode = 100,			// args: none.
-	kSceneOpMeanwhile = 101,	// args: none. Clears screen and displays "meanwhile".
-	kSceneOpOpenGameOverMenu = 102,	// args: none.
-	kSceneOpTiredDialog = 103,			// args: none. Something about "boy am I tired"?
-	kSceneOpArcadeTick = 104,			// args: none. Called in arcade post-tick.
-	kSceneOpDrawDragonCountdown1 = 105,			// args: none. Draw special countdown number at 141, 56
-	kSceneOpDrawDragonCountdown2 = 106,			// args: none. Draw some number at 250, 42
-	kSceneOpOpenPlaySkipIntroMenu = 107, // args: none.  DRAGON: Show menu 50, the "Play Introduction" / "Skip Introduction" menu.
-	kSceneOpOpenBetterSaveGameMenu = 108,			// args: none. DRAGON: Show menu 46, the "Before arcade maybe you better save your game" menu.
-
-	// China-specific opcodes
-	kSceneOpOpenChinaTankMenu = 102,
-	kSceneOpShellGame = 110,
-	kSceneOpOpenChinaTrainMenu = 113,
-	kSceneOpOpenChinaOpenGameOverMenu = 114,	// args: none.
-	kSceneOpOpenChinaOpenSkipCreditsMenu = 115,	// args: none.
-	kSceneOpOpenChinaStartIntro = 116,	// args: none.
-	kSceneOpChina117 = 117,	// args: none. ??
-	kSceneOpChina118 = 118,	// args: none. ??
-
-	// Beamish-specific opcodes
-	kSceneOpOpenBeamishOpenSkipCreditsMenu = 101,
-
-	kSceneOpMaxCode = 255, // for checking file load
-};
-
-class SceneOp {
+class DynamicRect {
 public:
-	Common::Array<SceneConditions> _conditionList;
-	Common::Array<uint16> _args;
-	SceneOpCode _opCode;
-
-	Common::String dump(const Common::String &indent) const;
+	DynamicRect() : _num(0) {};
+	uint16 _num;
+	DgdsRect _rect;
 };
 
-class ConditionalSceneOp {
-public:
-	uint _opCode;
-	Common::Array<SceneConditions> _conditionList;
-	Common::Array<SceneOp> _opList;
-
-	Common::String dump(const Common::String &indent) const;
-};
 
 class GameItem : public HotArea {
 public:
 	Common::Array<SceneOp> onDragFinishedOps;
-	Common::Array<SceneOp> opList5;
+	Common::Array<SceneOp> onBothButtonsOps;
 	uint16 _altCursor;
 	uint16 _iconNum;
 
@@ -192,7 +106,8 @@ public:
 	Common::Array<SceneOp> opList;
 
 	bool matches(uint16 droppedItemNum, uint16 targetItemNum) const {
-		return _droppedItemNum == droppedItemNum && _targetItemNum == targetItemNum;
+		return (_droppedItemNum == 0xFFFF || _droppedItemNum == droppedItemNum)
+				&& _targetItemNum == targetItemNum;
 	}
 
 	Common::String dump(const Common::String &indent) const;
@@ -205,13 +120,14 @@ private:
 
 class SceneTrigger {
 public:
-	SceneTrigger(uint16 num) : _num(num), _enabled(false), _timesToCheckBeforeRunning(0) {}
+	SceneTrigger(uint16 num) : _num(num), _enabled(false), _timesToCheckBeforeRunning(0), _checksUntilRun(0) {}
 	Common::String dump(const Common::String &indent) const;
 
 	Common::Array<SceneConditions> conditionList;
 	Common::Array<SceneOp> sceneOpList;
 
 	uint16 _timesToCheckBeforeRunning; // Only used in Beamish.
+	uint16 _checksUntilRun;
 	bool _enabled;
 	uint16 getNum() const { return _num; }
 
@@ -239,55 +155,6 @@ private:
 };
 
 
-class TalkDataHeadFrame {
-public:
-	TalkDataHeadFrame() : _xoff(0), _yoff(0), _frameNo(0) {}
-	Common::String dump(const Common::String &indent) const;
-
-	uint16 _frameNo;
-	uint16 _xoff;
-	uint16 _yoff;
-};
-
-enum HeadFlags {
-	kHeadFlagNone = 0,
-	kHeadFlag1 = 1,
-	kHeadFlag2 = 2,
-	kHeadFlag4 = 4,
-	kHeadFlag8 = 8,
-	kHeadFlag10 = 0x10,
-	kHeadFlagVisible = 0x20,
-	kHeadFlag40 = 0x40,
-	kHeadFlag80 = 0x80,
-};
-
-class TalkDataHead {
-public:
-	TalkDataHead() : _num(0), _drawType(0), _drawCol(0), _val3(0), _flags(kHeadFlagNone) {}
-	Common::String dump(const Common::String &indent) const;
-
-	uint16 _num;
-	uint16 _drawType;
-	uint16 _drawCol;
-	DgdsRect _rect;
-	Common::Array<TalkDataHeadFrame> _headFrames;
-	uint16 _val3;
-	HeadFlags _flags;
-};
-
-class TalkData {
-public:
-	TalkData() : _num(0), _val(0) {}
-	Common::String dump(const Common::String &indent) const;
-
-	uint16 _num;
-	Common::SharedPtr<Image> _shape;
-	Common::Array<TalkDataHead> _heads;
-	uint16 _val;
-	Common::String _bmpFile;
-};
-
-
 /**
  * A scene is described by an SDS file, which points to the ADS script to load
  * and holds the dialog info.
@@ -304,12 +171,20 @@ public:
 
 	uint32 getMagic() const { return _magic; }
 	const Common::String &getVersion() const { return _version; }
+
 	bool runPreTickOps() { return runOps(_preTickOps); }
 	bool runPostTickOps() { return runOps(_postTickOps); }
 
-	bool runOps(const Common::Array<SceneOp> &ops, int16 addMinutes = 0);
+	static bool runOps(const Common::Array<SceneOp> ops, int16 addMinutes = 0);
+
 	virtual Common::Error syncState(Common::Serializer &s) = 0;
-	virtual void enableTrigger(uint16 numm, bool enable = true) {}
+
+	// These are all static as they are potentially run over scene changes.
+	static bool checkConditions(const Common::Array<SceneConditions> &cond);
+
+	static void segmentStateOps(const Common::Array<uint16> &args);
+	static void setItemAttrOp(const Common::Array<uint16> &args);
+	static void setDragItemOp(const Common::Array<uint16> &args);
 
 protected:
 	bool readConditionList(Common::SeekableReadStream *s, Common::Array<SceneConditions> &list) const;
@@ -323,20 +198,6 @@ protected:
 	bool readTriggerList(Common::SeekableReadStream *s, Common::Array<SceneTrigger> &list) const;
 	bool readDialogActionList(Common::SeekableReadStream *s, Common::Array<DialogAction> &list) const;
 	bool readConditionalSceneOpList(Common::SeekableReadStream *s, Common::Array<ConditionalSceneOp> &list) const;
-
-	bool checkConditions(const Common::Array<SceneConditions> &cond) const;
-
-	virtual void showDialog(uint16 fileNum, uint16 dlgNum) {}
-	virtual void globalOps(const Common::Array<uint16> &args) {}
-	virtual void segmentStateOps(const Common::Array<uint16> &args);
-
-	void setItemAttrOp(const Common::Array<uint16> &args);
-	void setDragItemOp(const Common::Array<uint16> &args);
-
-	bool runSceneOp(const SceneOp &op);
-	bool runDragonOp(const SceneOp &op);
-	bool runChinaOp(const SceneOp &op);
-	bool runBeamishOp(const SceneOp &op);
 
 	uint32 _magic;
 	Common::String _version;
@@ -363,20 +224,27 @@ public:
 	void runStartGameOps() { runOps(_startGameOps); }
 	void runQuitGameOps() { runOps(_quitGameOps); }
 	void runChangeSceneOps() { runOps(_onChangeSceneOps); }
-	void globalOps(const Common::Array<uint16> &args) override;
-	int16 getGlobal(uint16 num);
+	void globalOps(const Common::Array<uint16> &args);
+	int16 getGlobal(uint16 num) const;
 	int16 setGlobal(uint16 num, int16 val);
 
 	const Common::Array<MouseCursor> &getCursorList() const { return _cursorList; }
 	void drawItems(Graphics::ManagedSurface &surf);
 	Common::Array<GameItem> &getGameItems() { return _gameItems; }
-	int countItemsInScene2() const;
+	int countItemsInInventory() const;
 
 	const Common::Array<ObjectInteraction> &getObjInteractions1() { return _objInteractions1; }
 	const Common::Array<ObjectInteraction> &getObjInteractions2() { return _objInteractions2; }
 
 	Common::Error syncState(Common::Serializer &s) override;
 	void initIconSizes();
+	GameItem *getActiveItem();
+
+	int16 getDefaultMouseCursor() const { return _defaultMouseCursor; }
+	int16 getDefaultMouseCursor2() const { return _defaultMouseCursor2; }
+	int16 getOtherDefaultMouseCursor() const { return _defaultOtherMouseCursor; }
+	uint16 getInvIconNum() const { return _invIconNum; }
+	int16 getInvIconMouseCursor() const { return _invIconMouseCursor; }
 
 private:
 	Common::String _iconFile;
@@ -386,15 +254,15 @@ private:
 	Common::Array<SceneOp> _onChangeSceneOps;
 	Common::Array<MouseCursor> _cursorList;
 	Common::Array<PerSceneGlobal> _perSceneGlobals;
-	Common::Array<ObjectInteraction> _objInteractions1;
 	Common::Array<ObjectInteraction> _objInteractions2;
+	Common::Array<ObjectInteraction> _objInteractions1;
 
 	// Additional fields that appear in Willy Beamish (unused in others)
-	uint16 _field38;
-	uint16 _field3a;
-	uint16 _field3c;
-	uint16 _field3e;
-	uint16 _field40;
+	int16 _defaultMouseCursor;
+	int16 _defaultMouseCursor2;
+	uint16 _invIconNum;
+	int16 _invIconMouseCursor;
+	int16 _defaultOtherMouseCursor;
 };
 
 class SDSScene : public Scene {
@@ -418,11 +286,10 @@ public:
 	bool drawAndUpdateDialogs(Graphics::ManagedSurface *dst);
 	bool checkForClearedDialogs();
 
-	void globalOps(const Common::Array<uint16> &args) override;
-
 	void mouseMoved(const Common::Point &pt);
 	void mouseLDown(const Common::Point &pt);
 	void mouseLUp(const Common::Point &pt);
+	void mouseRDown(const Common::Point &pt);
 	void mouseRUp(const Common::Point &pt);
 
 	void addInvButtonToHotAreaList();
@@ -443,7 +310,7 @@ public:
 	Common::Error syncState(Common::Serializer &s) override;
 
 	void onDragFinish(const Common::Point &pt);
-	void enableTrigger(uint16 num, bool enable = true) override;
+	void enableTrigger(uint16 sceneNum, uint16 num, bool enable = true);
 
 	Dialog *loadDialogData(uint16 num);
 	void freeDialogData(uint16 num);
@@ -452,28 +319,30 @@ public:
 	void updateVisibleTalkers();
 	void loadTalkDataAndSetFlags(uint16 talknum, uint16 headnum);
 	void drawVisibleHeads(Graphics::ManagedSurface *dst);
+	bool hasVisibleHead() const;
 
 	// dragon-specific scene ops
 	void addAndShowTiredDialog();
-	void sceneOpUpdatePasscodeGlobal();
 
 	void prevChoice();
 	void nextChoice();
 	void activateChoice();
 	bool isTriggerEnabled(uint16 num);
+	bool isLButtonDown() const { return _lbuttonDown; }
+	bool isRButtonDown() const { return _rbuttonDown; }
+	void showDialog(uint16 fileNum, uint16 dlgNum);
+	const Common::Array<ConditionalSceneOp> &getConditionalOps() { return _conditionalOps; }
+	void updateHotAreasFromDynamicRects();
+	void setDynamicSceneRect(int16 num, int16 x, int16 y, int16 width, int16 height);
+	void setSceneNum(int16 num) { _num = num; }
+	void drawDebugHotAreas(Graphics::ManagedSurface *dst) const;
 
 protected:
 	HotArea *findAreaUnderMouse(const Common::Point &pt);
 
 private:
-	void showDialog(uint16 fileNum, uint16 dlgNum) override;
 	Dialog *getVisibleDialog();
 	bool readTalkData(Common::SeekableReadStream *s, TalkData &dst);
-	void updateHead(TalkDataHead &head);
-	void drawHead(Graphics::ManagedSurface *dst, const TalkData &data, const TalkDataHead &head);
-	void drawHeadType1(Graphics::ManagedSurface *dst, const TalkDataHead &head, const Image &img);
-	void drawHeadType2(Graphics::ManagedSurface *dst, const TalkDataHead &head, const Image &img);
-	void drawHeadType3(Graphics::ManagedSurface *dst, const TalkDataHead &head, const Image &img);
 
 	int _num;
 	Common::Array<SceneOp> _enterSceneOps;
@@ -485,6 +354,7 @@ private:
 	Common::List<HotArea> _hotAreaList;
 	Common::Array<ObjectInteraction> _objInteractions1;
 	Common::Array<ObjectInteraction> _objInteractions2;
+	Common::Array<DynamicRect> _dynamicRects; // Only used in Willy Beamish
 	//uint _field12_0x2b;
 	//uint _field15_0x33;
 
@@ -493,10 +363,13 @@ private:
 	// From here on is mutable stuff that might need saving
 	Common::Array<Dialog> _dialogs;
 	Common::Array<SceneTrigger> _triggers;
+	Conversation _conversation;
 
 	GameItem *_dragItem;
 	bool _shouldClearDlg;
 	bool _ignoreMouseUp;
+	bool _lbuttonDown;
+	bool _rbuttonDown;
 
 	static bool _dlgWithFlagLo8IsClosing;
 	static DialogFlags _sceneDialogFlags;

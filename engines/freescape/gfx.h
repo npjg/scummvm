@@ -42,6 +42,8 @@ typedef Common::HashMap<int, int> ColorReMap;
 
 class Renderer;
 
+const Graphics::PixelFormat getRGBAPixelFormat();
+
 class Texture {
 public:
 	Texture(){ _width = 0; _height = 0; };
@@ -53,8 +55,6 @@ public:
 
 	virtual void update(const Graphics::Surface *surface) = 0;
 	virtual void updatePartial(const Graphics::Surface *surface, const Common::Rect &rect) = 0;
-
-	static const Graphics::PixelFormat getRGBAPixelFormat();
 };
 
 class Renderer {
@@ -79,7 +79,7 @@ public:
 	virtual void depthTesting(bool enabled) {};
 	virtual void polygonOffset(bool enabled) = 0;
 
-	virtual Texture *createTexture(const Graphics::Surface *surface) = 0;
+	virtual Texture *createTexture(const Graphics::Surface *surface, bool is3D = false) = 0;
 	Graphics::Surface *convertImageFormatIfNecessary(Graphics::ManagedSurface *surface);
 
 	virtual void freeTexture(Texture *texture) = 0;
@@ -121,13 +121,142 @@ public:
 	bool getRGBAtCPC(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r2, uint8 &g2, uint8 &b2, byte *&stipple);
 	bool getRGBAtEGA(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r2, uint8 &g2, uint8 &b2);
 	bool getRGBAtZX(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r2, uint8 &g2, uint8 &b2, byte *&stipple);
+	bool getRGBAtHercules(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1, uint8 &r2, uint8 &g2, uint8 &b2, byte *&stipple);
 	void extractCPCIndexes(uint8 cm1, uint8 cm2, uint8 &i1, uint8 &i2);
 	void extractC64Indexes(uint8 cm1, uint8 cm2, uint8 &i1, uint8 &i2);
 
 	void selectColorFromFourColorPalette(uint8 index, uint8 &r1, uint8 &g1, uint8 &b1);
 
+	// Stipple
 	virtual void setStippleData(byte *data) {};
 	virtual void useStipple(bool enabled) {};
+	void scaleStipplePattern(byte originalPattern[128], byte newPattern[128]);
+
+	byte _defaultStippleArray[128] = {
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+		0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+		0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33,
+	};
+
+	byte _defaultStippleArraySmall[128] = {
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+		0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
+	};
+
+	byte *_variableStippleArray;
+
+	float _skyNormals[16][3] = {
+		{ 0.0, 0.0, 1.0 }, //front //0
+		{ 0.0, 0.0, 1.0 },		//1
+		{ 0.0, 0.0, 1.0 },		//2
+		{ 0.0, 0.0, 1.0 },		//3
+		{ 0.0, 0.0, -1.0 }, //back //0
+		{ 0.0, 0.0, -1.0 },		//1
+		{ 0.0, 0.0, -1.0 },		//2
+		{ 0.0, 0.0, -1.0 },		//3
+		{ -1.0, 0.0, 0.0 }, //left
+		{ -1.0, 0.0, 0.0 },
+		{ -1.0, 0.0, 0.0 },
+		{ -1.0, 0.0, 0.0 },
+		{ 1.0, 0.0, 0.0 }, //right
+		{ 1.0, 0.0, 0.0 },
+		{ 1.0, 0.0, 0.0 },
+		{ 1.0, 0.0, 0.0 }
+	};
+
+	float _skyUvs1008[16][2] = {
+		{ 0.0f, 0.0f }, //1
+		{ 0.0f, 2.0f }, //2
+		{ 0.4f, 2.0f }, //3
+		{ 0.4f, 0.0f }, //front //4
+
+		{ 0.0f, 2.0f }, //back //1
+		{ 0.4f, 2.0f }, //2
+		{ 0.4f, 0.0f }, //3
+		{ 0.0f, 0.0f }, //4
+
+		{ 0.0f, 0.0f }, //left //1
+		{ 0.4f, 0.0f }, //2
+		{ 0.4f, 2.0f }, //3
+		{ 0.0f, 2.0f }, //4
+
+		{ 0.4f, 0.0f }, //right //1
+		{ 0.0f, 0.0f }, //2
+		{ 0.0f, 2.0f }, //3
+		{ 0.4f, 2.0f }, //4
+	};
+
+	float _skyUvs128[16][2] = {
+		{ 0.0f, 0.0f }, //1
+		{ 0.0f, 2.0f }, //2
+		{ 2.5f, 2.0f }, //3
+		{ 2.5f, 0.0f }, //front //4
+
+		{ 0.0f, 2.0f }, //back //1
+		{ 2.5f, 2.0f }, //2
+		{ 2.5f, 0.0f }, //3
+		{ 0.0f, 0.0f }, //4
+
+		{ 0.0f, 0.0f }, //left //1
+		{ 2.5f, 0.0f }, //2
+		{ 2.5f, 2.0f }, //3
+		{ 0.0f, 2.0f }, //4
+
+		{ 2.5f, 0.0f }, //right //1
+		{ 0.0f, 0.0f }, //2
+		{ 0.0f, 2.0f }, //3
+		{ 2.5f, 2.0f }, //4
+	};
+
+	float _skyVertices[16][3] = {
+		{ -81280.0, 8128.0, 81280.0 },          //1     // Vertex #0 front
+		{ -81280.0, -8128.0, 81280.0 }, //2     // Vertex #1
+		{ 81280.0,  -8128.0, 81280.0 }, //3     // Vertex #2
+		{ 81280.0,  8128.0, 81280.0 },          //4     // Vertex #3
+
+		{ 81280.0f, -8128.0f, -81280.0f }, // 1
+		{ -81280.0f, -8128.0f, -81280.0f }, // 2
+		{ -81280.0f, 8128.0f, -81280.0f }, // 3
+		{ 81280.0f, 8128.0f, -81280.0f }, // 4
+
+		{ -81280.0f,  8128.0f,  81280.0f }, //left //1
+		{ -81280.0f,  8128.0f, -81280.0f }, //2
+		{ -81280.0f, -8128.0f, -81280.0f }, //3
+		{ -81280.0f, -8128.0f,  81280.0f }, //4
+
+		{ 81280.0f,  8128.0f, -81280.0f }, //right //1
+		{ 81280.0f,  8128.0f,  81280.0f }, //2
+		{ 81280.0f, -8128.0f,  81280.0f },//3
+		{ 81280.0f, -8128.0f, -81280.0f },//4
+	};
+
 	byte *_palette;
 	void setColorMap(ColorMap *colorMap_);
 	ColorMap *_colorMap;
@@ -139,6 +268,7 @@ public:
 	int _inkColor;
 	int _paperColor;
 	int _underFireBackgroundColor;
+	Common::Point _shakeOffset;
 	byte _stipples[16][128];
 
 	int _scale;
@@ -150,7 +280,7 @@ public:
 	 */
 
 	virtual void positionCamera(const Math::Vector3d &pos, const Math::Vector3d &interest) = 0;
-	virtual void updateProjectionMatrix(float fov, float yminValue, float ymaxValue, float nearClipPlane, float farClipPlane) = 0;
+	virtual void updateProjectionMatrix(float fov, float aspectRatio, float nearClipPlane, float farClipPlane) = 0;
 
 	Math::Matrix4 getMvpMatrix() const { return _mvpMatrix; }
 	virtual Graphics::Surface *getScreenshot() = 0;

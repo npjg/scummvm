@@ -31,22 +31,31 @@
 
 #include "dgds/includes.h"
 #include "dgds/font.h"
+#include "dgds/globals.h"
 #include "dgds/menu.h"
-#include "dgds/music.h"
 #include "dgds/request.h"
 #include "dgds/scene.h"
 #include "dgds/sound.h"
+#include "dgds/minigames/china_train.h"
 
 namespace Dgds {
 
 
 // TODO: These are the IDs for Dragon, this code needs updates for China/Beamish/etc
 enum MenuButtonIds {
+	kMainMenuWillySave = 110,
+	kMainMenuWillyLoad = 111,
+	kMainMenuWillyRestart = 112,
+	kMainMenuWillyQuit = 113,
+	kMainMenuWillyHelp = 114,
+	kMainMenuWillySoundsOnOff = 115,
+	kMainMenuWillyMusicOnOff = 116,
+
 	kMenuMainPlay = 120,
 	kMenuMainControls = 20,
 	kMenuMainOptions = 121,
-	kMenuMainCalibrate = 118,
-	kMenuMainFiles = 119,
+	kMenuMainCalibrate = 118, // or Credits in Willy Beamish
+	kMenuMainFiles = 119, // or Play in Willy Beamish
 	kMenuMainQuit = 122,
 
 	kMenuControlsVCR = 127,
@@ -63,6 +72,7 @@ enum MenuButtonIds {
 	kMenuOptionsSoundsOnOff = 137,
 	kMenuOptionsMusicOnOff = 140,
 	kMenuOptionsSoundsOnOffHoC = 175,
+	kMenuOptionsSoundsOnOffDE = 172, // German version
 	kMenuOptionsMusicOnOffHoC = 171,
 	kMenuOptionsVCR = 135,
 	kMenuOptionsPlay = 136,
@@ -111,6 +121,13 @@ enum MenuButtonIds {
 	kMenuRestartYes = 163,
 	kMenuRestartNo = 164,
 
+	// For Dragon/HOC arcade
+	kMenuReplayArcadeYes = 139,
+	kMenuReplayArcadeNo = 140,
+
+	kMenuFrustratedArcadeWin = 147,
+	kMenuFrustratedArcadeKeepTrying = 148,
+
 	kMenuGameOverQuit = 169,
 	kMenuGameOverRestart = 168,
 	kMenuGameOverRestore = 170,
@@ -141,50 +158,69 @@ void Menu::setScreenBuffer() {
 }
 
 bool Menu::updateOptionsGadget(Gadget *gadget) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
-	Audio::Mixer *mixer = engine->_mixer;
+	Audio::Mixer *mixer = DgdsEngine::getInstance()->_mixer;
+	const char *mouseStr, *soundStr, *musicStr, *onStr, *offStr;
+	if (DgdsEngine::getInstance()->getGameLang() == Common::EN_ANY) {
+		mouseStr = "MOUSE";
+		soundStr = "SOUND";
+		musicStr = "MUSIC";
+		onStr = "ON";
+		offStr = "OFF";
+	} else if (DgdsEngine::getInstance()->getGameLang() == Common::DE_DEU) {
+		mouseStr = "MAUS";
+		soundStr = "TON";
+		musicStr = "MUSIK";
+		onStr = "AN";
+		offStr = "AUS";
+	} else {
+		error("Unsupported language %d", DgdsEngine::getInstance()->getGameLang());
+	}
 
 	switch (gadget->_gadgetNo) {
 	case kMenuOptionsJoystickOnOff:
 	case kMenuOptionsJoystickOnOffHoC:
-		gadget->_buttonName = "JOYSTICK ON";
-		return false;
+		gadget->_buttonName = Common::String::format("JOYSTICK %s", onStr);
+		return true;
 	case kMenuOptionsMouseOnOff:
 	case kMenuOptionsMouseOnOffHoC:
-		gadget->_buttonName = "MOUSE ON";
-		return false;
+		gadget->_buttonName = Common::String::format("%s %s", mouseStr, onStr);
+		return true;
 	case kMenuOptionsSoundsOnOff: // same id as kMenuMaybeBetterSaveYes
-	case kMenuOptionsSoundsOnOffHoC:
-		gadget->_buttonName = (!mixer->isSoundTypeMuted(Audio::Mixer::kSFXSoundType)) ? "SOUNDS ON" : "SOUNDS OFF";
+	case kMenuOptionsSoundsOnOffDE:
+	case kMenuOptionsSoundsOnOffHoC: {
+		bool isMuted = mixer->isSoundTypeMuted(Audio::Mixer::kSFXSoundType);
+		gadget->_buttonName = Common::String::format("%s %s", soundStr, isMuted ? offStr : onStr);
 		return true;
+	}
 	case kMenuOptionsMusicOnOff:
-	case kMenuOptionsMusicOnOffHoC:
-		gadget->_buttonName = (!mixer->isSoundTypeMuted(Audio::Mixer::kMusicSoundType)) ? "MUSIC ON" : "MUSIC OFF";
+	case kMenuOptionsMusicOnOffHoC: {
+		bool isMuted = mixer->isSoundTypeMuted(Audio::Mixer::kMusicSoundType);
+		gadget->_buttonName = Common::String::format("%s %s", musicStr, isMuted ? offStr : onStr);
 		return true;
+	}
 	default:
 		return false;
 	}
 }
 
 void Menu::configureGadget(MenuId menu, Gadget *gadget) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 
 	// a bit of a hack - set up the gadget with the correct value before we draw it.
 	if (menu == kMenuControls) {
 		SliderGadget *slider = dynamic_cast<SliderGadget *>(gadget);
+		if (!slider)
+			return;
 		switch (gadget->_gadgetNo) {
 		case kMenuSliderControlsDifficulty:
-			assert(slider);
 			slider->setSteps(3, false);
 			slider->setValue(engine->getDifficulty()); // TODO: set a difficulty value
 			break;
 		case kMenuSliderControlsTextSpeed:
-			assert(slider);
 			slider->setSteps(10, false);
 			slider->setValue(9 - engine->getTextSpeed());
 			break;
 		case kMenuSliderControlsDetailLevel:
-			assert(slider);
 			slider->setSteps(2, true);
 			slider->setValue(engine->getDetailLevel());
 			break;
@@ -322,7 +358,7 @@ void Menu::onMouseMove(const Common::Point &mouse) {
 }
 
 void Menu::onMouseLUp(const Common::Point &mouse) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 	if (_dragGadget && mouse != _dragStartPt) {
 		int16 setting = _dragGadget->onDragFinish(mouse);
 		switch (_dragGadget->_gadgetNo) {
@@ -351,7 +387,8 @@ void Menu::onMouseLUp(const Common::Point &mouse) {
 	// Click animation
 	if (dynamic_cast<ButtonGadget *>(gadget)) {
 		gadget->toggle(false);
-		isToggle = updateOptionsGadget(gadget);
+		if (_curMenu == kMenuOptions)
+			isToggle = updateOptionsGadget(gadget);
 		drawMenu(_curMenu);
 		g_system->delayMillis(500);
 		gadget->toggle(true);
@@ -369,7 +406,7 @@ void Menu::onMouseLUp(const Common::Point &mouse) {
 }
 
 void Menu::handleClick(const Common::Point &mouse) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 	int currentScene = engine->getScene()->getNum();
 	Gadget *gadget = getClickedMenuItem(mouse);
 	int16 clickedMenuItem = gadget->_gadgetNo;
@@ -383,7 +420,7 @@ void Menu::handleClick(const Common::Point &mouse) {
 	//case kMenuCalibratePlay:
 	//case kMenuCalibratePlayHoC:
 	//case kMenuMouseCalibrationPlay:
-		_curMenu = kMenuNone;
+		hideMenu();
 		CursorMan.showMouse(false);
 		break;
 	case kMenuMainControls:
@@ -438,12 +475,14 @@ void Menu::handleClick(const Common::Point &mouse) {
 	case kMenuFilesRestore:
 	case kMenuGameOverRestore:
 	case kMenuIntroRestore:
+	case kMainMenuWillyLoad:
 		if (g_engine->loadGameDialog())
 			hideMenu();
 		else
 			drawMenu(_curMenu);
 		break;
 	case kMenuFilesRestart:
+	case kMainMenuWillyRestart:
 		drawMenu(kMenuRestart);
 		break;
 	case kMenuFilesSave: // TODO: Add an option to support original save/load dialogs?
@@ -451,6 +490,7 @@ void Menu::handleClick(const Common::Point &mouse) {
 	//case kMenuSaveNext:
 	//case kMenuSaveSave:
 	case kMenuMaybeBetterSaveYes:
+	case kMainMenuWillySave:
 		if (g_engine->saveGameDialog())
 			hideMenu();
 		else
@@ -471,30 +511,64 @@ void Menu::handleClick(const Common::Point &mouse) {
 		engine->restartGame();
 		break;
 	case kMenuGameOverQuit:
+	case kMainMenuWillyQuit:
 		drawMenu(kMenuReallyQuit);
 		break;
 	case kMenuGameOverRestart:
 		drawMenu(kMenuRestart);
 		break;
 	case kMenuSliderControlsDifficulty: {
-		int16 setting = dynamic_cast<SliderGadget *>(gadget)->onClick(mouse);
+		SliderGadget *slider = dynamic_cast<SliderGadget *>(gadget);
+		if (!slider)
+			break;
+		int16 setting = slider->onClick(mouse);
 		engine->setDifficulty(setting);
 		// redraw for update.
 		drawMenu(_curMenu);
 		break;
 	}
 	case kMenuSliderControlsTextSpeed: {
-		int16 setting = dynamic_cast<SliderGadget *>(gadget)->onClick(mouse);
+		SliderGadget *slider = dynamic_cast<SliderGadget *>(gadget);
+		if (!slider)
+			break;
+		int16 setting = slider->onClick(mouse);
 		engine->setTextSpeed(9 - setting);
 		drawMenu(_curMenu);
 		break;
 	}
 	case kMenuSliderControlsDetailLevel: {
-		int16 setting = dynamic_cast<SliderGadget *>(gadget)->onClick(mouse);
+		SliderGadget *slider = dynamic_cast<SliderGadget *>(gadget);
+		if (!slider)
+			break;
+		int16 setting = slider->onClick(mouse);
 		engine->setDetailLevel(static_cast<DgdsDetailLevel>(setting));
 		drawMenu(_curMenu);
 		break;
 	}
+	case kMenuReplayArcadeYes:
+	case kMenuReplayArcadeNo:
+		if (_curMenu != kMenuReplayArcade)
+			break;
+		if (engine->getGameId() == GID_DRAGON) {
+			DragonGlobals *dragonGlobals = static_cast<DragonGlobals *>(engine->getGameGlobals());
+			dragonGlobals->setArcadeState(clickedMenuItem == kMenuReplayArcadeYes ? 20 : 10);
+		} else if (engine->getGameId() == GID_HOC) {
+			engine->getChinaTrain()->setMenuResult(clickedMenuItem == kMenuReplayArcadeYes);
+		}
+		hideMenu();
+		break;
+	case kMenuFrustratedArcadeWin:
+	case kMenuFrustratedArcadeKeepTrying:
+		if (_curMenu != kMenuArcadeFrustrated)
+			break;
+		if (engine->getGameId() == GID_DRAGON) {
+			DragonGlobals *dragonGlobals = static_cast<DragonGlobals *>(engine->getGameGlobals());
+			dragonGlobals->setArcadeState(clickedMenuItem == kMenuFrustratedArcadeWin ? 6 : 20);
+		} else if (engine->getGameId() == GID_HOC) {
+			engine->getChinaTrain()->setMenuResult(clickedMenuItem == kMenuFrustratedArcadeKeepTrying);
+		}
+		hideMenu();
+		break;
 	case kMenuTankTrainSkipArcade:
 		hideMenu();
 		if (currentScene == 73)
@@ -503,26 +577,27 @@ void Menu::handleClick(const Common::Point &mouse) {
 			engine->changeScene(106);	// skip train mini-game
 		break;
 	case kMenuTankTrainPlayArcade:
-		// TODO
-		if (currentScene == 73)
-			warning("Play tank mini-game");
-		else if (currentScene == 84)
-			warning("Play train mini-game");
-		drawMenu(_curMenu);
+		if (currentScene == 73) {
+			// Tank game - not implemented.
+			warning("TODO: Play tank mini-game");
+			drawMenu(_curMenu);
+		} else if (currentScene == 84) {
+			// Play train game - open the "save before arcade" menu.
+			drawMenu(kMenuSaveBeforeArcade);
+		}
 		break;
 	default:
-		debug("Clicked ID %d", clickedMenuItem);
+		debug(1, "Clicked ID %d", clickedMenuItem);
 		break;
 	}
 }
 
 void Menu::handleClickOptionsMenu(const Common::Point &mouse) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 	Audio::Mixer *mixer = engine->_mixer;
 	Gadget *gadget = getClickedMenuItem(mouse);
 	int16 clickedMenuItem = gadget->_gadgetNo;
 	Audio::Mixer::SoundType soundType = Audio::Mixer::kMusicSoundType;
-	DgdsMidiPlayer *midiPlayer = engine->_soundPlayer->getMidiPlayer();
 
 	switch (clickedMenuItem) {
 	case kMenuOptionsJoystickOnOff:
@@ -532,19 +607,24 @@ void Menu::handleClickOptionsMenu(const Common::Point &mouse) {
 		// Do nothing - we don't toggle joystick or mouse functionality
 		break;
 	case kMenuOptionsSoundsOnOff: // same id as kMenuMaybeBetterSaveYes
+	case kMenuOptionsSoundsOnOffDE:
 	case kMenuOptionsSoundsOnOffHoC:
+	case kMainMenuWillySoundsOnOff:
 		soundType = Audio::Mixer::kSFXSoundType;
 		// fall through
 	case kMenuOptionsMusicOnOff:
 	case kMenuOptionsMusicOnOffHoC:
+	case kMainMenuWillyMusicOnOff:
 		if (!mixer->isSoundTypeMuted(soundType)) {
 			mixer->muteSoundType(soundType, true);
-			midiPlayer->syncVolume();
-			midiPlayer->pause();
+			warning("TODO: Sync volume and pause music");
+			//midiPlayer->syncVolume();
+			//engine->_soundPlayer->pauseMusic();
 		} else {
 			mixer->muteSoundType(soundType, false);
-			midiPlayer->syncVolume();
-			midiPlayer->resume();
+			warning("TODO: Sync volume and resume music");
+			//midiPlayer->syncVolume();
+			//engine->_soundPlayer->resumeMusic();
 		}
 
 		updateOptionsGadget(gadget);
@@ -556,7 +636,7 @@ void Menu::handleClickOptionsMenu(const Common::Point &mouse) {
 }
 
 void Menu::handleClickSkipPlayIntroMenu(const Common::Point &mouse) {
-	DgdsEngine *engine = static_cast<DgdsEngine *>(g_engine);
+	DgdsEngine *engine = DgdsEngine::getInstance();
 	Gadget *gadget = getClickedMenuItem(mouse);
 	int16 clickedMenuItem = gadget->_gadgetNo;
 
@@ -572,7 +652,7 @@ void Menu::handleClickSkipPlayIntroMenu(const Common::Point &mouse) {
 	case kMenuIntroJumpToIntroduction:
 		hideMenu();
 		if (engine->getGameId() == GID_HOC)
-			engine->changeScene(98);
+			engine->changeScene(100);
 		else if (engine->getGameId() == GID_WILLY)
 			engine->changeScene(24);
 		break;

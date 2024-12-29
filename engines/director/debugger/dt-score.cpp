@@ -19,6 +19,7 @@
  *
  */
 
+#include "backends/imgui/IconsMaterialSymbols.h"
 #include "director/director.h"
 #include "director/debugger/dt-internal.h"
 
@@ -36,12 +37,12 @@ enum { kModeMember, kModeBehavior, kModeLocation, kModeInk, kModeBlend, kModeExt
 		kChTempo, kChPalette, kChTransition, kChSound1, kChSound2, kChScript };
 const char *modes[] = { "Member", "Behavior", "Location", "Ink", "Blend", "Extended" };
 const char *modes2[] = {
-	"\ue425", "Tempo",		// timer
-	"\ue40a", "Palette",	// palette
-	"\uf50c", "Transition",	// transition_fade
-	"\ue0501","Sound 1",	// volume_up
-	"\ue0502","Sound 2",	// volume_up
-	"\uf0c8", "Script",		// forms_apps_script
+	ICON_MS_TIMER, "Tempo",					// timer
+	ICON_MS_PALETTE, "Palette",				// palette
+	ICON_MS_TRANSITION_FADE, "Transition",	// transition_fade
+	ICON_MS_VOLUME_UP,"Sound 1",			// volume_up
+	ICON_MS_VOLUME_DOWN,"Sound 2",			// volume_up
+	ICON_MS_FORMS_APPS_SCRIPT, "Script",	// forms_apps_script
 };
 
 static void displayScoreChannel(int ch, int mode, int modeSel) {
@@ -97,6 +98,8 @@ static void displayScoreChannel(int ch, int mode, int modeSel) {
 		Sprite &sprite = *frame._sprites[ch];
 
 		ImGui::TableNextColumn();
+
+		ImGui::PushID(ch * 10000 + f);
 
 		if (f + _state->_scoreFrameOffset == (int)currentFrameNum)
 			ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, cell_bg_color);
@@ -164,6 +167,8 @@ static void displayScoreChannel(int ch, int mode, int modeSel) {
 		default:
 			ImGui::Selectable("  ");
 		}
+
+		ImGui::PopID();
 
 		if (ImGui::IsItemClicked(0)) {
 			_state->_selectedScoreCast.frame = f + _state->_scoreFrameOffset - 1;
@@ -284,13 +289,13 @@ void showScore() {
 			ImGui::BeginChild("Flags", ImVec2(200.0f, 20.0f));
 
 			if (castMember || shape) {
-				ImGui::Checkbox("\ue897", &sprite->_enabled); ImGui::SameLine();	// lock
+				ImGui::Checkbox(ICON_MS_LOCK, &sprite->_enabled); ImGui::SameLine();
 				ImGui::SetItemTooltip("enabled");
-				ImGui::Checkbox("\ue745", &sprite->_editable); ImGui::SameLine();	// edit_note
+				ImGui::Checkbox(ICON_MS_EDIT_NOTE, &sprite->_editable); ImGui::SameLine();
 				ImGui::SetItemTooltip("editable");
-				ImGui::Checkbox("\uf712", &sprite->_moveable); ImGui::SameLine();	// move_selection_right
+				ImGui::Checkbox(ICON_MS_MOVE_SELECTION_RIGHT, &sprite->_moveable); ImGui::SameLine();
 				ImGui::SetItemTooltip("moveable");
-				ImGui::Checkbox("\uea14", &sprite->_trails);						// dynamic_feed
+				ImGui::Checkbox(ICON_MS_DYNAMIC_FEED, &sprite->_trails);
 				ImGui::SetItemTooltip("trails");
 			}
 			ImGui::PopStyleColor();
@@ -408,8 +413,12 @@ void showScore() {
 			ImGui::PushFont(_state->_tinyFont);
 
 			ImGui::TableSetupColumn("##", flags);
-			for (uint i = 0; i < tableColumns; i++)
-				ImGui::TableSetupColumn(((i + _state->_scoreFrameOffset) % 5 ? " " : Common::String::format("%-2d", i + _state->_scoreFrameOffset).c_str()), flags);
+			for (uint i = 0; i < tableColumns; i++) {
+				Common::String label = (i + _state->_scoreFrameOffset) % 5 ? " " : Common::String::format("%-2d", i + _state->_scoreFrameOffset);
+				label += Common::String::format("##l%d", i);
+
+				ImGui::TableSetupColumn(label.c_str(), flags);
+			}
 
 			ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
 			ImGui::TableNextRow(0);
@@ -469,7 +478,7 @@ void showScore() {
 						continue;
 
 					if ((*it)->number == f + _state->_scoreFrameOffset) {
-						ImGui::Text("\ue52d"); // beenhere
+						ImGui::Text(ICON_MS_BEENHERE);
 						ImGui::SetItemTooltip((*it)->name.c_str());
 					}
 				}
@@ -579,18 +588,24 @@ void showChannels() {
 				ImGui::TableNextColumn();
 
 				if (sprite._castId.member) {
+					Common::String chNum = Common::String::format("%d", i);
+					Common::String colN;
+
 					Common::Point position = channel.getPosition();
 					ImGui::Text("%s", sprite._castId.asString().c_str());
 					ImGui::TableNextColumn();
-					ImGui::Checkbox("", &channel._visible);
+					colN = "##vis" + chNum;
+					ImGui::Checkbox(colN.c_str(), &channel._visible);
 					ImGui::TableNextColumn();
 					ImGui::Text("0x%02x", sprite._inkData);
 					ImGui::TableNextColumn();
 					ImGui::Text("%d (%s)", sprite._ink, inkType2str(sprite._ink));
 					ImGui::TableNextColumn();
-					ImGui::Checkbox("", &sprite._trails);
+					colN = "##trails" + chNum;
+					ImGui::Checkbox(colN.c_str(), &sprite._trails);
 					ImGui::TableNextColumn();
-					ImGui::Checkbox("", &sprite._stretch);
+					colN = "##stretch" + chNum;
+					ImGui::Checkbox(colN.c_str(), &sprite._stretch);
 					ImGui::TableNextColumn();
 					ImGui::Text("%d", sprite._thickness);
 					ImGui::TableNextColumn();
@@ -614,9 +629,11 @@ void showChannels() {
 					ImGui::TableNextColumn();
 					ImGui::Text("%d", channel._constraint);
 					ImGui::TableNextColumn();
-					ImGui::Checkbox("", &sprite._puppet);
+					colN = "##puppet" + chNum;
+					ImGui::Checkbox(colN.c_str(), &sprite._puppet);
 					ImGui::TableNextColumn();
-					ImGui::Checkbox("", &sprite._moveable);
+					colN = "##moveable" + chNum;
+					ImGui::Checkbox(colN.c_str(), &sprite._moveable);
 					ImGui::TableNextColumn();
 					if (channel._movieRate)
 						ImGui::Text("%f", channel._movieRate);

@@ -28,15 +28,6 @@
 
 namespace Common {
 
-String::String(char c)
-	: BaseString<char>() {
-
-	_storage[0] = c;
-	_storage[1] = 0;
-
-	_size = (c == 0) ? 0 : 1;
-}
-
 #ifndef SCUMMVM_UTIL
 String::String(const U32String &str, Common::CodePage page)
 	: BaseString<char>() {
@@ -699,6 +690,12 @@ size_t strlcpy(char *dst, const char *src, size_t size) {
 	// Our backup of the source's start, we need this
 	// to calculate the source's length.
 	const char * const srcStart = src;
+
+	// If no src was specified, treat it as an empty string
+	if (!src) {
+		*dst = '\0';
+		return 0;
+	}
 
 	// In case a non-empty size was specified we
 	// copy over (size - 1) bytes at max.

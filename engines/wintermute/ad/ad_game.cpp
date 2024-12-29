@@ -39,6 +39,7 @@
 #include "engines/wintermute/ad/ad_response_box.h"
 #include "engines/wintermute/ad/ad_response_context.h"
 #include "engines/wintermute/ad/ad_scene.h"
+#include "engines/wintermute/ad/ad_scene_geometry.h"
 #include "engines/wintermute/ad/ad_scene_state.h"
 #include "engines/wintermute/ad/ad_sentence.h"
 #include "engines/wintermute/base/base_engine.h"
@@ -270,6 +271,7 @@ bool AdGame::changeScene(const char *filename, bool fadeIn) {
 		_scene = new AdScene(_gameRef);
 		registerObject(_scene);
 	} else {
+		_gameRef->pluginEvents().applyEvent(WME_EVENT_SCENE_SHUTDOWN, _scene);
 		_scene->applyEvent("SceneShutdown", true);
 
 		setPrevSceneName(_scene->getName());
@@ -309,6 +311,7 @@ bool AdGame::changeScene(const char *filename, bool fadeIn) {
 			}
 
 			_scene->loadState();
+			_gameRef->pluginEvents().applyEvent(WME_EVENT_SCENE_INIT, _scene);
 		}
 		if (fadeIn) {
 			_gameRef->_transMgr->start(TRANSITION_FADE_IN);
@@ -1961,7 +1964,7 @@ bool AdGame::endDlgBranch(const char *branchName, const char *scriptName, const 
 
 //////////////////////////////////////////////////////////////////////////
 bool AdGame::clearBranchResponses(char *name) {
-	for (uint32 i = 0; i < _responsesBranch.size(); i++) {
+	for (int32 i = 0; i < (int32)_responsesBranch.size(); i++) {
 		if (scumm_stricmp(name, _responsesBranch[i]->getContext()) == 0) {
 			delete _responsesBranch[i];
 			_responsesBranch.remove_at(i);
@@ -1990,7 +1993,7 @@ bool AdGame::branchResponseUsed(int id) const {
 	char *context = _dlgPendingBranches.size() > 0 ? _dlgPendingBranches[_dlgPendingBranches.size() - 1] : nullptr;
 	for (uint32 i = 0; i < _responsesBranch.size(); i++) {
 		if (_responsesBranch[i]->_id == id) {
-			if ((context == nullptr && _responsesBranch[i]->getContext() == nullptr) || scumm_stricmp(context, _responsesBranch[i]->getContext()) == 0) {
+			if ((context == nullptr && _responsesBranch[i]->getContext() == nullptr) || (context != nullptr && scumm_stricmp(context, _responsesBranch[i]->getContext()) == 0)) {
 				return true;
 			}
 		}
@@ -2018,7 +2021,7 @@ bool AdGame::gameResponseUsed(int id) const {
 	for (uint32 i = 0; i < _responsesGame.size(); i++) {
 		const AdResponseContext *respContext = _responsesGame[i];
 		if (respContext->_id == id) {
-			if ((context == nullptr && respContext->getContext() == nullptr) || ((context != nullptr && respContext->getContext() != nullptr) && scumm_stricmp(context, respContext->getContext()) == 0)) {
+			if ((context == nullptr && respContext->getContext() == nullptr) || ((context != nullptr && respContext->getContext() != nullptr) && (context != nullptr && scumm_stricmp(context, respContext->getContext()) == 0))) {
 				return true;
 			}
 		}
@@ -2033,7 +2036,7 @@ bool AdGame::resetResponse(int id) {
 
 	for (uint32 i = 0; i < _responsesGame.size(); i++) {
 		if (_responsesGame[i]->_id == id) {
-			if ((context == nullptr && _responsesGame[i]->getContext() == nullptr) || scumm_stricmp(context, _responsesGame[i]->getContext()) == 0) {
+			if ((context == nullptr && _responsesGame[i]->getContext() == nullptr) || (context != nullptr && scumm_stricmp(context, _responsesGame[i]->getContext()) == 0)) {
 				delete _responsesGame[i];
 				_responsesGame.remove_at(i);
 				break;
@@ -2043,7 +2046,7 @@ bool AdGame::resetResponse(int id) {
 
 	for (uint32 i = 0; i < _responsesBranch.size(); i++) {
 		if (_responsesBranch[i]->_id == id) {
-			if ((context == nullptr && _responsesBranch[i]->getContext() == nullptr) || scumm_stricmp(context, _responsesBranch[i]->getContext()) == 0) {
+			if ((context == nullptr && _responsesBranch[i]->getContext() == nullptr) || (context != nullptr && scumm_stricmp(context, _responsesBranch[i]->getContext()) == 0)) {
 				delete _responsesBranch[i];
 				_responsesBranch.remove_at(i);
 				break;
@@ -2091,12 +2094,18 @@ bool AdGame::displayContent(bool doUpdate, bool displayAll) {
 			_scEngine->tick();
 		}
 
+		// process plugin events
+		if (doUpdate)
+			_gameRef->pluginEvents().applyEvent(WME_EVENT_UPDATE, nullptr);
+
 		Point32 p;
 		getMousePos(&p);
 
 		_scene->update();
-		_scene->display();
 
+		_gameRef->pluginEvents().applyEvent(WME_EVENT_SCENE_DRAW_BEGIN, _scene);
+		_scene->display();
+		_gameRef->pluginEvents().applyEvent(WME_EVENT_SCENE_DRAW_END, _scene);
 
 		// display in-game windows
 		displayWindows(true);
@@ -2339,6 +2348,15 @@ char *AdGame::findSpeechFile(char *stringID) {
 	return nullptr;
 }
 
+#ifdef ENABLE_WME3D
+//////////////////////////////////////////////////////////////////////////
+bool AdGame::renderShadowGeometry() {
+	if (_scene && _scene->_geom)
+		return _scene->_geom->renderShadowGeometry();
+	else
+		return true;
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 bool AdGame::validMouse() {
@@ -2519,15 +2537,17 @@ bool AdGame::getLayerSize(int *layerWidth, int *layerHeight, Rect32 *viewport, b
 			// WME pre-1.7 expects the camera to only view the top-left part of the scene
 			*layerWidth = _gameRef->_renderer->getWidth();
 			*layerHeight = _gameRef->_renderer->getHeight();
-			if (_gameRef->_editorResolutionWidth > 0)
-				*layerWidth = _gameRef->_editorResolutionWidth;
-			if (_gameRef->_editorResolutionHeight > 0)
-				*layerHeight = _gameRef->_editorResolutionHeight;
 		} else
 #endif
 		{
 			*layerWidth = _scene->_mainLayer->_width;
 			*layerHeight = _scene->_mainLayer->_height;
+#ifdef ENABLE_WME3D
+			if (_gameRef->_editorResolutionWidth > 0)
+				*layerWidth = _gameRef->_editorResolutionWidth;
+			if (_gameRef->_editorResolutionHeight > 0)
+				*layerHeight = _gameRef->_editorResolutionHeight;
+#endif
 		}
 		return true;
 	} else

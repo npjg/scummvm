@@ -92,7 +92,7 @@
 #include "gui/updates-dialog.h"
 #endif
 
-#ifdef __ANDROID__
+#ifdef ANDROID_BACKEND
 #include "backends/fs/android/android-fs-factory.h"
 #endif
 
@@ -531,8 +531,8 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 
 #ifdef USE_OPENGL
 	if (settings.contains("last_window_width")) {
-		ConfMan.setInt("last_window_width", atoi(settings["last_window_width"].c_str()));
-		ConfMan.setInt("last_window_height", atoi(settings["last_window_height"].c_str()));
+		ConfMan.setInt("last_window_width", atoi(settings["last_window_width"].c_str()), Common::ConfigManager::kApplicationDomain);
+		ConfMan.setInt("last_window_height", atoi(settings["last_window_height"].c_str()), Common::ConfigManager::kApplicationDomain);
 	}
 #endif
 
@@ -618,7 +618,7 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 	}
 #endif
 
-#ifdef __ANDROID__
+#ifdef ANDROID_BACKEND
 	// This early popup message for Android, informing the users about important
 	// changes to file access, needs to be *after* language for the GUI has been selected.
 	// Hence, we instantiate GUI Manager here, to take care of this.
@@ -650,7 +650,7 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 				"\n"
 				"Repeat steps 1 and 6 for each game."
 				), _("Ok"),
-				// I18N: A button caption to dismiss amessage and read it later
+				// I18N: A button caption to dismiss a message and read it later
 				_("Read Later"), Graphics::kTextAlignLeft);
 
 			if (alert.runModal() != GUI::kMessageOK)

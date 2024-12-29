@@ -52,7 +52,7 @@ DgdsFont *DgdsFont::load(const Common::String &filename, ResourceManager *resour
 		if (chunk.isSection(ID_FNT)) {
 			byte magic = stream->readByte();
 			stream->seek(-1, SEEK_CUR);
-			debug("    magic: %u", magic);
+			debug(1, "    magic: %u", magic);
 
 			if (magic != 0xFF)
 				font = FFont::load(*stream);
@@ -133,7 +133,7 @@ FFont *FFont::load(Common::SeekableReadStream &input) {
 
 	assert((4 + size) == input.size());
 
-	debug("FFont w: %u, h: %u, start: 0x%x, count: %u", w, h, start, count);
+	debug(1, "FFont w: %u, h: %u, start: 0x%x, count: %u", w, h, start, count);
 
 	byte *data = new byte[size];
 	input.read(data, size);
@@ -166,7 +166,7 @@ void PFont::drawChar(Graphics::Surface* dst, uint32 chr, int x, int y, uint32 co
 int PFont::getCharWidth(uint32 chr) const {
 	if (!hasChar(chr))
 		return 0;
-	return _widths[chr - _start];
+	return _widths[(byte)chr - _start];
 }
 
 PFont *PFont::load(Common::SeekableReadStream &input, Decompressor *decompressor) {
@@ -178,7 +178,7 @@ PFont *PFont::load(Common::SeekableReadStream &input, Decompressor *decompressor
 	byte count = input.readByte();
 	int size = input.readUint16LE();
 
-	debug("PFont magic: 0x%x, w: %u, h: %u, unk: %u, start: 0x%x, count: %u, size: %u",
+	debug(1, "PFont magic: 0x%x, w: %u, h: %u, unk: %u, start: 0x%x, count: %u, size: %u",
 			magic, w, h, unknown, start, count, size);
 
 	assert(magic == 0xFF);
@@ -221,8 +221,8 @@ FontManager::FontType FontManager::fontTypeByName(const Common::String &filename
 	if (filename == "CHINA.FNT") return kGameDlgFont;
 	if (filename == "CHINESE.FNT") return kChinaFont;
 	if (filename == "WILLY.FNT") return kGameDlgFont;
-	if (filename == "COMIX_16.FNT") return kGameFont;
-	if (filename == "WVCR.FNT") return kVCRFont;
+	if (filename == "COMIX_16.FNT") return kVCRFont;
+	if (filename == "WVCR.FNT") return kGameFont;
 	if (filename == "EXIT.FNT") return kVCRFont;
 	if (filename == "SSM1_12.FNT") return kGameFont;
 	if (filename == "SSM1_15.FNT") return kGameDlgFont;
@@ -234,6 +234,9 @@ FontManager::FontType FontManager::fontTypeByName(const Common::String &filename
 
 
 void FontManager::loadFonts(DgdsGameId gameId, ResourceManager *resMgr, Decompressor *decomp) {
+	if (gameId == GID_CASTAWAY)
+		return; // no fonts
+
 	if (gameId == GID_SQ5DEMO) {
 		tryLoadFont("SSM1_12.FNT", resMgr, decomp);
 		tryLoadFont("SSM1_15.FNT", resMgr, decomp);
@@ -261,6 +264,12 @@ void FontManager::loadFonts(DgdsGameId gameId, ResourceManager *resMgr, Decompre
 			tryLoadFont("WILLY.FNT", resMgr, decomp);
 			tryLoadFont("WVCR.FNT", resMgr, decomp);
 			tryLoadFont("COMIX_16.FNT", resMgr, decomp);
+		} else if (gameId == GID_QUARKY) {
+			tryLoadFont("MRALLY.FNT", resMgr, decomp);
+			tryLoadFont("MVCR.FNT", resMgr, decomp);
+			tryLoadFont("RUDEFONT.FNT", resMgr, decomp);
+			_fonts.setVal(kDefaultFont, _fonts.getVal(k8x8Font));
+			return;
 		}
 	}
 

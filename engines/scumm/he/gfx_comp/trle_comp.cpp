@@ -21,7 +21,6 @@
 
 #ifdef ENABLE_HE
 
-#include "common/math.h"
 #include "common/system.h"
 #include "scumm/he/intern_he.h"
 #include "scumm/he/wiz_he.h"
@@ -491,10 +490,10 @@ void Wiz::trleFLIPAdditivePixelMemset(WizRawPixel *dstPtr, WizRawPixel mixColor,
 	while (size-- > 0) {
 		if (!_uses16BitColor) {
 			WizRawPixel workColor = *dst8;
-			*dst8++ = (WizRawPixel8)WIZRAWPIXEL_ADDITIVE_MIX(workColor, mixColor);
+			*dst8++ = (WizRawPixel8)WIZRAWPIXEL_ADDITIVE_MIX(workColor, FROM_LE_16(mixColor));
 		} else {
 			WizRawPixel workColor = *dst16;
-			*dst16++ = (WizRawPixel16)WIZRAWPIXEL_ADDITIVE_MIX(workColor, mixColor);
+			*dst16++ = (WizRawPixel16)WIZRAWPIXEL_ADDITIVE_MIX(workColor, FROM_LE_16(mixColor));
 		}
 	}
 }
@@ -543,10 +542,10 @@ void Wiz::trleFLIPSubtractivePixelMemset(WizRawPixel *dstPtr, WizRawPixel mixCol
 	while (size-- > 0) {
 		if (!_uses16BitColor) {
 			WizRawPixel workColor = *dst8;
-			*dst8++ = (WizRawPixel8)WIZRAWPIXEL_SUBTRACTIVE_MIX(workColor, mixColor);
+			*dst8++ = (WizRawPixel8)WIZRAWPIXEL_SUBTRACTIVE_MIX(workColor, FROM_LE_16(mixColor));
 		} else {
 			WizRawPixel workColor = *dst16;
-			*dst16++ = (WizRawPixel16)WIZRAWPIXEL_SUBTRACTIVE_MIX(workColor, mixColor);
+			*dst16++ = (WizRawPixel16)WIZRAWPIXEL_SUBTRACTIVE_MIX(workColor, FROM_LE_16(mixColor));
 		}
 	}
 }

@@ -25,7 +25,7 @@
 
 #include "sci/sci.h"
 #include "sci/engine/state.h"
-#include "sci/graphics/gfxdrivers.h"
+#include "sci/graphics/drivers/gfxdriver.h"
 #include "sci/graphics/screen.h"
 #include "sci/graphics/palette.h"
 #include "sci/graphics/transitions.h"
@@ -109,6 +109,8 @@ void GfxTransitions::init() {
 	// setup default transition
 	_number = SCI_TRANSITIONS_HORIZONTALROLL_FROMCENTER;
 	_blackoutFlag = false;
+
+	_transitionStartTime = 0;
 }
 
 void GfxTransitions::setup(int16 number, bool blackoutFlag) {

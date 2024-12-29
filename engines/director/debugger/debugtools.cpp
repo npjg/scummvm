@@ -19,7 +19,7 @@
  *
  */
 
-#include "graphics/opengl/shader.h"
+#include "backends/imgui/IconsMaterialSymbols.h"
 
 #include "director/director.h"
 #include "director/lingo/lingodec/context.h"
@@ -38,21 +38,6 @@ namespace Director {
 namespace DT {
 
 ImGuiState *_state = nullptr;
-
-bool toggleButton(const char *label, bool *p_value, bool inverse) {
-	int pop = 0;
-	if (*p_value != inverse) {
-		ImVec4 hovered = ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered];
-		ImGui::PushStyleColor(ImGuiCol_Button, hovered);
-		pop = 1;
-	}
-	bool result = ImGui::Button(label);
-	if (result) {
-		*p_value = !*p_value;
-	}
-	ImGui::PopStyleColor(pop);
-	return result;
-}
 
 const LingoDec::Handler *getHandler(const Cast *cast, CastMemberID id, const Common::String &handlerId) {
 	if (!cast)
@@ -131,29 +116,6 @@ Director::Breakpoint *getBreakpoint(const Common::String &handlerName, uint16 sc
 	return nullptr;
 }
 
-static GLuint loadTextureFromSurface(Graphics::Surface *surface, const byte *palette, int palCount) {
-
-	// Create a OpenGL texture identifier
-	GLuint image_texture;
-	glGenTextures(1, &image_texture);
-	glBindTexture(GL_TEXTURE_2D, image_texture);
-
-	// Setup filtering parameters for display
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // This is required on WebGL for non power-of-two textures
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // Same
-
-	// Upload pixels into texture
-	Graphics::Surface *s = surface->convertTo(Graphics::PixelFormat(3, 8, 8, 8, 0, 0, 8, 16, 0), palette, palCount);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, s->format.bytesPerPixel);
-
-	GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, s->w, s->h, 0, GL_RGB, GL_UNSIGNED_BYTE, s->getPixels()));
-	s->free();
-	delete s;
-	return image_texture;
-}
-
 ImGuiImage getImageID(CastMember *castMember) {
 	if (castMember->_type != CastType::kCastBitmap)
 		return {};
@@ -171,7 +133,7 @@ ImGuiImage getImageID(CastMember *castMember) {
 	if (!pic)
 		return {};
 
-	ImTextureID textureID = (ImTextureID)(intptr_t)loadTextureFromSurface(&pic->_surface, pic->_palette, pic->_paletteColors);
+	ImTextureID textureID = g_system->getImGuiTexture(pic->_surface, pic->_palette, pic->_paletteColors);
 	_state->_cast._textures[bmp] = {textureID, pic->_surface.w, pic->_surface.h};
 	return _state->_cast._textures[bmp];
 }
@@ -213,7 +175,7 @@ void displayVariable(const Common::String &name, bool changed) {
 
 	ImDrawList *dl = ImGui::GetWindowDrawList();
 	ImVec2 pos = ImGui::GetCursorScreenPos();
-	ImVec2 eyeSize = ImGui::CalcTextSize("\ue8f4 ");	// visibility
+	ImVec2 eyeSize = ImGui::CalcTextSize(ICON_MS_VISIBILITY " ");
 	ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
 
 	ImGui::InvisibleButton("Line", ImVec2(textSize.x + eyeSize.x, textSize.y));
@@ -234,7 +196,7 @@ void displayVariable(const Common::String &name, bool changed) {
 		color = ImGui::GetColorU32(_state->_colors._bp_color_hover);
 	}
 
-	dl->AddText(pos, color, "\ue8f4 ");	// visibility
+	dl->AddText(pos, color, ICON_MS_VISIBILITY " ");
 	dl->AddText(ImVec2(pos.x + eyeSize.x, pos.y), var_color, name.c_str());
 }
 
@@ -306,15 +268,7 @@ static void showSettings() {
 		ImGui::ColorEdit4("Variable", &_state->_colors._var_ref.x);
 		ImGui::ColorEdit4("Variable changed", &_state->_colors._var_ref_changed.x);
 
-		ImGui::SeparatorText("Logger");
-		ImGui::ColorEdit4("Error", &_state->_colors._logger_error.x);
-		ImGui::ColorEdit4("Error Button", &_state->_colors._logger_error_b.x);
-		ImGui::ColorEdit4("Warning", &_state->_colors._logger_warning.x);
-		ImGui::ColorEdit4("Warning Button", &_state->_colors._logger_warning_b.x);
-		ImGui::ColorEdit4("Info", &_state->_colors._logger_info.x);
-		ImGui::ColorEdit4("Info Button", &_state->_colors._logger_info_b.x);
-		ImGui::ColorEdit4("Debug", &_state->_colors._logger_debug.x);
-		ImGui::ColorEdit4("Debug Button", &_state->_colors._logger_debug_b.x);
+		_state->_logger->drawColorOptions();
 	}
 	ImGui::End();
 }
@@ -347,7 +301,7 @@ void onImGuiInit() {
 	icons_config.OversampleV = 3;
 	icons_config.GlyphOffset = {0, 4};
 
-	static const ImWchar icons_ranges[] = {0xE000, 0xF8FF, 0};
+	static const ImWchar icons_ranges[] = {ICON_MIN_MS, ICON_MAX_MS, 0};
 	ImGui::addTTFFontFromArchive("MaterialSymbolsSharp.ttf", 16.f, &icons_config, icons_ranges);
 
 	_state = new ImGuiState();
@@ -356,7 +310,7 @@ void onImGuiInit() {
 
 	_state->_archive.memEdit.ReadOnly = true;
 
-	_state->_logger = new ImGuiLogger;
+	_state->_logger = new ImGuiEx::ImGuiLogger;
 
 	Common::setLogWatcher(onLog);
 }

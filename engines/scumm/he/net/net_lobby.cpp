@@ -144,6 +144,10 @@ void Lobby::processLine(Common::String line) {
 			Common::String filename = root["filename"]->asString();
 			Common::String data = root["data"]->asString();
 			handleFileData(filename, data);
+		} else if (command == "system_alert") {
+			int type = root["type"]->asIntegerNumber();
+			Common::String message = root["message"]->asString();
+			systemAlert(type, message);
 		} else if (command == "population_resp") {
 			int areaId = root["area"]->asIntegerNumber();
 			int population = root["population"]->asIntegerNumber();
@@ -241,7 +245,7 @@ int32 Lobby::dispatch(int op, int numArgs, int32 *args) {
 		break;
 	case OP_NET_PING_OPPONENT:
 		// NOTE: See getUserProfile, this op only gets
-		// called after an oponent picks up the phone.
+		// called after an opponent picks up the phone.
 		break;
 	case OP_NET_RECEIVER_BUSY:
 		sendBusy(args[0]);

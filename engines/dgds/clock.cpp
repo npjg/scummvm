@@ -114,16 +114,27 @@ Common::String Clock::getTimeStr() const {
 			month = 0;
 	}
 
-	return Common::String::format("%2d/%02d %2d:%02d", month + 1, day, _hours, _mins);
+	DgdsEngine *engine = DgdsEngine::getInstance();
+
+	if (engine->getGameId() == GID_WILLY) {
+		return Common::String::format("DAY %d, %2d:%02d", day - 1, _hours, _mins);
+	} else if (engine->getGameLang() == Common::EN_ANY) {
+		return Common::String::format("%2d/%02d %2d:%02d", month + 1, day, _hours, _mins);
+	} else if (engine->getGameLang() == Common::DE_DEU) {
+		return Common::String::format("%2d.%d %2d.%02d", day, month + 1, _hours, _mins);
+	} else {
+		error("Unsupported language %d", DgdsEngine::getInstance()->getGameLang());
+	}
 }
 
 void Clock::draw(Graphics::ManagedSurface &surf) {
-	if (!_visibleUser || !_visibleScript)
+	DgdsEngine *engine = DgdsEngine::getInstance();
+	if (!_visibleUser || !_visibleScript || engine->getGameId() != GID_DRAGON)
 		return;
 
 	const Common::String clockStr = getTimeStr();
 
-	const FontManager *fontman = static_cast<DgdsEngine *>(g_engine)->getFontMan();
+	const FontManager *fontman = engine->getFontMan();
 	const DgdsFont *font = fontman->getFont(FontManager::k4x5Font);
 	int width = font->getMaxCharWidth() * 12 + 3;
 	_drawPos.top = 0;
@@ -140,7 +151,7 @@ static const int MILLIS_PER_GAME_MIN = 5000;
 static const int MILLIS_PER_TIMER_TICK = 60;
 
 void Clock::update(bool gameRunning) {
-	uint32 playTimeNow = g_engine->getTotalPlayTime();
+	uint32 playTimeNow = DgdsEngine::getInstance()->getThisFrameMs();
 	// These timers are updated whether or not the game is running
 	_gameTicksUp = playTimeNow / MILLIS_PER_TIMER_TICK;
 
@@ -160,6 +171,10 @@ void Clock::update(bool gameRunning) {
 
 	if (mins_to_add)
 		addGameTime(mins_to_add);
+}
+
+Common::String Clock::dump() {
+	return Common::String::format("days %d hours %d mins %d", _days, _mins, _hours);
 }
 
 Common::Error Clock::syncState(Common::Serializer &s) {

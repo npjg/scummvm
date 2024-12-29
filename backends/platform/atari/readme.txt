@@ -393,7 +393,7 @@ The least amount of cycles is spent when:
 - "Subtitles" as "Text and speech": this prevents any sampled speech to be
   mixed
 - all external audio files are deleted (typically *.wav); that way the mixer
-  wont have anything to mix. However beware, this is not allowed in every game!
+  won't have anything to mix. However beware, this is not allowed in every game!
 
 Sample rate
 ~~~~~~~~~~~
@@ -407,7 +407,7 @@ of them (esp. the ones from the 80s/90s) use simple samples like mono 11025 Hz
 Obviously, setting "output_channels" to "1" is the easiest improvement
 (unfortunately only on TT). Next best thing you can do is to buy an external DSP
 clock for your Falcon: nearly all games use sample frequencies which are
-multiplies of 44100 Hz: 22050, 11025, ... so with the external clock there wont
+multiplies of 44100 Hz: 22050, 11025, ... so with the external clock there won't
 be the need to resample them.
 
 There's one caveat, though: it is important whether your replay frequency is
@@ -470,12 +470,14 @@ Known issues
 - aspect ratio correction has no effect on TT because is not possible to alter
   its vertical screen refresh frequency.
 
-- the talkie version of MI1 needs to be merged from two sources: first generate
-  the DOS version and then additionally also the flac version. Then convert all
-  *.flac files into *.wav and replace monkey.sof (flac) with monster.sou (DOS).
-  And of course, don't forget to set the extra path in Game options to the
-  folder where *.wav files are located! For MI2 just use the DOS version, there
-  are no CD tracks available. :(
+- the talkie version of SOMI needs to be merged from two sources:
+  - the DOS version (install.bat) to obtain file "monster.sou"
+  - the FLAC version (install_flac.bat) to obtain folders "cd_music_flac" and
+    "se_music_flac" (these *.flac files then have to be converted to *.wav
+    manually)
+  - files "monkey.000" and "monkey.001" can be taken from either version
+  - point the extra path to the folder with *.wav files (or copy its content
+    where monkey.00? files are located)
 
 - following engines have been explicitly disabled:
   - Cine (2 games)
@@ -497,14 +499,8 @@ Known issues
     - this prevents adding the 15 MB ultima.dat to the release archive
     - https://wiki.scummvm.org/index.php?title=Ultima
 
-- Indy4 (the adventure) may have a bug in the screen when you K.O. the bouncer.
-  I was able to get a freeze when he fell to the ground but currently I am
-  unable to reproduce it. It may be related to the intensive mouse clicking
-  during that scene so feel free to use keypad for the fight and report whether
-  it has improved the situation.
-
 - When using FreeMiNT, ScummVM requires a recent kernel (>= 2021), otherwise
-  keyboard handling wont work properly.
+  keyboard handling won't work properly.
 
 - When using EmuTOS, ScummVM requires a recent release (>= 1.3), otherwise
   various screen- and sound-related issues may appear.
@@ -519,7 +515,7 @@ Future plans
 - avoid loading music/speech files (and thus slowing down everything) if muted
 
 - cached audio/video streams (i.e. don't load only "audio_buffer_size" number
-  of samples but cache, say, 1 second so disk i/o wont be so stressed)
+  of samples but cache, say, 1 second so disk i/o won't be so stressed)
 
 - using Thorsten Otto's sharedlibs: https://tho-otto.de/sharedlibs.php for game
   engine plugins to relieve the huge binary size

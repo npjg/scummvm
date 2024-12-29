@@ -182,6 +182,10 @@ void ScummEngine::readRoomsOffsets() {
 	}
 }
 
+ScummFile *ScummEngine::instantiateScummFile(bool indexPAKFiles) {
+	return !(_game.features & GF_DOUBLEFINE_PAK) ? new ScummFile(this) : new ScummPAKFile(this, indexPAKFiles);
+}
+
 bool ScummEngine::openFile(BaseScummFile &file, const Common::Path &filename, bool resourceFile) {
 	bool result = false;
 
@@ -386,13 +390,13 @@ void ScummEngine_v70he::readIndexBlock(uint32 blocktype, uint32 itemsize) {
 	case MKTAG('D','L','F','L'):
 		i = _fileHandle->readUint16LE();
 		_fileHandle->seek(-2, SEEK_CUR);
-		_heV7RoomOffsets = (byte *)calloc(2 + (i * 4), 1);
+		_heV7RoomOffsets = (byte *)reallocateArray(_heV7RoomOffsets, 2 + (i * 4), 1);
 		_fileHandle->read(_heV7RoomOffsets, (2 + (i * 4)) );
 		break;
 
 	case MKTAG('D','I','S','K'):
 		i = _fileHandle->readUint16LE();
-		_heV7DiskOffsets = (byte *)calloc(i, 1);
+		_heV7DiskOffsets = (byte *)reallocateArray(_heV7DiskOffsets, i, 1);
 		_fileHandle->read(_heV7DiskOffsets, i);
 		break;
 
@@ -566,7 +570,7 @@ void ScummEngine::loadCharset(int no) {
 
 	debugC(DEBUG_GENERAL, "loadCharset(%d)", no);
 
-	/* FIXME - hack around crash in Indy4 (occurs if you try to load after dieing) */
+	/* FIXME - hack around crash in Indy4 (occurs if you try to load after dying) */
 	if (_game.id == GID_INDY4 && no == 0)
 		no = 1;
 
@@ -1200,7 +1204,7 @@ void ResourceManager::resourceStats() {
 		}
 	}
 
-	debug(1, "Total allocated size=%d, locked=%d(%d)", _allocatedSize, lockedSize, lockedNum);
+	debug("Total allocated size=%d, locked=%d(%d)", _allocatedSize, lockedSize, lockedNum);
 }
 
 void ScummEngine_v5::readMAXS(int blockSize) {
@@ -1227,7 +1231,7 @@ void ScummEngine_v5::readMAXS(int blockSize) {
 	_numFlObject = 50;
 
 	if (_shadowPaletteSize)
-		_shadowPalette = (byte *)calloc(_shadowPaletteSize, 1);
+		_shadowPalette = (byte *)reallocateArray(_shadowPalette, _shadowPaletteSize, 1);
 }
 
 #ifdef ENABLE_SCUMM_7_8
@@ -1252,11 +1256,11 @@ void ScummEngine_v8::readMAXS(int blockSize) {
 	_numArray = _fileHandle->readUint32LE();         // 200
 	_numVerbs = _fileHandle->readUint32LE();         // 50
 
-	_objectRoomTable = (byte *)calloc(_numGlobalObjects, 1);
+	_objectRoomTable = (byte *)reallocateArray(_objectRoomTable, _numGlobalObjects, 1);
 	_numGlobalScripts = 2000;
 
 	_shadowPaletteSize = NUM_SHADOW_PALETTE * 256;
-	_shadowPalette = (byte *)calloc(_shadowPaletteSize, 1);
+	_shadowPalette = (byte *)reallocateArray(_shadowPalette, _shadowPaletteSize, 1);
 }
 
 void ScummEngine_v7::readMAXS(int blockSize) {
@@ -1278,7 +1282,7 @@ void ScummEngine_v7::readMAXS(int blockSize) {
 	_numCharsets = _fileHandle->readUint16LE();
 	_numCostumes = _fileHandle->readUint16LE();
 
-	_objectRoomTable = (byte *)calloc(_numGlobalObjects, 1);
+	_objectRoomTable = (byte *)reallocateArray(_objectRoomTable, _numGlobalObjects, 1);
 
 	if ((_game.id == GID_FT) && (_game.features & GF_DEMO) &&
 		(_game.platform == Common::kPlatformDOS))
@@ -1287,7 +1291,7 @@ void ScummEngine_v7::readMAXS(int blockSize) {
 		_numGlobalScripts = 2000;
 
 	_shadowPaletteSize = NUM_SHADOW_PALETTE * 256;
-	_shadowPalette = (byte *)calloc(_shadowPaletteSize, 1);
+	_shadowPalette = (byte *)reallocateArray(_shadowPalette, _shadowPaletteSize, 1);
 }
 #endif
 
@@ -1314,12 +1318,12 @@ void ScummEngine_v6::readMAXS(int blockSize) {
 		_numGlobalScripts = 200;
 
 		if (_game.heversion >= 70) {
-			_objectRoomTable = (byte *)calloc(_numGlobalObjects, 1);
+			_objectRoomTable = (byte *)reallocateArray(_objectRoomTable, _numGlobalObjects, 1);
 		}
 
 		if (_game.heversion <= 70) {
 			_shadowPaletteSize = 256;
-			_shadowPalette = (byte *)calloc(_shadowPaletteSize, 1);
+			_shadowPalette = (byte *)reallocateArray(_shadowPalette, _shadowPaletteSize, 1);
 		}
 	} else
 		error("readMAXS(%d) failed to read MAXS data", blockSize);
@@ -1399,19 +1403,19 @@ void ScummEngine::allocateArrays() {
 	// Note: Buffers are now allocated in scummMain to allow for
 	//     early GUI init.
 
-	_objectOwnerTable = (byte *)calloc(_numGlobalObjects, 1);
-	_objectStateTable = (byte *)calloc(_numGlobalObjects, 1);
-	_classData = (uint32 *)calloc(_numGlobalObjects, sizeof(uint32));
-	_newNames = (uint16 *)calloc(_numNewNames, sizeof(uint16));
+	_objectOwnerTable = (byte *)reallocateArray(_objectOwnerTable, _numGlobalObjects, 1);
+	_objectStateTable = (byte *)reallocateArray(_objectStateTable, _numGlobalObjects, 1);
+	_classData = (uint32 *)reallocateArray(_classData, _numGlobalObjects, sizeof(uint32));
+	_newNames = (uint16 *)reallocateArray(_newNames, _numNewNames, sizeof(uint16));
 
-	_inventory = (uint16 *)calloc(_numInventory, sizeof(uint16));
-	_verbs = (VerbSlot *)calloc(_numVerbs, sizeof(VerbSlot));
-	_objs = (ObjectData *)calloc(_numLocalObjects, sizeof(ObjectData));
-	_roomVars = (int32 *)calloc(_numRoomVariables, sizeof(int32));
-	_scummVars = (int32 *)calloc(_numVariables, sizeof(int32));
-	_bitVars = (byte *)calloc(_numBitVariables >> 3, 1);
+	_inventory = (uint16 *)reallocateArray(_inventory, _numInventory, sizeof(uint16));
+	_verbs = (VerbSlot *)reallocateArray(_verbs, _numVerbs, sizeof(VerbSlot));
+	_objs = (ObjectData *)reallocateArray(_objs, _numLocalObjects, sizeof(ObjectData));
+	_roomVars = (int32 *)reallocateArray(_roomVars, _numRoomVariables, sizeof(int32));
+	_scummVars = (int32 *)reallocateArray(_scummVars, _numVariables, sizeof(int32));
+	_bitVars = (byte *)reallocateArray(_bitVars, _numBitVariables >> 3, 1);
 	if (_game.heversion >= 60) {
-		_arraySlot = (byte *)calloc(_numArray, 1);
+		_arraySlot = (byte *)reallocateArray(_arraySlot, _numArray, 1);
 	}
 
 	_res->allocResTypeData(rtCostume, (_game.features & GF_NEW_COSTUMES) ? MKTAG('A','K','O','S') : MKTAG('C','O','S','T'),
@@ -1439,7 +1443,7 @@ void ScummEngine_v70he::allocateArrays() {
 	ScummEngine::allocateArrays();
 
 	_res->allocResTypeData(rtSpoolBuffer, 0, 9, kStaticResTypeMode);
-	_heV7RoomIntOffsets = (uint32 *)calloc(_numRooms, sizeof(uint32));
+	_heV7RoomIntOffsets = (uint32 *)reallocateArray(_heV7RoomIntOffsets, _numRooms, sizeof(uint32));
 }
 
 
@@ -1770,19 +1774,31 @@ void ScummEngine::applyWorkaroundIfNeeded(ResType type, int idx) {
 
 	if (_game.id == GID_MONKEY && type == rtRoom && idx == 25 && enhancementEnabled(kEnhRestoredContent)) {
 		tryPatchMI1CannibalScript(getResourceAddress(type, idx), size);
-	} else
+	} else if (_game.id == GID_MANIAC && _game.version == 2 && _game.platform == Common::kPlatformDOS &&
+			   type == rtScript && idx == 44 && size == 199 && enhancementEnabled(kEnhMinorBugFixes)) {
+		// WORKAROUND: There is a cracked version of Maniac Mansion v2 that
+		// attempts to remove the security door copy protection. With it, any
+		// code is accepted as long as you get the last digit wrong.
+		// Unfortunately, it changes a script that is used by all keypads in the
+		// game, which means some puzzles are completely nerfed.
+		//
+		// Even worse, this is the version that GOG and Steam are selling. No,
+		// seriously! I've reported this as a bug, but it remains unclear
+		// whether or not they will fix it.
+		//
+		// Please note, this fix was posthumously made optional using the kEnhMinorBugFixes
+		// enhancement class, since this is still (somehow...) an official release, and this
+		// represents an external bug fix on the data files. As of why this was made optional:
+		// there was an interest within the speedrunning community (see #14815).
+		//
+		// Quoting from the ticket:
+		// "The speedruns for the PC version of Maniac Mansion are separated into two categories:
+		// one that makes use of the broken lab door and one that does not. All of the runs, that
+		// make use of it are from within the first two years after the digital release of the game.
+		// I'm pretty sure, no one understood what was going on, they just recognized the door being
+		// broken from runs of the NES game (this is me guessing). You could say the category is
+		// "grandfathered in". Still, it is the most popular and shortest category for Maniac Mansion."
 
-	// WORKAROUND: There is a cracked version of Maniac Mansion v2 that
-	// attempts to remove the security door copy protection. With it, any
-	// code is accepted as long as you get the last digit wrong.
-	// Unfortunately, it changes a script that is used by all keypads in the
-	// game, which means some puzzles are completely nerfed.
-	//
-	// Even worse, this is the version that GOG and Steam are selling. No,
-	// seriously! I've reported this as a bug, but it remains unclear
-	// whether or not they will fix it.
-
-	if (_game.id == GID_MANIAC && _game.version == 2 && _game.platform == Common::kPlatformDOS && type == rtScript && idx == 44 && size == 199) {
 		byte *data = getResourceAddress(type, idx);
 
 		if (data[184] == 0) {

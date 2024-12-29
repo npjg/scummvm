@@ -22,8 +22,6 @@
 #ifndef _ANDROID_H_
 #define _ANDROID_H_
 
-#if defined(__ANDROID__)
-
 #include "backends/platform/android/portdefs.h"
 #include "common/fs.h"
 #include "common/archive.h"
@@ -103,7 +101,10 @@ private:
 	static const int kQueuedInputEventDelay = 50;
 
 	struct EventWithDelay : public Common::Event {
-		/** The time which the delay starts counting from */
+		/** An original timestamp that identifies this event and the delayed ones connected to it that will follow */
+		uint32 originTimeMillis;
+
+		/** The time which the delay starts counting from. It can be set to be later than originTimeMillis */
 		uint32 referTimeMillis;
 
 		/** The delay for the event to be handled */
@@ -115,10 +116,11 @@ private:
 		/** A status flag indicating whether the "connected" event was handled */
 		bool connectedTypeExecuted;
 
-		EventWithDelay() : referTimeMillis(0), delayMillis(0), connectedType(Common::EVENT_INVALID), connectedTypeExecuted(false) {
+		EventWithDelay() : originTimeMillis(0), referTimeMillis(0), delayMillis(0), connectedType(Common::EVENT_INVALID), connectedTypeExecuted(false) {
 		}
 
 		void reset() {
+			originTimeMillis = 0;
 			referTimeMillis = 0;
 			delayMillis = 0;
 			connectedType = Common::EVENT_INVALID;
@@ -213,6 +215,8 @@ public:
 	void engineInit() override;
 	void engineDone() override;
 
+	void updateStartSettings(const Common::String &executable, Common::String &command, Common::StringMap &startSettings, Common::StringArray& additionalArgs) override;
+
 	bool hasFeature(OSystem::Feature f) override;
 	void setFeatureState(OSystem::Feature f, bool enable) override;
 	bool getFeatureState(OSystem::Feature f) override;
@@ -278,5 +282,4 @@ public:
 	virtual const char * const *buildHelpDialogData() override;
 };
 
-#endif
 #endif

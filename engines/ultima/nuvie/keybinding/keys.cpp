@@ -64,8 +64,8 @@ struct Action {
 	ActionKeyType keyType;
 };
 
-const char *appendAltCodeActionStr = "ALT_CODE";
-const char *toggleAltCodeModeActionStr = "TOGGLE_ALT_CODE_MODE";
+const char *const appendAltCodeActionStr = "ALT_CODE";
+const char *const toggleAltCodeModeActionStr = "TOGGLE_ALT_CODE_MODE";
 const uint toggleAltCodeModeEventID = Common::hashit(toggleAltCodeModeActionStr); // to identify END (KEYUP) events for alt-code mode toggle action
 
 const Action NuvieActions[] = {
@@ -143,13 +143,26 @@ const Action NuvieActions[] = {
 	{ "DO_NOTHING", ActionDoNothing, Action::KeyNotShown, true, OTHER_KEY },
 };
 
-const char *PerPartyMemberActions[] = {
+const char *const PerPartyMemberActions[] = {
 	"SOLO_MODE", "SHOW_STATS", "INVENTORY", "DOLL_GUMP"
 };
 
 struct KeycodeString {
 	const char *s;
 	Common::KeyCode k;
+};
+
+// for additional key mappings outside txt file
+struct KeycodeToAction {
+    Common::KeyCode keyCode;
+    const char *actionTitle;
+};
+
+const KeycodeToAction iosKeycodes[] = {
+    { JOY12, "WALK_NORTH" },
+    { JOY13, "WALK_SOUTH" },
+    { JOY14, "WALK_WEST" },
+    { JOY15, "WALK_EAST"}
 };
 
 //
@@ -338,6 +351,19 @@ KeyBinder::KeyBinder(const Configuration *config) : enable_joystick(false) {
 
 	next_axes_pair_update = next_axes_pair2_update = next_axes_pair3_update = 0;
 	next_axes_pair4_update = next_joy_repeat_time = 0;
+    
+    AddIosBindings();
+}
+
+void KeyBinder::AddIosBindings()
+{
+    unsigned long i;
+    for (i=0; i < sizeof(iosKeycodes) / sizeof(KeycodeToAction); i++)
+    {
+        KeycodeToAction ka = iosKeycodes[i];
+        if (!_bindings.contains(ka.keyCode))
+            AddKeyBinding(ka.keyCode, 0, _actions.getVal(ka.actionTitle), 0, 0);
+    }
 }
 
 KeyBinder::~KeyBinder() {
@@ -398,9 +424,10 @@ bool KeyBinder::HandleEvent(const Common::Event *ev) {
 	KeyMap::iterator sdlkey_index = get_sdlkey_index(key);
 	if (sdlkey_index != _bindings.end())
 		return DoAction((*sdlkey_index)._value);
-
+	// Avoid modifier keys being detected as invalid input
 	if (ev->kbd.keycode != Common::KEYCODE_LALT && ev->kbd.keycode != Common::KEYCODE_RALT
-	        && ev->kbd.keycode != Common::KEYCODE_LCTRL && ev->kbd.keycode != Common::KEYCODE_RCTRL) {
+	        && ev->kbd.keycode != Common::KEYCODE_LCTRL && ev->kbd.keycode != Common::KEYCODE_RCTRL
+	        && ev->kbd.keycode != Common::KEYCODE_LSHIFT && ev->kbd.keycode != Common::KEYCODE_RSHIFT) {
 		handle_wrong_key_pressed();
 	}
 

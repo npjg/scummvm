@@ -17,6 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
+ *
+ * This file is dual-licensed.
+ * In addition to the GPLv3 license mentioned above, this code is also
+ * licensed under LGPL 2.1. See LICENSES/COPYING.LGPL file for the
+ * full text of the license.
+ *
  */
 
 #include "common/scummsys.h"
@@ -30,7 +36,9 @@
 
 #include "video/coktel_decoder.h"
 
+#ifdef USE_INDEO3
 #include "image/codecs/indeo3.h"
+#endif
 
 #ifdef VIDEO_COKTELDECODER_H
 
@@ -1861,14 +1869,22 @@ void VMDDecoder::setXY(uint16 x, uint16 y) {
 }
 
 bool VMDDecoder::openExternalCodec() {
+#ifdef USE_INDEO3
 	delete _codec;
+#endif
+
 	_codec = 0;
 
 	if (_externalCodec) {
 		if (_videoCodec == kVideoCodecIndeo3) {
+#ifdef USE_INDEO3
 			_isPaletted = false;
 
 			_codec = new Image::Indeo3Decoder(_width, _height, g_system->getScreenFormat().bpp());
+#else
+			warning("VMDDecoder::openExternalCodec(): Indeo 3 codec is not compiled");
+			return false;
+#endif
 
 		} else {
 			warning("VMDDecoder::openExternalCodec(): Unknown video codec FourCC \"%s\"",
@@ -2230,7 +2246,9 @@ void VMDDecoder::close() {
 	delete[] _videoBuffer[1];
 	delete[] _videoBuffer[2];
 
+#ifdef USE_INDEO3
 	delete _codec;
+#endif
 
 	_files.clear();
 
@@ -2436,6 +2454,7 @@ bool VMDDecoder::renderFrame(Common::Rect &rect) {
 	if (!getRenderRects(rect, realRect, fakeRect))
 		return false;
 
+#ifdef USE_INDEO3
 	if (_externalCodec) {
 		if (!_codec)
 			return false;
@@ -2451,6 +2470,7 @@ bool VMDDecoder::renderFrame(Common::Rect &rect) {
 		renderBlockWhole(_surface, (const byte *)codecSurf->getPixels(), rect);
 		return true;
 	}
+#endif
 
 	uint8  srcBuffer = 0;
 	byte  *dataPtr   = _videoBuffer[srcBuffer];
@@ -2817,6 +2837,7 @@ uint32 VMDDecoder::getFlags() const {
 }
 
 Graphics::PixelFormat VMDDecoder::getPixelFormat() const {
+#ifdef USE_INDEO3
 	if (_externalCodec) {
 		if (_codec)
 			return _codec->getPixelFormat();
@@ -2825,6 +2846,7 @@ Graphics::PixelFormat VMDDecoder::getPixelFormat() const {
 		// current screen format
 		return g_system->getScreenFormat();
 	}
+#endif
 
 	if (_blitMode > 0)
 		return g_system->getScreenFormat();

@@ -26,6 +26,9 @@
 #include "common/translation.h"
 #include "common/md5.h"
 
+#include "gui/dialog.h"
+#include "gui/message.h"
+
 #include "audio/mididrv.h"
 
 #include "backends/keymapper/action.h"
@@ -83,7 +86,7 @@ Common::Path ScummEngine::generateFilename(const int room) const {
 
 Common::Path ScummEngine_v60he::generateFilename(const int room) const {
 	Common::String result;
-	char id = 0;
+	char id;
 
 	switch (_filenamePattern.genMethod) {
 	case kGenHEMac:
@@ -197,10 +200,6 @@ Common::Path ScummEngine_v70he::generateFilename(const int room) const {
 	return Common::Path(result, Common::Path::kNoSeparator);
 }
 
-bool ScummEngine::isMacM68kIMuse() const {
-	return _game.platform == Common::kPlatformMacintosh && (_game.id == GID_MONKEY2 || _game.id == GID_INDY4) && !(_game.features & GF_MAC_CONTAINER);
-}
-
 } // End of namespace Scumm
 
 #pragma mark -
@@ -246,11 +245,16 @@ bool ScummEngine::hasFeature(EngineFeature f) const {
 			(Common::String(_game.guioptions).contains(GAMEOPTION_AUDIO_OVERRIDE) ||
 			 Common::String(_game.guioptions).contains(GAMEOPTION_NETWORK))
 		) ||
-		(f == kSupportsQuitDialogOverride && (_useOriginalGUI || !ChainedGamesMan.empty()));
+		(f == kSupportsQuitDialogOverride && (gameSupportsQuitDialogOverride() || !ChainedGamesMan.empty()));
 }
 
-bool Scumm::ScummEngine::enhancementEnabled(int32 cls) {
-	return _activeEnhancements & cls;
+bool ScummEngine::gameSupportsQuitDialogOverride() const {
+	bool supportsOverride = isUsingOriginalGUI();
+
+	supportsOverride &= !(_game.platform == Common::kPlatformNES);
+	supportsOverride &= !(_game.platform == Common::kPlatformSegaCD);
+
+	return supportsOverride;
 }
 
 
@@ -369,6 +373,18 @@ Common::Error ScummMetaEngine::createInstance(OSystem *syst, Engine **engine,
 		return Common::kUnsupportedGameidError;
 	}
 
+	if (res.game.heversion != 0 && (res.extra && !strcmp(res.extra, "Steam"))) {
+		if (!strcmp(res.game.gameid, "baseball") ||
+			!strcmp(res.game.gameid, "soccer") ||
+			!strcmp(res.game.gameid, "baseball2001") ||
+			!strcmp(res.game.gameid, "basketball") ||
+			!strcmp(res.game.gameid, "football")) {
+			GUI::MessageDialog dialog(_("Warning: this re-release version contains patched game scripts,\n"
+										"and therefore it might crash or not work properly for the time being."));
+			dialog.runModal();
+		}
+	}
+
 	// If the GUI options were updated, we catch this here and update them in the users config
 	// file transparently.
 	Common::updateGameGUIOptions(customizeGuiOptions(res), getGameGUIOptionsDescriptionLanguage(res.language));
@@ -391,10 +407,13 @@ Common::Error ScummMetaEngine::createInstance(OSystem *syst, Engine **engine,
 		res.language = Common::parseLanguage(ConfMan.get("language"));
 
 	// V3 FM-TOWNS games *always* should use the corresponding music driver,
-	// anything else makes no sense for them.
+	// anything else makes no sense for them. Same for Mac (but not limited to V3).
 	// TODO: Maybe allow the null driver, too?
 	if (res.game.platform == Common::kPlatformFMTowns && res.game.version == 3)
 		res.game.midi = MDT_TOWNS;
+	else if (res.game.platform == Common::kPlatformMacintosh && res.game.version < 7 && res.game.heversion == 0)
+		res.game.midi = MDT_MACINTOSH;
+
 	// Finally, we have massaged the GameDescriptor to our satisfaction, and can
 	// instantiate the appropriate game engine. Hooray!
 	switch (res.game.version) {
@@ -531,9 +550,9 @@ SaveStateList ScummMetaEngine::listSaves(const char *target) const {
 	return saveList;
 }
 
-void ScummMetaEngine::removeSaveState(const char *target, int slot) const {
+bool ScummMetaEngine::removeSaveState(const char *target, int slot) const {
 	Common::String filename = ScummEngine::makeSavegameName(target, slot, false);
-	g_system->getSavefileManager()->removeSavefile(filename);
+	return g_system->getSavefileManager()->removeSavefile(filename);
 }
 
 SaveStateDescriptor ScummMetaEngine::querySaveMetaInfos(const char *target, int slot) const {
@@ -581,10 +600,12 @@ GUI::OptionsContainerWidget *ScummMetaEngine::buildLoomOptionsWidget(GUI::GuiObj
 	if (extra == "VGA")
 		return new Scumm::LoomVgaGameOptionsWidget(boss, name, target);
 
-	if (extra == "Steam")
+	if (extra == "Steam" && platform != Common::kPlatformMacintosh)
 		return MetaEngine::buildEngineOptionsWidget(boss, name, target);
+	else if (extra == "Steam" && platform == Common::kPlatformMacintosh)
+		return nullptr;
 	else if (platform == Common::kPlatformMacintosh)
-		return new Scumm::LoomMonkeyMacGameOptionsWidget(boss, name, target, GID_LOOM);
+		return new Scumm::MacGameOptionsWidget(boss, name, target, GID_LOOM, extra);
 
 	// These EGA Loom settings are only relevant for the EGA
 	// version, since that is the only one that has an overture.
@@ -596,7 +617,7 @@ GUI::OptionsContainerWidget *ScummMetaEngine::buildMI1OptionsWidget(GUI::GuiObje
 	Common::Platform platform = Common::parsePlatform(ConfMan.get("platform", target));
 
 	if (platform == Common::kPlatformMacintosh && extra != "Steam")
-		return new Scumm::LoomMonkeyMacGameOptionsWidget(boss, name, target, GID_MONKEY);
+		return new Scumm::MacGameOptionsWidget(boss, name, target, GID_MONKEY, extra);
 
 	if (extra != "CD" && extra != "FM-TOWNS" && extra != "SEGA")
 		return nullptr;
@@ -608,6 +629,7 @@ GUI::OptionsContainerWidget *ScummMetaEngine::buildMI1OptionsWidget(GUI::GuiObje
 GUI::OptionsContainerWidget *ScummMetaEngine::buildEngineOptionsWidget(GUI::GuiObject *boss, const Common::String &name, const Common::String &target) const {
 	Common::String gameid = ConfMan.get("gameid", target);
 	Common::String extra = ConfMan.get("extra", target);
+	Common::Platform platform = Common::parsePlatform(ConfMan.get("platform", target));
 
 	if (gameid == "loom") {
 		GUI::OptionsContainerWidget *widget = buildLoomOptionsWidget(boss, name, target);
@@ -615,6 +637,14 @@ GUI::OptionsContainerWidget *ScummMetaEngine::buildEngineOptionsWidget(GUI::GuiO
 			return widget;
 	} else if (gameid == "monkey") {
 		GUI::OptionsContainerWidget *widget = buildMI1OptionsWidget(boss, name, target);
+		if (widget)
+			return widget;
+	} else if (platform == Common::kPlatformMacintosh) {
+		GUI::OptionsContainerWidget *widget = nullptr;
+		if (gameid == "monkey2")
+			widget = new Scumm::MacGameOptionsWidget(boss, name, target, GID_MONKEY2, extra);
+		else if (gameid == "atlantis")
+			widget = new Scumm::MacGameOptionsWidget(boss, name, target, GID_INDY4, extra);
 		if (widget)
 			return widget;
 	}
@@ -641,7 +671,7 @@ static const ExtraGuiOption comiObjectLabelsOption = {
 	0
 };
 
-static const ExtraGuiOption mmnesObjectLabelsOption = {
+static const ExtraGuiOption mmnesClassicPaletteOption = {
 	_s("Use NES Classic Palette"),
 	_s("Use a more neutral color palette that closely emulates the NES Classic"),
 	"mm_nes_classic_palette",
@@ -714,8 +744,8 @@ static const ExtraGuiOption audioOverride {
 
 static const ExtraGuiOption enableOriginalGUI = {
 	_s("Enable the original GUI and Menu"),
-	_s("Allow the game to use the in-engine graphical interface and the original save/load menu. \
-		Use it together with the \"Ask for confirmation on exit\" for a more complete experience."),
+	_s("Allow the game to use the in-engine graphical interface and the original save/load menu. "
+	   "Use it together with the \"Ask for confirmation on exit\" for a more complete experience."),
 	"original_gui",
 	true,
 	0,
@@ -724,8 +754,8 @@ static const ExtraGuiOption enableOriginalGUI = {
 
 static const ExtraGuiOption enableLowLatencyAudio = {
 	_s("Enable low latency audio mode"),
-	_s("Allows the game to use low latency audio, at the cost of sound accuracy. \
-		It is recommended to enable this feature only if you incur in audio latency issues during normal gameplay."),
+	_s("Allows the game to use low latency audio, at the cost of sound accuracy. "
+	   "It is recommended to enable this feature only if you incur in audio latency issues during normal gameplay."),
 	"dimuse_low_latency_mode",
 	false,
 	0,
@@ -734,8 +764,8 @@ static const ExtraGuiOption enableLowLatencyAudio = {
 
 static const ExtraGuiOption enableCOMISong = {
 	_s("Enable the \"A Pirate I Was Meant To Be\" song"),
-	_s("Enable the song at the beginning of Part 3 of the game, \"A Pirate I Was Meant To Be\", \
-		which was cut in international releases. Beware though: subtitles may not be fully translated."),
+	_s("Enable the song at the beginning of Part 3 of the game, \"A Pirate I Was Meant To Be\", "
+	   "which was cut in international releases. Beware though: subtitles may not be fully translated."),
 	"enable_song",
 	false,
 	0,
@@ -747,6 +777,24 @@ static const ExtraGuiOption enableCopyProtection = {
 	_s("Enable any copy protection that would otherwise be bypassed by default."),
 	"copy_protection",
 	false,
+	0,
+	0
+};
+
+static const ExtraGuiOption mmDemoModeOption = {
+	_s("Enable demo/kiosk mode"),
+	_s("Enable demo/kiosk mode in the full retail version of Maniac Mansion."),
+	"enable_demo_mode",
+	false,
+	0,
+	0
+};
+
+static const ExtraGuiOption useRemasteredAudio = {
+	_s("Use remastered audio"),
+	_s("Use the remastered speech and sound effects."),
+	"use_remastered_audio",
+	true,
 	0,
 	0
 };
@@ -776,6 +824,9 @@ const ExtraGuiOptions ScummMetaEngine::getExtraGuiOptions(const Common::String &
 	if (target.empty() || guiOptions.contains(GAMEOPTION_AUDIO_OVERRIDE)) {
 		options.push_back(audioOverride);
 	}
+	if (target.empty() || guiOptions.contains(GAMEOPTION_USE_REMASTERED_AUDIO)) {
+		options.push_back(useRemasteredAudio);
+	}
 	if (target.empty() || gameid == "comi") {
 		options.push_back(comiObjectLabelsOption);
 
@@ -784,7 +835,7 @@ const ExtraGuiOptions ScummMetaEngine::getExtraGuiOptions(const Common::String &
 		}
 	}
 	if (target.empty() || platform == Common::kPlatformNES) {
-		options.push_back(mmnesObjectLabelsOption);
+		options.push_back(mmnesClassicPaletteOption);
 	}
 	if (target.empty() || platform == Common::kPlatformFMTowns) {
 		options.push_back(smoothScrolling);
@@ -797,7 +848,17 @@ const ExtraGuiOptions ScummMetaEngine::getExtraGuiOptions(const Common::String &
 			options.push_back(fmtownsForceHiResMode);
 #endif
 	}
+	if (target.empty() || gameid == "maniac") {
+		// The kiosk demo script is in V1/V2 DOS, V2 Atari ST and V2 Amiga.
+		bool isValidTarget = !extra.contains("Demo") &&
+			(platform == Common::kPlatformDOS   ||
+			 platform == Common::kPlatformAmiga ||
+			 platform == Common::kPlatformAtariST) &&
+			 !guiOptionsString.contains("lang_Italian");
 
+		if (isValidTarget)
+			options.push_back(mmDemoModeOption);
+	}
 	// The Steam Mac versions of Loom and Indy 3 are more akin to the VGA
 	// DOS versions, and that's how ScummVM usually sees them. But that
 	// rebranding does not happen until later.

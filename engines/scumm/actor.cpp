@@ -105,11 +105,8 @@ static const byte v0WalkboxSlantedModifier[0x16] = {
 };
 
 Actor::Actor(ScummEngine *scumm, int id) :
-	_vm(scumm), _number(id), _visible(false), _shadowMode(0), _flip(false), _frame(0), _walkbox(0), _talkPosX(0), _talkPosY(0),
-	_talkScript(0), _walkScript(0), _ignoreTurns(false), _drawToBackBuf(false), _layer(0), _heOffsX(0), _heOffsY(0), _heSkipLimbs(false),
-	_heCondMask(0), _hePaletteNum(0), _heShadow(0), _elevation(0), _facing(0), _targetFacing(0), _speedx(0), _speedy(0),
-	_animProgress(0), _animSpeed(0), _costumeNeedsInit(false) {
-		assert(_vm != nullptr);
+	_vm(scumm), _number(id) {
+	assert(_vm != nullptr);
 }
 
 ActorHE::ActorHE(ScummEngine *scumm, int id) : Actor(scumm,id) {
@@ -378,7 +375,7 @@ bool Actor_v0::walkBoxQueuePrepare() {
 				// Its not, start hunting through this boxes immediate connections
 				byte* boxm = _vm->getBoxConnectionBase(_walkboxQueue[_walkboxQueueIndex - 1]);
 
-				// Attempt to find one, which we havn't already used
+				// Attempt to find one, which we haven't already used
 				for (; *boxm != kInvalidBox; ++boxm) {
 					if (walkBoxQueueFind(*boxm) != true)
 						break;
@@ -581,8 +578,11 @@ int Actor::calcMovementFactor(const Common::Point& next) {
 int Actor_v3::calcMovementFactor(const Common::Point& next) {
 	int32 deltaXFactor, deltaYFactor;
 
-	if (_pos == next)
+	if (_pos == next) {
+		if (_vm->_game.version == 2)
+			_moving |= MF_IN_LEG;
 		return 0;
+	}
 
 	int diffX = next.x - _pos.x;
 	int diffY = next.y - _pos.y;
@@ -611,14 +611,23 @@ int Actor_v3::calcMovementFactor(const Common::Point& next) {
 	_walkdata.next = next;
 	_walkdata.deltaXFactor = deltaXFactor;
 	_walkdata.deltaYFactor = deltaYFactor;
+	_walkdata.facing = diffX >= 0 ? (diffY >= 0 ? 1 : 0) : (diffY >= 0 ? 2 : 3);
 
 	// The x/y distance ratio which determines whether to face up/down instead of left/right is different for SCUMM1/2 and SCUMM3.
 	_targetFacing = oldDirToNewDir(((ABS(diffY) * _facingXYratio) > ABS(diffX)) ? 3 - (diffY >= 0 ? 1 : 0) : (diffX >= 0 ? 1 : 0));
 
-	if (_vm->_game.version <= 2 && _facing != updateActorDirection(true))
+	if (_vm->_game.version > 2)
+		return actorWalkStep();
+
+	_moving &= ~MF_IN_LEG;
+	if (_facing != _targetFacing)
 		_moving |= MF_TURN;
 
-	return actorWalkStep();
+
+	if (_walkFrame != _frame || _facing != _targetFacing)
+		startWalkAnim(1, _facing);
+
+	return (_moving & MF_TURN) ? 0 : actorWalkStep();
 }
 
 int Actor::actorWalkStep() {
@@ -672,38 +681,8 @@ int Actor::actorWalkStep() {
 	return 1;
 }
 
-int Actor_v3::actorWalkStep() {
+int Actor_v2::actorWalkStep() {
 	_needRedraw = true;
-
-	int nextFacing = updateActorDirection(true);
-	if (!(_moving & MF_IN_LEG) || _facing != nextFacing) {
-		if (_walkFrame != _frame || _facing != nextFacing)
-			startWalkAnim(1, nextFacing);
-
-		_moving |= MF_IN_LEG;
-		// The next two lines fix bug #12278 for ZAK FM-TOWNS (SCUMM3). They are alse required for SCUMM 1/2 to prevent movement while
-		// turning, but only if the character has to make a turn. The correct behavior for v1/2 can be tested by letting Zak (only v1/2
-		// versions) walk in the starting room from the torn wallpaper to the desk drawer: Zak should first turn around clockwise by
-		// 180°, then walk one step to the left, then turn clockwise 90°. For ZAK FM-TOWNS (SCUMM3) this part will look quite different
-		// (and a bit weird), but I have confirmed the correctness with the FM-Towns emulator, too.
-		if (_vm->_game.version == 3 || (_vm->_game.version <= 2 && (_moving & MF_TURN)))
-			return 1;
-	}
-
-	if (_vm->_game.version == 3) {
-		if (_walkdata.next.x - (int)_stepX <= _pos.x && _walkdata.next.x + (int)_stepX >= _pos.x)
-			_pos.x = _walkdata.next.x;
-		if (_walkdata.next.y - (int)_speedy <= _pos.y && _walkdata.next.y + (int)_speedy >= _pos.y)
-			_pos.y = _walkdata.next.y;
-
-		if (_walkbox != _walkdata.curbox && _vm->checkXYInBoxBounds(_walkdata.curbox, _pos.x, _pos.y))
-			setBox(_walkdata.curbox);
-
-		if (_pos == _walkdata.next) {
-			_moving &= ~MF_IN_LEG;
-			return 0;
-		}
-	}
 
 	if ((_walkdata.xfrac += _walkdata.xAdd) >= _stepThreshold) {
 		if (_pos.x != _walkdata.next.x)
@@ -716,9 +695,47 @@ int Actor_v3::actorWalkStep() {
 		_walkdata.yfrac -= _stepThreshold;
 	}
 
-	if (_vm->_game.version <= 2 && _pos == _walkdata.next) {
+	if (_pos == _walkdata.next)
+		_moving |= MF_IN_LEG;
+
+	return 0;
+}
+
+int Actor_v3::actorWalkStep() {
+	_needRedraw = true;
+
+	int nextFacing = updateActorDirection(true);
+	if (!(_moving & MF_IN_LEG) || _facing != nextFacing) {
+		if (_walkFrame != _frame || _facing != nextFacing)
+			startWalkAnim(1, nextFacing);
+
+		_moving |= MF_IN_LEG;
+		// The next line fixes bug #12278 for ZAK FM-TOWNS (SCUMM3).
+		return 1;
+	}
+
+	if (_walkdata.next.x - (int)_stepX <= _pos.x && _walkdata.next.x + (int)_stepX >= _pos.x)
+		_pos.x = _walkdata.next.x;
+	if (_walkdata.next.y - (int)_speedy <= _pos.y && _walkdata.next.y + (int)_speedy >= _pos.y)
+		_pos.y = _walkdata.next.y;
+
+	if (_walkbox != _walkdata.curbox && _vm->checkXYInBoxBounds(_walkdata.curbox, _pos.x, _pos.y))
+		setBox(_walkdata.curbox);
+
+	if (_pos == _walkdata.next) {
 		_moving &= ~MF_IN_LEG;
 		return 0;
+	}
+
+	if ((_walkdata.xfrac += _walkdata.xAdd) >= _stepThreshold) {
+		if (_pos.x != _walkdata.next.x)
+			_pos.x += _walkdata.deltaXFactor;
+		_walkdata.xfrac -= _stepThreshold;
+	}
+	if ((_walkdata.yfrac += _walkdata.yAdd) >= _stepThreshold) {
+		if (_pos.y != _walkdata.next.y)
+			_pos.y += _walkdata.deltaYFactor;
+		_walkdata.yfrac -= _stepThreshold;
 	}
 
 	return 1;
@@ -892,7 +909,7 @@ void Actor::startWalkActor(int destX, int destY, int dir) {
 		((Actor_v0 *)this)->walkBoxQueuePrepare();
 
 	} else if (_vm->_game.version <= 2) {
-		_moving = (_moving & ~(MF_LAST_LEG | MF_IN_LEG)) | MF_NEW_LEG;
+		_moving = (_moving & ~MF_LAST_LEG) | MF_IN_LEG | MF_NEW_LEG;
 	} else {
 		_moving = (_moving & MF_IN_LEG) | MF_NEW_LEG;
 	}
@@ -1230,50 +1247,46 @@ UpdateActorDirection:;
 }
 
 void Actor_v2::walkActor() {
-	Common::Point foundPath, tmp;
-	int new_dir, next_box;
-
 	if (_moving & MF_TURN) {
-		new_dir = updateActorDirection(false);
-		if (_facing != new_dir) {
-			setDirection(new_dir);
-		} else {
+		int newDir = updateActorDirection(false);
+		if (_targetFacing == newDir)
 			_moving &= ~MF_TURN;
-		}
+		setDirection(newDir);
 		return;
 	}
 
-	if (!_moving)
+	if (!(_moving & MF_NEW_LEG))
 		return;
 
-	if (_moving & MF_IN_LEG) {
+	if (!(_moving & MF_IN_LEG)) {
 		actorWalkStep();
 	} else {
 		if (_moving & MF_LAST_LEG) {
 			_moving = MF_TURN;
 			startAnimActor(_standFrame);
-			if (_targetFacing != _walkdata.destdir)
+			if (_walkdata.destdir != -1)
 				turnToDirection(_walkdata.destdir);
 		} else {
+			Common::Point foundPath, tmp;
 			setBox(_walkdata.curbox);
 			if (_walkbox == _walkdata.destbox) {
 				foundPath = _walkdata.dest;
 				_moving |= MF_LAST_LEG;
 			} else {
-				next_box = _vm->getNextBox(_walkbox, _walkdata.destbox);
-				if (next_box < 0) {
+				int nextBox = _vm->getNextBox(_walkbox, _walkdata.destbox);
+				if (nextBox < 0) {
 					_moving |= MF_LAST_LEG;
 					return;
 				}
 
 				// Can't walk through locked boxes
-				int flags = _vm->getBoxFlags(next_box);
+				int flags = _vm->getBoxFlags(nextBox);
 				if ((flags & kBoxLocked) && !((flags & kBoxPlayerOnly) && !isPlayer())) {
 					_moving |= MF_LAST_LEG;
-					//_walkdata.destdir = -1;
+					_walkdata.destdir = -1;
 				}
 
-				_walkdata.curbox = next_box;
+				_walkdata.curbox = nextBox;
 
 				getClosestPtOnBox(_vm->getBoxCoordinates(_walkdata.curbox), _pos.x, _pos.y, tmp.x, tmp.y);
 				getClosestPtOnBox(_vm->getBoxCoordinates(_walkbox), tmp.x, tmp.y, foundPath.x, foundPath.y);
@@ -1493,6 +1506,39 @@ int Actor::remapDirection(int dir, bool is_walking) {
 		dir |= 0x400;
 
 	return dir;
+}
+
+int Actor_v2::remapDirection(int dir, bool is_walking) {
+	if (_vm->_game.version == 0)
+		return Actor::remapDirection(dir, is_walking);
+
+	static const byte remapTable1[] = {
+		0x04, 0x01, 0x02, 0x00, 0x01, 0x02, 0x03, 0x00,
+		0x06, 0x01, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00,
+		0x07, 0x00, 0x03, 0x00, 0x01, 0x02, 0x03, 0x00,
+		0x05, 0x00, 0x02, 0x00, 0x01, 0x02, 0x03, 0x00
+	};
+
+	static const byte remapTable2[] = {
+		0x00, 0x01, 0x03, 0x02, 0x03, 0x00, 0x02, 0x00,
+		0x00, 0x01, 0x03, 0x02, 0x01, 0x03, 0x01, 0x02,
+		0x00, 0x01, 0x03, 0x02, 0x01, 0x00, 0x02, 0x02,
+		0x00, 0x01, 0x03, 0x02, 0x03, 0x03, 0x01, 0x01
+	};
+
+	static const byte remapTable3[] = {
+		0x00, 0x00, 0x02, 0x00, 0x01, 0x03, 0x02, 0x00,
+		0x01, 0x01, 0x02, 0x00, 0x01, 0x03, 0x02, 0x00,
+		0x02, 0x01, 0x02, 0x00, 0x01, 0x03, 0x02, 0x00,
+		0x03, 0x00, 0x03, 0x00, 0x01, 0x03, 0x02, 0x00
+	};
+
+	if (_moving & ~MF_TURN)
+		_targetFacing = oldDirToNewDir(remapTable2[newDirToOldDir(dir) * 8 + remapTable1[_walkdata.facing * 8 + (_vm->getBoxFlags(_walkbox) & 7)]]);
+	else
+		_targetFacing = oldDirToNewDir(remapTable3[newDirToOldDir(dir) * 8 + (_vm->getBoxFlags(_walkbox) & 7)]);
+
+	return _targetFacing | 0x400;
 }
 
 int Actor::updateActorDirection(bool is_walking) {
@@ -2063,17 +2109,36 @@ void Actor::adjustActorPos() {
 }
 
 int ScummEngine::getActorFromPos(int x, int y) {
-	int i;
-
 	if (!testGfxAnyUsageBits(x / 8))
 		return 0;
 
-	for (i = 1; i < _numActors; i++) {
-		if (testGfxUsageBit(x / 8, i) && !getClass(i, kObjectClassUntouchable)
-			&& y >= _actors[i]->_top && y <= _actors[i]->_bottom) {
-			if (_game.version > 2 || i != VAR(VAR_EGO))
-				return i;
+	for (int i = 1; i < _numActors; i++) {
+		int16 y1 = _actors[i]->_top;
+		int16 y2 = _actors[i]->_bottom;
+
+		if (_game.version <= 2) {
+			if (i == VAR(VAR_EGO))
+				continue;
+			y2 = _actors[i]->getPos().y;
+			y1 = _actors[i]->getPos().y - 40 * V12_Y_MULTIPLIER;
+
+			if (_game.version < 2 && _game.id == GID_MANIAC) {
+				// I have found this only in MMv1. The other v1/v2 games have leftovers of this
+				// (they read the elevation value from the array, but then don't use that value).
+				// I have no way to check MMv0 (which also uses this opcode), but I assume it's
+				// more likely that it also has this.
+				y2 = (byte)(y2 - _actors[i]->getElevation());
+				y1 = (byte)(y1 - _actors[i]->getElevation());
+			} else {
+				// Yes, it's really like this in the original code. And it works as intended for
+				// e. g. bug #15277 ("MANIAC: Man-Eating Plant should not be selectable as actor")
+				if ((uint16)y1 > 128)
+					y1 = 1;
+			}
 		}
+
+		if (testGfxUsageBit(x / 8, i) && !getClass(i, kObjectClassUntouchable) && y >= y1 && y <= y2)
+			return i;
 	}
 
 	return 0;
@@ -2368,7 +2433,7 @@ void ScummEngine::processActors() {
 		if (a->_costume) {
 
 			// Unfortunately in V0, the 'animateCostume' call happens right after the call to 'walkActor' (which is before drawing the actor)...
-			// doing it the other way with V0, causes animation glitches (when beginnning to walk, as the costume hasnt been updated).
+			// doing it the other way with V0, causes animation glitches (when beginnning to walk, as the costume hasn't been updated).
 			// Updating the costume directly after 'walkActor' and again, after drawing... causes frame skipping
 			if (_game.version == 0) {
 				a->animateCostume();
@@ -2778,7 +2843,7 @@ void Actor::animateActor(int anim) {
 			stopActorMoving();
 		}
 		break;
-	case 3:				// change direction immediatly
+	case 3:				// change direction immediately
 		if (isInCurrentRoom() ||
 			!(_vm->_game.version >= 3 && _vm->_game.version <= 6)) {
 			_moving &= ~MF_TURN;
@@ -2873,7 +2938,7 @@ void Actor_v0::speakCheck() {
 
 #ifdef ENABLE_SCUMM_7_8
 void Actor::animateLimb(int limb, int f) {
-	// This methods is very similiar to animateCostume().
+	// This methods is very similar to animateCostume().
 	// However, instead of animating *all* the limbs, it only animates
 	// the specified limb to be at the frame specified by "f".
 
@@ -3442,7 +3507,7 @@ void ScummEngine::actorTalk(const byte *msg) {
 		_charsetColor = _NES_talkColor;
 	} else {
 		a = derefActor(getTalkingActor(), "actorTalk(2)");
-		_charsetColor = a->_talkColor;
+		_charsetColor = (_game.platform == Common::kPlatformApple2GS && !enhancementEnabled(kEnhVisualChanges)) ? 1 : a->_talkColor;
 	}
 	_charsetBufPos = 0;
 	_talkDelay = 0;

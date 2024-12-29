@@ -111,6 +111,9 @@ Common::String ReadStream::readPascalString(bool transformCR) {
 }
 
 uint32 MemoryReadStream::read(void *dataPtr, uint32 dataSize) {
+	if (!dataPtr)
+		return 0;
+
 	// Read at most as many bytes as are still available...
 	if (dataSize > _size - _pos) {
 		dataSize = _size - _pos;
@@ -145,8 +148,10 @@ bool MemoryReadStream::seek(int64 offs, int whence) {
 		_pos += offs;
 		break;
 	}
-	// Post-Condition
-	assert(_pos <= _size);
+	
+	if (!(_pos <= _size)) {
+		_pos = _size;
+	}
 
 	// Reset end-of-stream flag on a successful seek
 	_eos = false;

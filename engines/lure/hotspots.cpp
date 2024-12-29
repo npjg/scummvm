@@ -45,7 +45,7 @@ Hotspot::Hotspot(HotspotData *res): _pathFinder(this) {
 	_anim = nullptr;
 	_frames = nullptr;
 	_numFrames = 0;
-	_persistant = false;
+	_persistent = false;
 	_direction = NO_DIRECTION;
 
 	_hotspotId = res->hotspotId;
@@ -96,7 +96,7 @@ Hotspot::Hotspot(Hotspot *character, uint16 objType): _pathFinder(this) {
 	_anim = nullptr;
 	_frames = nullptr;
 	_numFrames = 0;
-	_persistant = false;
+	_persistent = false;
 	_hotspotId = 0xffff;
 	_override = nullptr;
 	_colorOffset = 0;
@@ -141,7 +141,7 @@ Hotspot::Hotspot(Hotspot *character, uint16 objType): _pathFinder(this) {
 		_widthCopy = 19;
 		_heightCopy = 18 + character->heightCopy();
 		_layer = 1;
-		_persistant = false;
+		_persistent = false;
 		_yCorrection = 1;
 		_voiceCtr = CONVERSE_COUNTDOWN_SIZE;
 
@@ -167,7 +167,7 @@ Hotspot::Hotspot(): _pathFinder(nullptr) {
 	_anim = nullptr;
 	_frames = nullptr;
 	_numFrames = 0;
-	_persistant = false;
+	_persistent = false;
 	_hotspotId = 0xffff;
 	_override = nullptr;
 	_colorOffset = 0;
@@ -2269,7 +2269,8 @@ uint16 Hotspot::getTalkId(HotspotData *charHotspot) {
 	Resources &res = Resources::getReference();
 	uint16 talkIndex;
 	TalkHeaderData *headerEntry;
-	bool isEnglish = LureEngine::getReference().getLanguage() == Common::EN_ANY;
+	bool isEnglish = LureEngine::getReference().getLanguage() == Common::EN_ANY ||
+		LureEngine::getReference().getLanguage() == Common::RU_RUS; // Russian version is based on English one, same logic applies
 
 	// If the hotspot has a talk data override, return it
 	if (charHotspot->talkOverride != 0) {
@@ -2355,7 +2356,7 @@ void Hotspot::saveToStream(Common::WriteStream *stream) const {
 	stream->writeUint16LE(_blockedOffset);
 	stream->writeUint16LE(_exitCtr);
 	stream->writeByte(_walkFlag);
-	stream->writeByte(_persistant);
+	stream->writeByte(_persistent);
 	stream->writeUint16LE(_startRoomNumber);
 	stream->writeUint16LE(_supportValue);
 }
@@ -2402,7 +2403,7 @@ void Hotspot::loadFromStream(Common::ReadStream *stream) {
 	_blockedOffset = stream->readUint16LE();
 	_exitCtr = stream->readUint16LE();
 	_walkFlag = stream->readByte() != 0;
-	_persistant = stream->readByte() != 0;
+	_persistent = stream->readByte() != 0;
 	_startRoomNumber = stream->readUint16LE();
 	_supportValue = stream->readUint16LE();
 }

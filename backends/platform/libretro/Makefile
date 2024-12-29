@@ -38,14 +38,45 @@ CP       := cp
 
 LDFLAGS :=
 
-# Raspberry Pi 3 (64 bit)
-ifeq ($(platform), rpi3_64)
+
+# Raspberry Pi 1
+ifeq ($(platform), rpi1)
+   TARGET = $(TARGET_NAME)_libretro.so
+   DEFINES += -fPIC -D_ARM_ASSEM_ -DUSE_CXX11 -marm -DARM
+   LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
+   CFLAGS += -fPIC -marm -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard -fomit-frame-pointer -ffast-math
+   CXXFLAGS = $(CFLAGS) -frtti -std=c++11
+   HAVE_OPENGLES2 := 1
+
+# Raspberry Pi 3
+else ifeq ($(platform), rpi3)
+   TARGET = $(TARGET_NAME)_libretro.so
+   DEFINES += -fPIC -D_ARM_ASSEM_ -DUSE_CXX11 -marm -DARM
+   LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
+   CFLAGS += -fPIC -mcpu=cortex-a53 -mtune=cortex-a53 -fomit-frame-pointer -ffast-math
+   CXXFLAGS = $(CFLAGS) -frtti -std=c++11
+   HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
+
+ # Raspberry Pi 3 (64 bit)
+else ifeq ($(platform), rpi3_64)
    TARGET   = $(TARGET_NAME)_libretro.so
    DEFINES += -fPIC -D_ARM_ASSEM_ -DUSE_CXX11 -DARM -DDEFAULT_PERF_TUNER
    LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
-   CFLAGS  += -fPIC -mcpu=cortex-a53 -mtune=cortex-a53 -fomit-frame-pointer -ffast-math
+   CFLAGS += -fPIC -mcpu=cortex-a53 -mtune=cortex-a53 -fomit-frame-pointer -ffast-math
    CXXFLAGS = $(CFLAGS) -frtti -std=c++11
-   HAVE_OPENGLES2 :=1
+   HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
+
+# Raspberry Pi 5 (64 bit)
+else ifeq ($(platform), rpi5_64)
+   TARGET = $(TARGET_NAME)_libretro.so
+   DEFINES += -fPIC -D_ARM_ASSEM_ -DUSE_CXX11 -DARM
+   LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
+   CFLAGS += -fPIC -mcpu=cortex-a76 -mtune=cortex-a76 -fomit-frame-pointer -ffast-math
+   CXXFLAGS = $(CFLAGS) -frtti -std=c++11
+   HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
 
 # Raspberry Pi 4 (64 bit)
 else ifeq ($(platform), rpi4_64)
@@ -55,6 +86,7 @@ else ifeq ($(platform), rpi4_64)
    CFLAGS += -fPIC -mcpu=cortex-a72 -mtune=cortex-a72 -fomit-frame-pointer -ffast-math
    CXXFLAGS = $(CFLAGS) -frtti -std=c++11
    HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
 
 # iOS
 else ifneq (,$(findstring ios,$(platform)))
@@ -63,6 +95,7 @@ else ifneq (,$(findstring ios,$(platform)))
    LDFLAGS += -dynamiclib -fPIC
    MINVERSION :=
    HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
 
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
@@ -71,8 +104,9 @@ ifeq ($(platform),ios-arm64)
    CC        = cc -arch arm64 -isysroot $(IOSSDK)
    CXX       = c++ -arch arm64 -isysroot $(IOSSDK)
 else
-   CC       = cc -arch armv7 -isysroot $(IOSSDK) -marm
+   CC       = cc -arch armv7 -isysroot $(IOSSDK)
    CXX      = c++ -arch armv7 -isysroot $(IOSSDK)
+   DEFINES  = -marm -mcpu=cortex-a8 -mtune=cortex-a8 -mfpu=neon
 endif
 
 ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
@@ -89,6 +123,7 @@ else ifeq ($(platform), tvos-arm64)
    DEFINES += -fPIC -DHAVE_POSIX_MEMALIGN=1 -DIOS
    LDFLAGS += -dynamiclib -fPIC
    HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
 endif
@@ -99,17 +134,19 @@ endif
 else ifeq ($(platform), qnx)
    TARGET  := $(TARGET_NAME)_libretro_$(platform).so
    DEFINES += -fPIC -DSYSTEM_NOT_SUPPORTING_D_TYPE -DDEFAULT_PERF_TUNER
+   DEFINES += -D__BLACKBERRY_QNX__ -marm -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=softfp
    LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
    CC = qcc -Vgcc_ntoarmv7le
    CXX = QCC -Vgcc_ntoarmv7le
    LD = QCC -Vgcc_ntoarmv7le
    AR = qcc -Vgcc_ntoarmv7le -A
    RANLIB="${QNX_HOST}/usr/bin/ntoarmv7-ranlib"
-   HAVE_OPENGLES2 := 1
+   HAVE_OPENGLES2 := 1.
+   HAVE_NEON := 1
 
 # Genode
 else ifeq ($(platform), genode)
-   TARGET  := libretro.so
+   TARGET  := $(TARGET_NAME)_libretro_$(platform).so
    DEFINES += -fPIC -DSYSTEM_NOT_SUPPORTING_D_TYPE -DDEFAULT_PERF_TUNER
    C_PKGS   = libc
    CXX_PKGS = stdcxx genode-base
@@ -154,12 +191,13 @@ else ifeq ($(platform), libnx)
     TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
     AR = $(DEVKITPRO)/devkitA64/aarch64-none-elf/bin/ar$(EXE_EXT) rcs
     DEFINES := -DSWITCH=1 -U__linux__ -U__linux
-    DEFINES   += -g -O3 -fPIE -I$(LIBNX)/include/ -ffunction-sections -fdata-sections -ftls-model=local-exec
+    DEFINES   += -g -O3 -fPIE -I$(LIBNX)/include/ -ffunction-sections -fdata-sections -ftls-model=local-exec -ffast-math -mcpu=cortex-a57+crc+fp+simd -march=armv8-a -mtune=cortex-a57 -mtp=soft
     DEFINES += $(INCDIRS)
-    DEFINES += -D__SWITCH__ -DHAVE_LIBNX -march=armv8-a -mtune=cortex-a57 -mtp=soft
+    DEFINES += -D__SWITCH__ -DHAVE_LIBNX -D__arm64__ -D__ARM_NEON__
     CXXFLAGS := $(ASFLAGS) -std=gnu++11 -fpermissive
     STATIC_LINKING = 1
     HAVE_OPENGL := 1
+    HAVE_NEON := 1
 
 # Nintendo Wii U
 else ifeq ($(platform), wiiu)
@@ -202,13 +240,14 @@ else ifeq ($(platform), vita)
    CC = arm-vita-eabi-gcc$(EXE_EXT)
    CXX = arm-vita-eabi-g++$(EXE_EXT)
    AR = arm-vita-eabi-ar$(EXE_EXT) rcs
-   DEFINES += -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard
+   DEFINES += -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -mfpu=neon -marm
    DEFINES += -fno-optimize-sibling-calls -mlong-calls -mword-relocations
    DEFINES += -DVITA -DREDUCE_MEMORY_USAGE -DUNCACHED_PLUGINS -DPSP2 -DSYSTEM_NOT_SUPPORTING_D_TYPE
    USE_LIBCO = 0
    LITE := 1
    STATIC_LINKING = 1
    HAVE_OPENGLES2 := 1
+   HAVE_NEON := 1
 
 # GCW0
 else ifeq ($(platform), gcw0)
@@ -219,6 +258,7 @@ else ifeq ($(platform), gcw0)
    AR = /opt/gcw0-toolchain/usr/bin/mipsel-linux-ar cru
    RANLIB = /opt/gcw0-toolchain/usr/bin/mipsel-linux-ranlib
    DEFINES += -DDINGUX -fomit-frame-pointer -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float -fPIC
+   DEFINES += -DPRId64 #Workaround to avoid compilation error in retro_common_api.h. Root cause to be investigated.
    DEFINES += -ffunction-sections -fdata-sections -DDEFAULT_PERF_TUNER
    LDFLAGS += -shared -Wl,--gc-sections -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
    CFLAGS += -std=gnu99
@@ -286,7 +326,7 @@ else ifneq (,$(findstring cortexa9,$(platform)))
 endif
 ifneq (,$(findstring neon,$(platform)))
    DEFINES += -mfpu=neon
-   HAVE_NEON = 1
+   HAVE_NEON := 1
 endif
 ifneq (,$(findstring softfloat,$(platform)))
    DEFINES += -mfloat-abi=softfp
@@ -301,20 +341,29 @@ else ifneq (,$(findstring armv8,$(platform)))
    DEFINES += -fPIC -D_ARM_ASSEM_ -DARM -marm -mtune=cortex-a53 -mfpu=neon-fp-armv8 -mfloat-abi=hard -march=armv8-a+crc -DDEFAULT_PERF_TUNER
    LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
    CFLAGS   += -fPIC
-   HAVE_NEON = 1
+   HAVE_NEON := 1
    HAVE_OPENGLES2 := 1
 
 # Odroid Go Advance
-else ifneq (,$(findstring oga_a35_neon_hardfloat,$(platform)))
+else ifneq (,$(findstring odroidgo2,$(platform)))
    TARGET := $(TARGET_NAME)_libretro.so
-   DEFINES += -fPIC -D_ARM_ASSEM_ -DARM -marm -mtune=cortex-a35 -mfpu=neon-fp-armv8 -mfloat-abi=hard -march=armv8-a+crc
+   DEFINES += -fPIC -D_ARM_ASSEM_ -DARM -DUSE_CXX11 -marm -mtune=cortex-a35 -mfpu=neon-fp-armv8 -mfloat-abi=hard -march=armv8-a+crc
+   DEFINES += -fPIC -D_ARM_ASSEM_ -DUSE_CXX11 -DARM
    LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
-   USE_VORBIS = 0
-   USE_THEORADEC = 0
-   USE_TREMOR = 1
-   USE_MT32EMU = 0
-   HAVE_NEON = 1
+   CFLAGS += -fPIC -mcpu=cortex-a35 -fomit-frame-pointer -ffast-math
+   CXXFLAGS = $(CFLAGS) -frtti -std=c++11
    HAVE_OPENGLES2 := 1
+   HAVE_NEON = 1
+
+# RG353x
+else ifneq (,$(findstring rg353x,$(platform)))
+   TARGET = $(TARGET_NAME)_libretro.so
+   DEFINES += -fPIC -D_ARM_ASSEM_ -DUSE_CXX11 -DARM
+   LDFLAGS += -shared -Wl,--version-script=$(ROOT_PATH)/link.T -fPIC
+   CFLAGS += -fPIC -mcpu=cortex-a55 -mtune=cortex-a55 -fomit-frame-pointer -ffast-math
+   CXXFLAGS = $(CFLAGS) -frtti -std=c++11
+   HAVE_OPENGLES2 := 1
+   HAVE_NEON = 1
 
 # Emscripten
 else ifeq ($(platform), emscripten)
@@ -502,7 +551,7 @@ ifneq (,$(findstring $(platform), wiiu vita))
    DEFINES += -Os
 else ifneq (,$(findstring $(platform), ios osx))
    DEFINES += -O1
-else ifneq (,$(findstring $(platform), msvc genode))
+else ifneq (,$(findstring $(platform), msvc genode rpi))
    DEFINES += -O2
 else
    DEFINES += -O3
@@ -639,7 +688,7 @@ clean:
 	$(HIDE)$(RM_REC) libtemp $(MODULES)
 	$(HIDE)$(RM) libnx-ln
 	$(HIDE)$(RM) scummvm.zip  $(TARGET_NAME)_libretro.* script.mri config.mk.engines.lite ScummVM.dat
-	$(HIDE)$(RM) $(ROOT_PATH)/shared_modules.mk
+	$(HIDE)$(RM) $(ROOT_PATH)/shared_modules.mk $(SCUMMVM_PATH)/engines/engines.mk $(SCUMMVM_PATH)/engines/detection_table.h $(SCUMMVM_PATH)/engines/plugins_table.h
 
 # Include the dependency tracking files.
 -include $(wildcard $(addsuffix /*.d,$(DEPDIRS)))

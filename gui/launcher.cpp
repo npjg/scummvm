@@ -446,6 +446,30 @@ Common::String LauncherDialog::getGameConfig(int item, Common::String key) {
 	return "";
 }
 
+bool LauncherDialog::canLoadSavegames(int item) const {
+	// Check load from launcher is supported
+	if (Common::checkGameGUIOption(GUIO_NOLAUNCHLOAD, ConfMan.get("guioptions", _domains[item])))
+		return false;
+
+	// Check savegames are available
+	Common::String target = _domains[item];
+	target.toLowercase();
+	EngineMan.upgradeTargetIfNecessary(target);
+	QualifiedGameDescriptor game = EngineMan.findTarget(target);
+#if defined(UNCACHED_PLUGINS) && defined(DYNAMIC_MODULES) && !defined(DETECTION_STATIC)
+	// Unload all MetaEnginesDetection if we're using uncached plugins to save extra memory.
+	PluginMan.unloadDetectionPlugin();
+#endif
+	const Plugin *enginePlugin = PluginMan.findEnginePlugin(game.engineId);
+	if (!enginePlugin)
+		return false;
+	const MetaEngine &metaEngine = enginePlugin->get<MetaEngine>();
+	if (!metaEngine.hasFeature(MetaEngine::kSupportsListSaves))
+		return false;
+	SaveStateList saveList = metaEngine.listSaves(target.c_str());
+	return !saveList.empty();
+}
+
 void LauncherDialog::removeGame(int item) {
 	MessageDialog alert(_("Do you really want to remove this game configuration?"), _("Yes"), _("No"));
 
@@ -660,9 +684,9 @@ bool LauncherDialog::doGameDetection(const Common::Path &path) {
 	Common::FSList files;
 	if (!dir.getChildren(files, Common::FSNode::kListAll)) {
 		Common::U32String msg(_("ScummVM couldn't open the specified directory!"));
-#ifdef __ANDROID__
+#ifdef ANDROID_BACKEND
 		msg += Common::U32String("\n\n");
-		msg += _("Did you add this directory to the SAF? Press the help button [?] on the top for detailed instructions");
+		msg += _("Have you given ScummVM access rights to this directory? Press the help button [?] on the top for detailed instructions");
 #endif
 		MessageDialog alert(msg);
 		alert.runModal();
@@ -684,9 +708,9 @@ bool LauncherDialog::doGameDetection(const Common::Path &path) {
 	if (candidates.empty()) {
 		// No game was found in the specified directory
 		Common::U32String msg(_("ScummVM could not find any game in the specified directory!"));
-#ifdef __ANDROID__
+#ifdef ANDROID_BACKEND
 		msg += Common::U32String("\n\n");
-		msg += _("Did you add this directory to the SAF? Press the help button [?] on the top for detailed instructions");
+		msg += _("Have you given ScummVM access rights to this directory? Press the help button [?] on the top for detailed instructions");
 #endif
 		MessageDialog alert(msg);
 		alert.runModal();
@@ -1256,7 +1280,7 @@ void LauncherSimple::groupEntries(const Common::Array<LauncherEntry> &metadata) 
 			attrs.push_back(language);
 		}
 		_list->setGroupHeaderFormat(Common::U32String(""), Common::U32String(""));
-		// I18N: List group when no languageis specified
+		// I18N: List group when no language is specified
 		metadataNames[""] = _("Language not detected");
 		const Common::LanguageDescription *l = Common::g_languages;
 		for (; l->code; ++l) {
@@ -1370,7 +1394,7 @@ void LauncherSimple::updateButtons() {
 	bool en = enable;
 
 	if (item >= 0)
-		en = !(Common::checkGameGUIOption(GUIO_NOLAUNCHLOAD, ConfMan.get("guioptions", _domains[item])));
+		en = canLoadSavegames(item);
 
 	_loadButton->setEnabled(en);
 }
@@ -1404,7 +1428,7 @@ void LauncherGrid::groupEntries(const Common::Array<LauncherEntry> &metadata) {
 			attrs.push_back(iter->engineid);
 		}
 		_grid->setGroupHeaderFormat(Common::U32String(""), Common::U32String(""));
-		// I18N: List grouping when no enginr is specified
+		// I18N: List grouping when no engine is specified
 		metadataNames[""] = _("Unknown Engine");
 		Common::HashMap<Common::String, MetadataEngine, Common::IgnoreCase_Hash, Common::IgnoreCase_EqualTo>::iterator i = _metadataParser._engineInfo.begin();
 		for (; i != _metadataParser._engineInfo.end(); ++i) {
@@ -1655,7 +1679,7 @@ void LauncherGrid::build() {
 	_gridItemSizeLabel->setValue(ConfMan.getInt("grid_items_per_row"));
 
 	// Add list with game titles
-	_grid = new GridWidget(this, "LauncherGrid.IconArea");
+	_grid = new GridWidget(this, "LauncherGrid.IconArea", this);
 	// Populate the list
 	updateListing();
 

@@ -29,7 +29,6 @@
 #define GOB_DETECTION_TABLES_H
 
 // Struct "GOBGameDescription"
-#include "common/translation.h"
 #include "gob/detection/detection.h"
 
 using namespace Common;
@@ -43,12 +42,14 @@ static const PlainGameDescriptor gobGames[] = {
 	{"bargon", "Bargon Attack"},
 	{"babayaga", "Once Upon A Time: Baba Yaga"},
 	{"abracadabra", "Once Upon A Time: Abracadabra"},
+	{"englishfever", "English Fever"},
 	{"littlered", "Once Upon A Time: Little Red Riding Hood"},
 	{"onceupon", "Once Upon A Time"},
 	{"crousti", "Croustibat"},
 	{"lit", "Lost in Time"},
 	{"lit1", "Lost in Time Part 1"},
 	{"lit2", "Lost in Time Part 2"},
+	{"nathanvacances", "Nathan Vacances"},
 	{"inca2", "Inca II: Wiracocha"},
 	{"woodruff", "The Bizarre Adventures of Woodruff and the Schnibble"},
 	{"dynasty", "The Last Dynasty"},
@@ -63,10 +64,11 @@ static const PlainGameDescriptor gobGames[] = {
 	{"playtnck2", "Playtoons Construction Kit 2 - Knights"},
 	{"playtnck3", "Playtoons Construction Kit 3 - Far West"},
 	{"playtoonsdemo", "Playtoons Demo"},
-	{"pierresmagiques", "Le pays des Pierres Magiques"},
+	{"magicstones", "The Land of the Magic Stones"},
 	{"bambou", "Playtoons Limited Edition - Bambou le sauveur de la jungle"},
 	{"fascination", "Fascination"},
 	{"geisha", "Geisha"},
+	{"adi1", "ADI 1"},
 	{"adi2", "ADI 2"},
 	{"adi4", "ADI 4"},
 	{"adi5", "ADI 5"},
@@ -94,6 +96,7 @@ static const GOBGameDescription gameDescriptions[] = {
 	#include "gob/detection/tables_littlered.h" // Once Upon A Time: Little Red Riding Hood
 	#include "gob/detection/tables_onceupon.h"  // Once Upon A Time: Baba Yaga and Abracadabra
 	#include "gob/detection/tables_lit.h"       // Lost in Time
+	#include "gob/detection/tables_nathanvacances.h" // Nathan Vacances series
 	#include "gob/detection/tables_fascin.h"    // Fascination
 	#include "gob/detection/tables_geisha.h"    // Geisha
 	#include "gob/detection/tables_inca2.h"     // Inca II: Wiracocha
@@ -101,8 +104,10 @@ static const GOBGameDescription gameDescriptions[] = {
 	#include "gob/detection/tables_dynasty.h"   // The Last Dynasty
 	#include "gob/detection/tables_urban.h"     // Urban Runner
 	#include "gob/detection/tables_playtoons.h" // The Playtoons series
-	#include "gob/detection/tables_pierresmagiques.h" // Le pays des Pierres Magiques / The Land of the Magic Stones
-	#include "gob/detection/tables_adi2.h"      // The ADI / Addy 2 series
+	#include "gob/detection/tables_magicstones.h" // Le pays des Pierres Magiques / The Land of the Magic Stones
+	#include "gob/detection/tables_englishfever.h" // English Fever
+	#include "gob/detection/tables_adi1.h"      // The ADI 1 series
+	#include "gob/detection/tables_adi2.h"      // The ADI 2 series
 	#include "gob/detection/tables_adi4.h"      // The ADI / Addy 4 series
 	#include "gob/detection/tables_adi5.h"      // The ADI / Addy 5 series
 	#include "gob/detection/tables_adibou1.h"   // Adibou 1 / A.J.'s World of Discovery / ADI Jr.

@@ -74,6 +74,7 @@ MODULE_OBJS = \
 	lingo/xlibs/consumer.o \
 	lingo/xlibs/cursorxobj.o \
 	lingo/xlibs/darkenscreen.o \
+	lingo/xlibs/dateutil.o \
 	lingo/xlibs/developerStack.o \
 	lingo/xlibs/dialogsxobj.o \
 	lingo/xlibs/dirutil.o \
@@ -97,6 +98,7 @@ MODULE_OBJS = \
 	lingo/xlibs/findwin.o \
 	lingo/xlibs/flushxobj.o \
 	lingo/xlibs/fplayxobj.o \
+	lingo/xlibs/fsutil.o \
 	lingo/xlibs/genutils.o \
 	lingo/xlibs/getscreenrectsxfcn.o \
 	lingo/xlibs/getscreensizexfcn.o \
@@ -131,7 +133,6 @@ MODULE_OBJS = \
 	lingo/xlibs/panel.o \
 	lingo/xlibs/popupmenuxobj.o \
 	lingo/xlibs/porta.o \
-	lingo/xlibs/portaxcmd.o \
 	lingo/xlibs/prefpath.o \
 	lingo/xlibs/printomatic.o \
 	lingo/xlibs/processxobj.o \
@@ -174,7 +175,6 @@ MODULE_OBJS += \
 	debugger/dt-cast.o \
 	debugger/dt-controlpanel.o \
 	debugger/dt-lists.o \
-	debugger/dt-logger.o \
 	debugger/dt-score.o \
 	debugger/dt-script-d2.o \
 	debugger/dt-script-d4.o \

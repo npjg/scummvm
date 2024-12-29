@@ -32,8 +32,20 @@ void EclipseEngine::initCPC() {
 	_viewArea = Common::Rect(36 + 3, 24 + 8, 284, 130 + 3);
 }
 
-extern byte kCPCPaletteTitleData[4][3];
-extern byte kCPCPaletteBorderData[4][3];
+byte kCPCPaletteEclipseTitleData[4][3] = {
+	{0x00, 0x00, 0x00},
+	{0xff, 0xff, 0x00},
+	{0xff, 0x00, 0xff},
+	{0xff, 0x80, 0x00},
+};
+
+byte kCPCPaletteEclipseBorderData[4][3] = {
+	{0x00, 0x00, 0x00},
+	{0xff, 0x80, 0x00},
+	{0x80, 0xff, 0xff},
+	{0x00, 0x80, 0x00},
+};
+
 
 extern Graphics::ManagedSurface *readCPCImage(Common::SeekableReadStream *file, bool mode0);
 
@@ -49,7 +61,7 @@ void EclipseEngine::loadAssetsCPCFullGame() {
 		error("Failed to open TESCR.SCR/TE2.BI1");
 
 	_title = readCPCImage(&file, true);
-	_title->setPalette((byte*)&kCPCPaletteTitleData, 0, 4);
+	_title->setPalette((byte*)&kCPCPaletteEclipseTitleData, 0, 4);
 
 	file.close();
 	if (isEclipse2())
@@ -61,7 +73,7 @@ void EclipseEngine::loadAssetsCPCFullGame() {
 		error("Failed to open TECON.SCR/TE2.BI3");
 
 	_border = readCPCImage(&file, true);
-	_border->setPalette((byte*)&kCPCPaletteTitleData, 0, 4);
+	_border->setPalette((byte*)&kCPCPaletteEclipseBorderData, 0, 4);
 
 	file.close();
 	if (isEclipse2())
@@ -73,11 +85,11 @@ void EclipseEngine::loadAssetsCPCFullGame() {
 		error("Failed to open TECODE.BIN/TE2.BI2");
 
 	if (isEclipse2()) {
-		loadFonts(&file, 0x60bc, _font);
+		loadFonts(&file, 0x60bc);
 		loadMessagesFixedSize(&file, 0x326, 16, 30);
 		load8bitBinary(&file, 0x62b4, 16);
 	} else {
-		loadFonts(&file, 0x6076, _font);
+		loadFonts(&file, 0x6076);
 		loadMessagesFixedSize(&file, 0x326, 16, 30);
 		load8bitBinary(&file, 0x626e, 16);
 	}
@@ -111,7 +123,7 @@ void EclipseEngine::loadAssetsCPCDemo() {
 		error("Failed to open TECON.BIN");
 
 	_border = readCPCImage(&file, true);
-	_border->setPalette((byte*)&kCPCPaletteTitleData, 0, 4);
+	_border->setPalette((byte*)&kCPCPaletteEclipseTitleData, 0, 4);
 
 	file.close();
 	file.open("TEPROG.BIN");
@@ -119,7 +131,7 @@ void EclipseEngine::loadAssetsCPCDemo() {
 	if (!file.isOpen())
 		error("Failed to open TEPROG.BIN");
 
-	loadFonts(&file, 0x63ce, _font);
+	loadFonts(&file, 0x63ce);
 	loadMessagesFixedSize(&file, 0x362, 16, 23);
 	loadMessagesFixedSize(&file, 0x570b, 264, 5);
 	load8bitBinary(&file, 0x65c6, 16);
@@ -195,6 +207,14 @@ void EclipseEngine::drawCPCUI(Graphics::Surface *surface) {
 	drawAnalogClock(surface, 90, 172, back, other, front);
 	drawIndicator(surface, 45, 4, 12);
 	drawEclipseIndicator(surface, 228, 0, front, other);
+
+	uint32 blue = _gfx->_texturePixelFormat.ARGBToColor(0xFF, 0x55, 0x55, 0xFF);
+
+	Common::Rect jarBackground(124, 165, 148, 192);
+	surface->fillRect(jarBackground, back);
+
+	Common::Rect jarWater(124, 192 - _gameStateVars[k8bitVariableEnergy], 148, 192);
+	surface->fillRect(jarWater, blue);
 
 	surface->fillRect(Common::Rect(225, 168, 235, 187), front);
 	drawCompass(surface, 229, 177, _yaw, 10, back);

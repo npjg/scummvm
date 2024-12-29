@@ -25,7 +25,6 @@
 #include "common/endian.h"
 #include "common/events.h"
 #include "common/file.h"
-#include "common/math.h"
 #include "common/ptr.h"
 #include "common/random.h"
 #include "common/savefile.h"
@@ -43,6 +42,8 @@
 #include "image/ani.h"
 #include "image/bmp.h"
 #include "image/icocur.h"
+
+#include "math/utils.h"
 
 #include "audio/decoders/wave.h"
 #include "audio/decoders/vorbis.h"
@@ -552,7 +553,7 @@ ScriptEnvironmentVars::ScriptEnvironmentVars() : lmb(false), lmbDrag(false), esc
 	panInteractionID(0), clickInteractionID(0), fpsOverride(0), lastHighlightedItem(0), animChangeFrameOffset(0), animChangeNumFrames(0) {
 }
 
-OSEvent::OSEvent() : type(kOSEventTypeInvalid), keyCode(static_cast<Common::KeyCode>(0)), keymappedEvent(kKeymappedEventNone), timestamp(0) {
+OSEvent::OSEvent() : type(kOSEventTypeInvalid), keymappedEvent(kKeymappedEventNone), timestamp(0) {
 }
 
 void Runtime::RenderSection::init(const Common::Rect &paramRect, const Graphics::PixelFormat &fmt) {
@@ -1501,9 +1502,11 @@ Runtime::Runtime(OSystem *system, Audio::Mixer *mixer, MidiDriver *midiDrv, cons
 
 #ifdef USE_FREETYPE2
 	if (_gameID == GID_AD2044) {
-		Common::File f;
-		if (f.open("gfx/AD2044.TTF"))
-			_subtitleFontKeepalive.reset(Graphics::loadTTFFont(f, 16, Graphics::kTTFSizeModeCharacter, 108, 72, Graphics::kTTFRenderModeLight));
+		Common::File *f = new Common::File();
+		if (f->open("gfx/AD2044.TTF"))
+			_subtitleFontKeepalive.reset(Graphics::loadTTFFont(f, DisposeAfterUse::YES, 16, Graphics::kTTFSizeModeCharacter, 108, 72, Graphics::kTTFRenderModeLight));
+		else
+			delete f;
 	} else
 		_subtitleFontKeepalive.reset(Graphics::loadTTFFontFromArchive("NotoSans-Regular.ttf", 16, Graphics::kTTFSizeModeCharacter, 0, 0, Graphics::kTTFRenderModeLight));
 
@@ -1755,7 +1758,7 @@ bool Runtime::runFrame() {
 bool Runtime::bootGame(bool newGame) {
 	assert(_gameState == kGameStateBoot);
 
-	if (!ConfMan.hasKey("vcruise_increase_drag_distance") || ConfMan.hasKey("vcruise_increase_drag_distance"))
+	if (!ConfMan.hasKey("vcruise_increase_drag_distance") || ConfMan.getBool("vcruise_increase_drag_distance"))
 		_lmbDragTolerance = 3;
 
 	if (ConfMan.hasKey("vcruise_mute_music") && ConfMan.getBool("vcruise_mute_music"))
@@ -2359,7 +2362,7 @@ bool Runtime::runWaitForAnimation() {
 	// Still waiting, check events
 	OSEvent evt;
 	while (popOSEvent(evt)) {
-		if (evt.type == kOSEventTypeKeyDown && evt.keyCode == Common::KEYCODE_ESCAPE) {
+		if (evt.type == kOSEventTypeKeymappedEvent && evt.keymappedEvent == kKeymappedEventEscape) {
 			if (_escOn) {
 				// Terminate the animation
 				if (_animDecoderState == kAnimDecoderStatePlaying) {
@@ -4621,6 +4624,10 @@ void Runtime::changeAnimation(const AnimationDef &animDef, uint initialFrame, bo
 
 		if (aviFile->open(aviFileName)) {
 			_animDecoder.reset(new Video::AVIDecoder());
+
+			if (ConfMan.hasKey("vcruise_fast_video_decoder") && ConfMan.getBool("vcruise_fast_video_decoder"))
+				_animDecoder->setVideoCodecAccuracy(Image::CodecAccuracy::Fast);
+
 			if (!_animDecoder->loadStream(aviFile)) {
 				warning("Animation file %i could not be loaded", animFile);
 				return;
@@ -5129,7 +5136,7 @@ bool Runtime::computeEffectiveVolumeAndBalance(SoundInstance &snd) {
 	uint effectiveVolume = applyVolumeScale(snd.volume);
 	int32 effectiveBalance = applyBalanceScale(snd.balance);
 
-	double radians = Common::deg2rad<double>(_listenerAngle);
+	double radians = Math::deg2rad<double>(_listenerAngle);
 	int32 cosAngle = static_cast<int32>(cos(radians) * (1 << 15));
 	int32 sinAngle = static_cast<int32>(sin(radians) * (1 << 15));
 
@@ -6847,14 +6854,6 @@ void Runtime::onMouseMove(int16 x, int16 y) {
 	OSEvent evt;
 	evt.type = kOSEventTypeMouseMove;
 	evt.pos = Common::Point(x, y);
-
-	queueOSEvent(evt);
-}
-
-void Runtime::onKeyDown(Common::KeyCode keyCode) {
-	OSEvent evt;
-	evt.type = kOSEventTypeKeyDown;
-	evt.keyCode = keyCode;
 
 	queueOSEvent(evt);
 }

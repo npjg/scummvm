@@ -105,7 +105,6 @@ void OSystem_PSP2::initBackend() {
 	ConfMan.registerDefault("joystick_deadzone", 2);
 	ConfMan.registerDefault("touchpad_mouse_mode", false);
 	ConfMan.registerDefault("frontpanel_touchpad_mode", false);
-	ConfMan.registerDefault("gm_device", "null");
 
 	ConfMan.setBool("fullscreen", true);
 
@@ -153,28 +152,6 @@ bool OSystem_PSP2::hasFeature(Feature f) {
 		f == kFeatureJoystickDeadzone ||
 		f == kFeatureTouchpadMode ||
 		OSystem_SDL::hasFeature(f));
-}
-
-void OSystem_PSP2::setFeatureState(Feature f, bool enable) {
-	switch (f) {
-	case kFeatureTouchpadMode:
-		ConfMan.setBool("touchpad_mouse_mode", enable);
-		break;
-	default:
-		OSystem_SDL::setFeatureState(f, enable);
-		break;
-	}
-}
-
-bool OSystem_PSP2::getFeatureState(Feature f) {
-	switch (f) {
-	case kFeatureTouchpadMode:
-		return ConfMan.getBool("touchpad_mouse_mode");
-		break;
-	default:
-		return OSystem_SDL::getFeatureState(f);
-		break;
-	}
 }
 
 void OSystem_PSP2::logMessage(LogMessageType::Type type, const char *message) {

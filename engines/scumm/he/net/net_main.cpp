@@ -1055,7 +1055,7 @@ void Net::handleSessionServerData(Common::String data) {
 				// destinated address, allowing someone with the same address to
 				// communicate with us.  This does not work with every router though...
 				//
-				// More infomation: https://en.wikipedia.org/wiki/UDP_hole_punching
+				// More information: https://en.wikipedia.org/wiki/UDP_hole_punching
 				debugC(DEBUG_NETWORK, "NETWORK: Hole punching %s:%d", address.host.c_str(), address.port);
 				_sessionHost->sendRawData(address.host, address.port, "");
 			}
@@ -1529,7 +1529,7 @@ void Net::handleGameDataHost(Common::JSONValue *json, int peerIndex) {
 				warning("NETWORK: Got individual message for %d, but we don't know this person!  Ignoring...", toparam);
 				return;
 			}
-			debugC(DEBUG_NETWORK, "NETWORK: Transfering message to %s (%d), peerIndex: %d", _userIdToName[toparam].c_str(), toparam, _userIdToPeerIndex[toparam]);
+			debugC(DEBUG_NETWORK, "NETWORK: Transferring message to %s (%d), peerIndex: %d", _userIdToName[toparam].c_str(), toparam, _userIdToPeerIndex[toparam]);
 			Common::String str = Common::JSON::stringify(json);
 			_sessionHost->send(str.c_str(), _userIdToPeerIndex[toparam], 0, reliable);
 		}

@@ -26,7 +26,6 @@
 
 #include "backends/graphics/graphics.h"
 #include "backends/graphics/android/android-graphics.h"
-#include "backends/graphics3d/opengl/framebuffer.h"
 #include "backends/graphics3d/android/texture.h"
 
 #include "backends/platform/android/touchcontrols.h"
@@ -121,10 +120,12 @@ public:
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const override;
 #endif
 
+	void touchControlInitSurface(const Graphics::ManagedSurface &surf) override;
 	void touchControlNotifyChanged() override;
-	void touchControlDraw(int16 x, int16 y, int16 w, int16 h, const Common::Rect &clip) override;
+	void touchControlDraw(uint8 alpha, int16 x, int16 y, int16 w, int16 h, const Common::Rect &clip) override;
 
 	void syncVirtkeyboardState(bool virtkeybd_on) override;
+	void applyTouchSettings() const override;
 
 protected:
 	void updateScreenRect();
@@ -160,7 +161,7 @@ private:
 
 	// Game layer
 	GLESTexture *_game_texture;
-	OpenGL::FrameBuffer *_frame_buffer;
+	AndroidFrameBuffer *_frame_buffer;
 
 #ifdef USE_RGB_COLOR
 	// Backup of the previous pixel format to pass it back when we leave 3d

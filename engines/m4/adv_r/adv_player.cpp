@@ -59,6 +59,12 @@ void Player::syncGame(Common::Serializer &s) {
 	s.syncAsSint32LE(click_y);
 }
 
+void Player::resetWalk() {
+	need_to_walk = false;
+	ready_to_walk = true;
+	waiting_for_walk = false;
+}
+
 void PlayerInfo::syncGame(Common::Serializer &s) {
 	s.syncAsSint32LE(x);
 	s.syncAsSint32LE(y);
@@ -197,7 +203,7 @@ PlayerInfo *player_update_info() {
 }
 
 void player_set_facing_hotspot(int trigger) {
-	player_set_facing_at(_G(click_x), _G(click_y), trigger);
+	player_set_facing_at(_G(player).click_x, _G(player).click_y, trigger);
 }
 
 void player_set_facing_at(int x, int y, int trigger) {

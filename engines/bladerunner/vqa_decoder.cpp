@@ -148,17 +148,32 @@ VQADecoder::VQADecoder() {
 }
 
 VQADecoder::~VQADecoder() {
+	close();
+}
+
+void VQADecoder::close() {
 	for (uint i = _codebooks.size(); i != 0; --i) {
 		delete[] _codebooks[i - 1].data;
 	}
+	_codebooks.clear();
+
 	delete _audioTrack;
+	_audioTrack = nullptr;
+
 	delete _videoTrack;
+	_videoTrack = nullptr;
+
 	delete[] _frameInfo;
+	_frameInfo = nullptr;
+
+	_loopInfo.close();
+
 	deleteVQPTable();
 }
 
 bool VQADecoder::loadStream(Common::SeekableReadStream *s) {
-	// close();
+	close();
+
 	_s = s;
 
 	IFFChunkHeader chd;
@@ -1003,7 +1018,7 @@ bool VQADecoder::VQAVideoTrack::readCPL0(Common::SeekableReadStream *s, uint32 s
 	}
 
 	// Add a new palette ONLY if the previous is not identical.
-	// This accomodates the VQA reel for Lands of Lore 2.
+	// This accommodates the VQA reel for Lands of Lore 2.
 	if (_currentPaletteId == -1) {
 		_cpalPointerSize = size;
 		s->read(_cpalPointer, roundup(size));

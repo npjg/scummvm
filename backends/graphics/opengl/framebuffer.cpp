@@ -21,8 +21,9 @@
 
 #include "backends/graphics/opengl/framebuffer.h"
 #include "backends/graphics/opengl/pipelines/pipeline.h"
-#include "backends/graphics/opengl/texture.h"
 #include "graphics/opengl/debug.h"
+#include "graphics/opengl/texture.h"
+#include "common/rotationmode.h"
 
 namespace OpenGL {
 
@@ -188,7 +189,7 @@ void Backbuffer::activateInternal() {
 #endif
 }
 
-bool Backbuffer::setSize(uint width, uint height) {
+bool Backbuffer::setSize(uint width, uint height, Common::RotationMode rotation) {
 	// Set viewport dimensions.
 	_viewport[0] = 0;
 	_viewport[1] = 0;
@@ -216,6 +217,41 @@ bool Backbuffer::setSize(uint width, uint height) {
 	_projectionMatrix(3, 2) =  0.0f;
 	_projectionMatrix(3, 3) =  1.0f;
 
+	switch (rotation) {
+	default:
+		_projectionMatrix(0, 0) =  2.0f / width;
+		_projectionMatrix(0, 1) =  0.0f;
+		_projectionMatrix(1, 0) =  0.0f;
+		_projectionMatrix(1, 1) = -2.0f / height;
+		_projectionMatrix(3, 0) = -1.0f;
+		_projectionMatrix(3, 1) =  1.0f;
+		break;
+	case Common::kRotation90:
+		_projectionMatrix(0, 0) =  0.0f;
+		_projectionMatrix(0, 1) =  -2.0f / height;
+		_projectionMatrix(1, 0) =  -2.0f / width;
+		_projectionMatrix(1, 1) =  0.0f;
+		_projectionMatrix(3, 0) =  1.0f;
+		_projectionMatrix(3, 1) =  1.0f;
+		break;
+	case Common::kRotation180:
+		_projectionMatrix(0, 0) =  -2.0f / width;
+		_projectionMatrix(0, 1) =  0.0f;
+		_projectionMatrix(1, 0) =  0.0f;
+		_projectionMatrix(1, 1) =  2.0f / height;
+		_projectionMatrix(3, 0) =  1.0f;
+		_projectionMatrix(3, 1) = -1.0f;
+		break;
+	case Common::kRotation270:
+		_projectionMatrix(0, 0) =  0.0f;
+		_projectionMatrix(0, 1) =  2.0f / height;
+		_projectionMatrix(1, 0) =  2.0f / width;
+		_projectionMatrix(1, 1) =  0.0f;
+		_projectionMatrix(3, 0) = -1.0f;
+		_projectionMatrix(3, 1) = -1.0f;
+		break;
+	}
+
 	// Directly apply changes when we are active.
 	if (isActive()) {
 		applyViewport();
@@ -230,7 +266,7 @@ bool Backbuffer::setSize(uint width, uint height) {
 
 #if !USE_FORCED_GLES
 TextureTarget::TextureTarget()
-	: _texture(new GLTexture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE)), _glFBO(0), _needUpdate(true) {
+	: _texture(new Texture(GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE)), _glFBO(0), _needUpdate(true) {
 }
 
 TextureTarget::~TextureTarget() {
@@ -268,7 +304,7 @@ void TextureTarget::create() {
 	_needUpdate = true;
 }
 
-bool TextureTarget::setSize(uint width, uint height) {
+bool TextureTarget::setSize(uint width, uint height, Common::RotationMode rotation) {
 	if (!_texture->setSize(width, height)) {
 		return false;
 	}

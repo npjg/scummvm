@@ -29,12 +29,17 @@ namespace Freescape {
 
 void CastleEngine::initZX() {
 	_viewArea = Common::Rect(64, 36, 256, 148);
-	_yminValue = -1;
-	_ymaxValue = 1;
+	_soundIndexShoot = 5;
+	_soundIndexCollide = -1;
+	_soundIndexFall = -1;
+	_soundIndexClimb = -1;
+	_soundIndexMenu = -1;
+	_soundIndexStart = 6;
+	_soundIndexAreaChange = 7;
 }
 
-Graphics::Surface *CastleEngine::loadFrames(Common::SeekableReadStream *file, int pos, int numFrames, uint32 back) {
-	Graphics::Surface *surface = new Graphics::Surface();
+Graphics::ManagedSurface *CastleEngine::loadFrameWithHeader(Common::SeekableReadStream *file, int pos, uint32 front, uint32 back) {
+	Graphics::ManagedSurface *surface = new Graphics::ManagedSurface();
 	file->seek(pos);
 	int16 width = file->readByte();
 	int16 height = file->readByte();
@@ -42,20 +47,39 @@ Graphics::Surface *CastleEngine::loadFrames(Common::SeekableReadStream *file, in
 
 	/*byte mask =*/ file->readByte();
 
-	uint8 r, g, b;
-	_gfx->readFromPalette(7, r, g, b);
-	uint32 white = _gfx->_texturePixelFormat.ARGBToColor(0xFF, r, g, b);
-
-	surface->fillRect(Common::Rect(0, 0, width * 8, height), white);
+	surface->fillRect(Common::Rect(0, 0, width * 8, height), back);
 	/*int frameSize =*/ file->readUint16LE();
+	return loadFrame(file, surface, width, height, front);
+}
 
+Common::Array<Graphics::ManagedSurface *> CastleEngine::loadFramesWithHeader(Common::SeekableReadStream *file, int pos, int numFrames, uint32 front, uint32 back) {
+	Graphics::ManagedSurface *surface = nullptr;
+	file->seek(pos);
+	int16 width = file->readByte();
+	int16 height = file->readByte();
+	/*byte mask =*/ file->readByte();
+
+	/*int frameSize =*/ file->readUint16LE();
+	Common::Array<Graphics::ManagedSurface *> frames;
+	for (int i = 0; i < numFrames; i++) {
+		surface = new Graphics::ManagedSurface();
+		surface->create(width * 8, height, _gfx->_texturePixelFormat);
+		surface->fillRect(Common::Rect(0, 0, width * 8, height), back);
+		frames.push_back(loadFrame(file, surface, width, height, front));
+	}
+
+	return frames;
+}
+
+
+Graphics::ManagedSurface *CastleEngine::loadFrame(Common::SeekableReadStream *file, Graphics::ManagedSurface *surface, int width, int height, uint32 front) {
 	for (int i = 0; i < width * height; i++) {
 		byte color = file->readByte();
 		for (int n = 0; n < 8; n++) {
 			int y = i / width;
 			int x = (i % width) * 8 + (7 - n);
 			if ((color & (1 << n)))
-				surface->setPixel(x, y, back);
+				surface->setPixel(x, y, front);
 		}
 	}
 	return surface;
@@ -64,6 +88,7 @@ Graphics::Surface *CastleEngine::loadFrames(Common::SeekableReadStream *file, in
 void CastleEngine::loadAssetsZXFullGame() {
 	Common::File file;
 	uint8 r, g, b;
+	Common::Array<Graphics::ManagedSurface *> chars;
 
 	file.open("castlemaster.zx.title");
 	if (file.isOpen()) {
@@ -83,34 +108,138 @@ void CastleEngine::loadAssetsZXFullGame() {
 	if (!file.isOpen())
 		error("Failed to open castlemaster.zx.data");
 
-	loadRiddles(&file, 0x1460 - 1 - 3, 8);
-	//loadMessagesFixedSize(&file, 0x4bc + 1, 16, 27);
-	loadFonts(&file, 0x1219, _font);
 	loadMessagesVariableSize(&file, 0x4bd, 71);
+	switch (_language) {
+		case Common::ES_ESP:
+			loadRiddles(&file, 0x1470 - 4 - 2 - 9 * 2, 9);
+			loadMessagesVariableSize(&file, 0xf3d, 71);
+			load8bitBinary(&file, 0x6aab - 2, 16);
+			loadSpeakerFxZX(&file, 0xca0, 0xcdc);
 
-    load8bitBinary(&file, 0x6a3b, 16);
-	loadSpeakerFxZX(&file, 0xc91, 0xccd);
+			file.seek(0x1218 + 16);
+			for (int i = 0; i < 90; i++) {
+				Graphics::ManagedSurface *surface = new Graphics::ManagedSurface();
+				surface->create(8, 8, Graphics::PixelFormat::createFormatCLUT8());
+				chars.push_back(loadFrame(&file, surface, 1, 8, 1));
+			}
+			_font = Font(chars);
+			_font.setCharWidth(9);
+			_fontLoaded = true;
+
+			break;
+		case Common::EN_ANY:
+			loadRiddles(&file, 0x145c - 2 - 9 * 2, 9);
+			load8bitBinary(&file, 0x6a3b, 16);
+			loadSpeakerFxZX(&file, 0xc91, 0xccd);
+
+			file.seek(0x1219);
+			for (int i = 0; i < 90; i++) {
+				Graphics::ManagedSurface *surface = new Graphics::ManagedSurface();
+				surface->create(8, 8, Graphics::PixelFormat::createFormatCLUT8());
+				chars.push_back(loadFrame(&file, surface, 1, 8, 1));
+			}
+			_font = Font(chars);
+			_font.setCharWidth(9);
+			_fontLoaded = true;
+
+			break;
+		default:
+			error("Language not supported");
+			break;
+	}
 
 	loadColorPalette();
 	_gfx->readFromPalette(2, r, g, b);
 	uint32 red = _gfx->_texturePixelFormat.ARGBToColor(0xFF, r, g, b);
-	_keysFrame = loadFrames(&file, 0xdf7, 1, red);
+
+	_gfx->readFromPalette(7, r, g, b);
+	uint32 white = _gfx->_texturePixelFormat.ARGBToColor(0xFF, r, g, b);
+
+	_keysBorderFrames.push_back(loadFrameWithHeader(&file, _language == Common::ES_ESP ? 0xe06 : 0xdf7, red, white));
+
+	uint32 green = _gfx->_texturePixelFormat.ARGBToColor(0xFF, 0, 0xff, 0);
+	_spiritsMeterIndicatorFrame = loadFrameWithHeader(&file, _language == Common::ES_ESP ? 0xe5e : 0xe4f, green, white);
+
+	_gfx->readFromPalette(4, r, g, b);
+	uint32 front = _gfx->_texturePixelFormat.ARGBToColor(0xFF, r, g, b);
+
+	int backgroundWidth = 16;
+	int backgroundHeight = 18;
+	Graphics::ManagedSurface *background = new Graphics::ManagedSurface();
+	background->create(backgroundWidth * 8, backgroundHeight, _gfx->_texturePixelFormat);
+	background->fillRect(Common::Rect(0, 0, backgroundWidth * 8, backgroundHeight), 0);
+
+	file.seek(_language == Common::ES_ESP ? 0xfd3 : 0xfc4);
+	_background = loadFrame(&file, background, backgroundWidth, backgroundHeight, front);
+
+	_gfx->readFromPalette(6, r, g, b);
+	uint32 yellow = _gfx->_texturePixelFormat.ARGBToColor(0xFF, r, g, b);
+	uint32 black = _gfx->_texturePixelFormat.ARGBToColor(0xFF, 0, 0, 0);
+	_strenghtBackgroundFrame = loadFrameWithHeader(&file, _language == Common::ES_ESP ? 0xee6 : 0xed7, yellow, black);
+	_strenghtBarFrame = loadFrameWithHeader(&file, _language == Common::ES_ESP ? 0xf72 : 0xf63, yellow, black);
+
+	Graphics::ManagedSurface *bar = new Graphics::ManagedSurface();
+	bar->create(_strenghtBarFrame->w - 4, _strenghtBarFrame->h, _gfx->_texturePixelFormat);
+	_strenghtBarFrame->copyRectToSurface(*bar, 4, 0, Common::Rect(4, 0, _strenghtBarFrame->w - 4, _strenghtBarFrame->h));
+	_strenghtBarFrame->free();
+	delete _strenghtBarFrame;
+	_strenghtBarFrame = bar;
+
+	_strenghtWeightsFrames = loadFramesWithHeader(&file, _language == Common::ES_ESP ? 0xf92 : 0xf83, 4, yellow, black);
+
+	_flagFrames = loadFramesWithHeader(&file, (_language == Common::ES_ESP ? 0x10e4 + 15 : 0x10e4), 4, green, black);
+
+	int thunderWidth = 4;
+	int thunderHeight = 43;
+	_thunderFrame = new Graphics::ManagedSurface();
+	_thunderFrame->create(thunderWidth * 8, thunderHeight, _gfx->_texturePixelFormat);
+	_thunderFrame->fillRect(Common::Rect(0, 0, thunderWidth * 8, thunderHeight), 0);
+	_thunderFrame = loadFrame(&file, _thunderFrame, thunderWidth, thunderHeight, front);
+
+	Graphics::Surface *tmp;
+	tmp = loadBundledImage("castle_riddle_top_frame");
+	_riddleTopFrame = new Graphics::ManagedSurface;
+	_riddleTopFrame->copyFrom(*tmp);
+	tmp->free();
+	delete tmp;
+	_riddleTopFrame->convertToInPlace(_gfx->_texturePixelFormat);
+
+	tmp = loadBundledImage("castle_riddle_background_frame");
+	_riddleBackgroundFrame = new Graphics::ManagedSurface();
+	_riddleBackgroundFrame->copyFrom(*tmp);
+	tmp->free();
+	delete tmp;
+	_riddleBackgroundFrame->convertToInPlace(_gfx->_texturePixelFormat);
+
+	tmp = loadBundledImage("castle_riddle_bottom_frame");
+	_riddleBottomFrame = new Graphics::ManagedSurface();
+	_riddleBottomFrame->copyFrom(*tmp);
+	tmp->free();
+	delete tmp;
+	_riddleBottomFrame->convertToInPlace(_gfx->_texturePixelFormat);
 
 	for (auto &it : _areaMap) {
 		it._value->addStructure(_areaMap[255]);
 
 		it._value->addObjectFromArea(164, _areaMap[255]);
+		it._value->addObjectFromArea(174, _areaMap[255]);
+		it._value->addObjectFromArea(175, _areaMap[255]);
 		for (int16 id = 136; id < 140; id++) {
 			it._value->addObjectFromArea(id, _areaMap[255]);
 		}
 
+		it._value->addObjectFromArea(195, _areaMap[255]);
 		for (int16 id = 214; id < 228; id++) {
 			it._value->addObjectFromArea(id, _areaMap[255]);
 		}
 	}
-
-	_areaMap[1]->addFloor();
-	_areaMap[2]->addFloor();
+	// Discard some global conditions
+	// It is unclear why they hide/unhide objects that formed the spirits
+	for (int i = 0; i < 3; i++) {
+		debugC(kFreescapeDebugParser, "Discarding condition %s", _conditionSources[0].c_str());
+		_conditions.remove_at(0);
+		_conditionSources.remove_at(0);
+	}
 }
 
 void CastleEngine::drawZXUI(Graphics::Surface *surface) {
@@ -128,20 +257,32 @@ void CastleEngine::drawZXUI(Graphics::Surface *surface) {
 	surface->fillRect(backRect, black);
 
 	Common::String message;
-	int deadline;
+	int deadline = -1;
 	getLatestMessages(message, deadline);
-	if (deadline <= _countdown) {
+	if (deadline > 0 && deadline <= _countdown) {
+		//debug("deadline: %d countdown: %d", deadline, _countdown);
 		drawStringInSurface(message, 120, 179, front, black, surface);
 		_temporaryMessages.push_back(message);
 		_temporaryMessageDeadlines.push_back(deadline);
-	} else
-		drawStringInSurface(_currentArea->_name, 120, 179, front, black, surface);
-
-	for (int k = 0; k < _numberKeys; k++) {
-		surface->copyRectToSurface((const Graphics::Surface)*_keysFrame, 99 - k * 4, 177, Common::Rect(0, 0, 6, 11));
+	} else {
+		if (_gameStateControl == kFreescapeGameStatePlaying) {
+			drawStringInSurface(_currentArea->_name, 120, 179, front, black, surface);
+		}
 	}
 
-	//drawEnergyMeter(surface);
+	for (int k = 0; k < int(_keysCollected.size()); k++) {
+		surface->copyRectToSurface((const Graphics::Surface)*_keysBorderFrames[0], 99 - k * 4, 177, Common::Rect(0, 0, 6, 11));
+	}
+
+	uint32 green = _gfx->_texturePixelFormat.ARGBToColor(0xFF, 0, 0xff, 0);
+
+	surface->fillRect(Common::Rect(152, 156, 216, 164), green);
+	surface->copyRectToSurface((const Graphics::Surface)*_spiritsMeterIndicatorFrame, 140 + _spiritsMeterPosition, 156, Common::Rect(0, 0, 15, 8));
+	drawEnergyMeter(surface, Common::Point(63, 154));
+
+	int ticks = g_system->getMillis() / 20;
+	int flagFrameIndex = (ticks / 10) % 4;
+	surface->copyRectToSurface(*_flagFrames[flagFrameIndex], 264, 9, Common::Rect(0, 0, _flagFrames[flagFrameIndex]->w, _flagFrames[flagFrameIndex]->h));
 }
 
 } // End of namespace Freescape

@@ -190,8 +190,8 @@ static const char HELP_STRING4[] =
 	"  --[no-]dirtyrects        Enable dirty rectangles optimisation in software renderer\n"
 	"                           (default: enabled)\n"
 	"  --render-mode=MODE       Enable additional render modes (hercGreen, hercAmber,\n"
-	"                           cga, ega, vga, amiga, fmtowns, pc9821, pc9801, 2gs,\n"
-	"                           atari, macintosh, macintoshbw)\n"
+	"                           cga, ega, vga, amiga, fmtowns, pc98-256c, pc98-16c, pc98-8c, 2gs,\n"
+	"                           atari, macintosh, macintoshbw, vgaGray)\n"
 #ifdef ENABLE_EVENTRECORDER
 	"  --record-mode=MODE       Specify record mode for event recorder (record, playback,\n"
 	"                           info, update, passthrough [default])\n"
@@ -856,12 +856,13 @@ Common::String parseCommandLine(Common::StringMap &settings, int argc, const cha
 			END_OPTION
 
 			DO_LONG_OPTION("soundfont")
-				Common::FSNode path(Common::Path::fromConfig(option));
+				Common::FSNode path(Common::Path::fromCommandLine(option));
 				if (!path.exists()) {
 					usage("Non-existent soundfont path '%s'", option);
 				} else if (!path.isReadable()) {
 					usage("Non-readable soundfont path '%s'", option);
 				}
+				settings["soundfont"] = path.getPath().toConfig();
 			END_OPTION
 
 #ifdef SDL_BACKEND
