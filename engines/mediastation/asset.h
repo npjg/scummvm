@@ -49,13 +49,13 @@ public:
     virtual void readChunk(Chunk &chunk);
     virtual void readSubfile(Subfile &subfile, Chunk &chunk);
     AssetType type() const;
+    uint zIndex() const;
 
     AssetHeader *getHeader() const { return _header; }
 
 protected:
 	AssetHeader *_header = nullptr;
     bool _isPlaying = false;
-    bool _isVisible = false;
     uint _startTime = 0;
     uint _lastProcessedTime = 0;
     // TODO: Rename this to indicate the time is in milliseconds.

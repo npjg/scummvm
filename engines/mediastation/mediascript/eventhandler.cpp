@@ -67,7 +67,7 @@ Operand EventHandler::execute(uint assetId) {
     // _argumentValue.
     // So if we are here, we can execute it directly.
     Operand returnValue = _code->execute();
-    debugC(8, kDebugScript, "********** END EVENT HANDLER **********");
+    debugC(5, kDebugScript, "********** END EVENT HANDLER **********");
     return returnValue;
 }
 

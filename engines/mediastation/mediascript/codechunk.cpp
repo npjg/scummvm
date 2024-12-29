@@ -72,15 +72,13 @@ Operand CodeChunk::executeNextStatement() {
             switch (opcode) {
                 case Opcode::AssignVariable: {
                     uint32 id = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   id = %d", id);
                     VariableScope scope = VariableScope(Datum(*_bytecode).u.i);
-                    debugC(8, kDebugScript, "   scope = %d", (uint)scope);
                     Operand newValue = executeNextStatement();
                     // TODO: Actually assign the variable!
                     // Operand variable = getVariable(id, scope);
                     
                     // TODO: Print the new variable value!
-                    debugC(5, kDebugScript, "SCRIPT: [ %d (scope: %d) ] = [ %d ]", (uint)scope, id, 0);
+                    debugC(5, kDebugScript, "SCRIPT: [ %d (scope: %d) ] = [ ? (showing value assigned to var not implemented yet) ]", (uint)scope, id);
                     putVariable(id, scope, newValue);
                     return Operand();
                 }
@@ -88,9 +86,7 @@ Operand CodeChunk::executeNextStatement() {
                 case Opcode::CallRoutine: {
                     // READ WHAT WE NEED TO CALL THE ROUTINE.
                     uint functionId = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   functionId = %d", functionId);
                     uint32 parameterCount = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   parameterCount = %d", parameterCount);
                     Common::Array<Operand> args;
                     for (uint i = 0; i < parameterCount; i++) {
                         debugC(8, kDebugScript, "   -- Argument %d of %d --", (i + 1), parameterCount);
@@ -99,7 +95,7 @@ Operand CodeChunk::executeNextStatement() {
                     }
 
                     // CALL THE ROUTINE.
-                    debugC(8, kDebugScript, "   Calling routine");
+                    debugC(5, kDebugScript, "SCRIPT: [ %d ]( %d args )", functionId, parameterCount);
                     Operand returnValue;
                     Function *function = g_engine->_functions.getValOrDefault(functionId);
                     if (function != nullptr) {
@@ -107,18 +103,14 @@ Operand CodeChunk::executeNextStatement() {
                     } else {
                         returnValue = callBuiltInFunction(functionId, args);
                     }
-                    debugC(8, kDebugScript, "  *** RETURNED FROM ROUTINE ***");
                     return returnValue;
                 }
 
                 case Opcode::CallMethod: {
                     // READ WHAT WE NEED TO CALL THE METHOD.
                     uint32 methodId = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   methodId = %d", methodId);
                     uint32 parameterCount = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   parameterCount = %d", parameterCount);
                     Operand selfObject = executeNextStatement();
-                    debugC(8, kDebugScript, "   selfObject = [ %d ]", selfObject.getAssetId());
                     if (selfObject.getType() != Operand::Type::AssetId) {
                         error("CodeChunk::executeNextStatement(): (Opcode::CallMethod) Attempt to call method on operand that is not an asset (type 0x%x)", selfObject.getType());
                     }
@@ -136,7 +128,6 @@ Operand CodeChunk::executeNextStatement() {
                     // our own methods? Or are only the built-in methods
                     // supported?
                     Operand returnValue = callBuiltInMethod(methodId, selfObject, args);
-                    debugC(8, kDebugScript, "CodeChunk::executeNextStatement(): (Opcode::CallMethod) Returned from called method");
                     return returnValue;
                 }
 
@@ -169,7 +160,6 @@ Operand CodeChunk::executeNextStatement() {
             switch (operandType) {
                 case Operand::Type::AssetId: {
                     uint32 assetId = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   assetId = %d", assetId);
                     operand.putAsset(assetId);
                     return operand;
                 }
@@ -178,7 +168,6 @@ Operand CodeChunk::executeNextStatement() {
                 case Operand::Type::Literal2:
                 case Operand::Type::DollarSignVariable: {
                     int literal = Datum(*_bytecode).u.i;
-                    debugC(8, kDebugScript, "   literal = %d", literal);
                     operand.putInteger(literal);
                     return operand;
                 }
@@ -186,7 +175,6 @@ Operand CodeChunk::executeNextStatement() {
                 case Operand::Type::Float1:
                 case Operand::Type::Float2: {
                     double d = Datum(*_bytecode).u.f;
-                    debugC(8, kDebugScript, "   double = %f", d);
                     operand.putDouble(d);
                     return operand;
                 }
@@ -200,9 +188,7 @@ Operand CodeChunk::executeNextStatement() {
 
         case (InstructionType::VARIABLE_REF): {
             uint32 id = Datum(*_bytecode).u.i;
-            debugC(8, kDebugScript, "   id = %d", id);
             VariableScope scope = VariableScope(Datum(*_bytecode).u.i);
-            debugC(8, kDebugScript, "   scope = %d", (uint)scope);
             Operand variable = getVariable(id, scope);
             return variable;
         }
@@ -329,7 +315,7 @@ Operand CodeChunk::callBuiltInFunction(uint32 id, Common::Array<Operand> &args) 
                 }
             }
 
-            warning("CodeChunk::callBuiltInFunction(): Cannot handle EffectTransition yet");
+            warning("CodeChunk::callBuiltInFunction(): EffectTransition is not implemented");
             return Operand();
             break;
         }

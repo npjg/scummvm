@@ -41,4 +41,8 @@ AssetType Asset::type() const {
     return _header->_type;
 }
 
+uint Asset::zIndex() const {
+    return _header->_zIndex;
+}
+
 } // End of namespace MediaStation

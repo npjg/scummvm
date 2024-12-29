@@ -41,7 +41,10 @@ Function::~Function() {
 }
 
 Operand Function::execute(Common::Array<Operand> args) {
-    return _code->execute(&args);
+    debugC(5, kDebugScript, "\n********** FUNCTION %d **********", _id);
+    Operand returnValue = _code->execute(&args);
+    debugC(5, kDebugScript, "********** END FUNCTION **********");
+    return returnValue;
 }
 
 } // End of namespace MediaStation

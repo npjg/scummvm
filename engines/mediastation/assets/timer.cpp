@@ -48,8 +48,8 @@ Operand Timer::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args
 
 void Timer::timePlay() {
     if (_isPlaying) {
-        error("Timer::play(): Attempted to play a timer that is already playing");
-        return;
+        warning("Timer::timePlay(): Attempted to play a timer that is already playing");
+        //return;
     }
 
     // SET TIMER VARIABLES.
@@ -70,7 +70,9 @@ void Timer::timePlay() {
         if (timeEventInMilliseconds > _duration) {
             _duration = timeEventInMilliseconds;
         }
-    }    
+    }
+
+    debugC(5, kDebugScript, "Timer::timePlay(): Now playing for %d ms", _duration);
 }
 
 void Timer::timeStop() {
@@ -92,13 +94,10 @@ void Timer::process() {
 
     uint currentTime = g_system->getMillis();
     uint movieTime = currentTime - _startTime;
-    if (movieTime > _duration) {
+    //if (movieTime > _duration) {
         // We are done processing the timer.
-        _isPlaying = false;
-        _startTime = 0;
-        _lastProcessedTime = 0;
-        return;
-    }
+    //    _isPlaying = false;
+    //}
     debugC(7, kDebugScript, "** Timer %d: ON TIME Event Handlers **", _header->_id);
     for (EventHandler *timeEvent : _header->_timeHandlers) {
         double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
@@ -106,12 +105,24 @@ void Timer::process() {
         bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
         bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
         if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
-            debugC(5, kDebugScript, " -- On Time %d ms (real time: %d ms) --", timeEventInMilliseconds, currentTime - _startTime);
+            // TODO: What happens when we try re-run the timer when itʻs already
+            // running? Seems like this would cause re-entrancy issues.
             timeEvent->execute(_header->_id);
         }
     }
     debugC(7, kDebugScript, "** Timer %d: End ON TIME Event Handlers **", _header->_id);
     _lastProcessedTime = currentTime - _startTime;
+
+    // This has to be at the end becuase the duration of the timer is the
+    // longest time event there is in the timer. And of course it will be called
+    // some amount of time after this time value.
+    // if (movieTime > _duration) {
+    //     // We are done processing the timer.
+    //     _isPlaying = false;
+    //     _startTime = 0;
+    //     _lastProcessedTime = 0;
+    //     debugC(5, kDebugScript, "Timer::timePlay(): Reached end of timer");
+    // }
 }
 
 } // End of namespace MediaStation

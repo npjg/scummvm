@@ -65,6 +65,7 @@ public:
 
 private:
     Common::Array<SpriteFrame *> _frames;
+    bool _isSpatialShowOnly = false;
 
     // Method implementations.
     void spatialShow();

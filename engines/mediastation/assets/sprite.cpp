@@ -89,6 +89,7 @@ Operand Sprite::callMethod(BuiltInFunction methodId, Common::Array<Operand> &arg
 
         case BuiltInFunction::movieReset: {
             assert(args.size() == 0);
+            debugC(5, kDebugScript, "Sprite::movieReset(): Sprite reset");
             _isPlaying = false;
             _startTime = 0;
             _lastProcessedTime = 0;
@@ -103,19 +104,22 @@ Operand Sprite::callMethod(BuiltInFunction methodId, Common::Array<Operand> &arg
 }
 
 void Sprite::spatialShow() {
-    _isPlaying = false;
-    _isVisible = true;
+    debugC(5, kDebugScript, "Sprite::spatialShow(): Sprite now showing");
+    _isPlaying = true;
+    _isSpatialShowOnly = true;
     g_engine->addPlayingAsset(this);
 }
 
 void Sprite::timePlay() {
-    if (_isPlaying) {
-        error("Sprite::timePlay(): Attempted to play a sprite that is already playing");
-        return;
-    }
+    //if (_isPlaying) {
+    //    error("Sprite::timePlay(): Attempted to play a sprite that is already playing");
+    //    return;
+    //}
 
     // SET ANIMATION VARIABLES.
+    debugC(5, kDebugScript, "Sprite::timePlay(): Sprite playback started");
     _isPlaying = true;
+    _isSpatialShowOnly = false;
     _startTime = g_system->getMillis();
     _lastProcessedTime = 0;
     g_engine->addPlayingAsset(this);
@@ -129,19 +133,23 @@ void Sprite::timePlay() {
     // RUN THE MOVIE START EVENT HANDLER.
     EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
     if (startEvent != nullptr) {
-        debugC(5, kDebugScript, "Sprite::play(): Executing movie start event handler");
+        debugC(5, kDebugScript, "Sprite::timePlay(): Executing start event handler");
         startEvent->execute(_header->_id);
+    } else {
+        debugC(5, kDebugScript, "Sprite::timePlay(): No start event handler");
     }
 }
 
 void Sprite::process() {
     debugC(5, kDebugGraphics, "Sprite %d: Redrawing", _header->_id);
-    //if (_isPlaying) {
-    //    drawNextFrame();
-    //} else 
-    if (_isVisible) {
+    if (_isSpatialShowOnly) { // This is really isSpatialShow
         drawFirstFrame();
+    } else {
+        drawNextFrame();
     }
+    // Sprites arenʻt showing because weʻre not respecting z-indices, and the movie is being rendered AFTER the 
+    // sprite, so it isnʻt being shown!
+
     // TODO: I don't think sprites support time-based event handlers. Because we
     // have a separate timer for restarting the sprite when it expires.
 }
@@ -152,10 +160,22 @@ void Sprite::readChunk(Chunk &chunk) {
     SpriteFrameHeader *header = new SpriteFrameHeader(chunk);
     SpriteFrame *frame = new SpriteFrame(chunk, header);
     _frames.push_back(frame);
+
+    Common::sort(_frames.begin(), _frames.end(), [](SpriteFrame *a, SpriteFrame *b) {
+        return a->index() < b->index();
+    });
 }
 
 void Sprite::drawFirstFrame() {
-    SpriteFrame *frame = _frames[0];
+    // GET THE FIRST FRAME.
+    SpriteFrame *firstFrame = _frames[0];
+    for (SpriteFrame *frame : _frames) {
+        if (frame->index() < firstFrame->index()) {
+            firstFrame = frame;
+        }
+    }
+
+    SpriteFrame *frame = firstFrame;
     uint frameLeft = frame->left() + _header->_boundingBox->left;
     uint frameTop = frame->top() + _header->_boundingBox->top;
     debugC(7, kDebugGraphics, "SPRITE: Drawing still frame %d (%d x %d) @ (%d, %d)", frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
@@ -176,10 +196,11 @@ bool Sprite::drawNextFrame() {
         // RUN THE SPRITE END EVENT HANDLER.
         EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieEnd);
         if (endEvent != nullptr) {
-            debugC(5, kDebugScript, "Sprite::drawNextFrame(): Executing sprite end event handler");
+            debugC(5, kDebugScript, "Sprite::drawNextFrame(): Executing end event handler");
             endEvent->execute(_header->_id);
+        } else {
+            debugC(5, kDebugScript, "Sprite::drawNextFrame: No end event handler");
         }
-        debugC(5, kDebugScript, "Sprite::drawNextFrame(): Reached end of sprite");
         return false;
     }
 

@@ -172,7 +172,6 @@ Operand Movie::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args
         case BuiltInFunction::timePlay: {
             assert(args.empty());
             timePlay();
-
             return Operand();
         }
 
@@ -189,6 +188,7 @@ void Movie::timePlay() {
     }
 
     // SET ANIMATION VARIABLES.
+    debugC(5, kDebugScript, "Movie::timePlay(): Movie playback started");
     _isPlaying = true;
     _startTime = g_system->getMillis();
     _lastProcessedTime = 0;

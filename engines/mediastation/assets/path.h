@@ -38,7 +38,7 @@ public:
     virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
 
 private:
-    uint32 _percentComplete = 0;
+    double _percentComplete = 0.0;
 
     // Method implementations.
     void timePlay();

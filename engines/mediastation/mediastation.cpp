@@ -135,6 +135,11 @@ Common::Error MediaStationEngine::run() {
 		}
 
 		// PROCESS ANY ASSETS CURRENTLY PLAYING.
+		// First, they all need to be sorted by z-coordinate.
+		Common::sort(_assetsPlaying.begin(), _assetsPlaying.end(), [](Asset *a, Asset *b) {
+			return a->zIndex() > b->zIndex();
+		});
+		//warning("START RENDER CYCLE");
 		for (auto it = _assetsPlaying.begin(); it != _assetsPlaying.end(); ) {
 			(*it)->process();
 			if (!(*it)->isPlaying()) {
@@ -143,6 +148,7 @@ Common::Error MediaStationEngine::run() {
 				++it;
 			}
 		}
+		//warning("END RENDER CYCLE");
 
     	g_engine->_screen->update();
 		g_system->delayMillis(10);
