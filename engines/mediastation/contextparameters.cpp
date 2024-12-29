@@ -28,66 +28,66 @@
 namespace MediaStation {
 
 ContextParameters::ContextParameters(Chunk &chunk) : contextName(nullptr) {
-    fileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
-    uint sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
-    while ((SectionType)sectionType != SectionType::EMPTY) {
-        debugC(5, kDebugLoading, "ContextParameters::ContextParameters: sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
-        switch ((SectionType)sectionType) {
-            case SectionType::NAME: {
-                uint repeatedFileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
-                if (repeatedFileNumber != fileNumber) {
-                    warning("ContextParameters::ContextParameters(): Repeated file number didn't match: %d != %d", repeatedFileNumber, fileNumber);
-                }
-                contextName = Datum(chunk, DatumType::STRING).u.string;
-                // TODO: This is likely just an end flag.
-                uint unk1 = Datum(chunk, DatumType::UINT16_1).u.i;
-            }
-            
-            case SectionType::FILE_NUMBER: {
-                error("ContextParameters::ContextParameters(): Section type FILE_NUMBER not implemented yet");
-                break;
-            }
+	fileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
+	uint sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
+	while ((SectionType)sectionType != SectionType::EMPTY) {
+		debugC(5, kDebugLoading, "ContextParameters::ContextParameters: sectionType = 0x%x (@0x%lx)", sectionType, chunk.pos());
+		switch ((SectionType)sectionType) {
+		case SectionType::NAME: {
+			uint repeatedFileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
+			if (repeatedFileNumber != fileNumber) {
+				warning("ContextParameters::ContextParameters(): Repeated file number didn't match: %d != %d", repeatedFileNumber, fileNumber);
+			}
+			contextName = Datum(chunk, DatumType::STRING).u.string;
+			// TODO: This is likely just an end flag.
+			uint unk1 = Datum(chunk, DatumType::UINT16_1).u.i;
+		}
 
-            case SectionType::VARIABLE: {
-                uint repeatedFileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
-                if (repeatedFileNumber != fileNumber) {
-                    warning("ContextParameters::ContextParameters(): Repeated file number didn't match: %d != %d", repeatedFileNumber, fileNumber);
-                }
-                // The trouble here is converting the variable to an operand.
-                // They are two totally separate types!
-                Variable *variable = new Variable(chunk);
-                Operand operand;
-                if (g_engine->_variables.contains(variable->id)) {
-                    error("ContextParameters::ContextParameters(): Variable with ID 0x%x already exists", variable->id);
-                } else {
-                    g_engine->_variables.setVal(variable->id, variable);
-                    debugC(5, kDebugScript, "ContextParameters::ContextParameters(): Created global variable %d", variable->id);
-                }
-                break;
-            }
+		case SectionType::FILE_NUMBER: {
+			error("ContextParameters::ContextParameters(): Section type FILE_NUMBER not implemented yet");
+			break;
+		}
 
-            case SectionType::BYTECODE: {
-                Function *function = new Function(chunk);
-                _functions.setVal(function->_id, function);
-                break;
-            }
+		case SectionType::VARIABLE: {
+			uint repeatedFileNumber = Datum(chunk, DatumType::UINT16_1).u.i;
+			if (repeatedFileNumber != fileNumber) {
+				warning("ContextParameters::ContextParameters(): Repeated file number didn't match: %d != %d", repeatedFileNumber, fileNumber);
+			}
+			// The trouble here is converting the variable to an operand.
+			// They are two totally separate types!
+			Variable *variable = new Variable(chunk);
+			Operand operand;
+			if (g_engine->_variables.contains(variable->id)) {
+				error("ContextParameters::ContextParameters(): Variable with ID 0x%x already exists", variable->id);
+			} else {
+				g_engine->_variables.setVal(variable->id, variable);
+				debugC(5, kDebugScript, "ContextParameters::ContextParameters(): Created global variable %d", variable->id);
+			}
+			break;
+		}
 
-            default: {
-                error("ContextParameters::ContextParameters(): Unknown section type 0x%x", sectionType);
-            }
-        }
-        sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
-    }
+		case SectionType::BYTECODE: {
+			Function *function = new Function(chunk);
+			_functions.setVal(function->_id, function);
+			break;
+		}
+
+		default: {
+			error("ContextParameters::ContextParameters(): Unknown section type 0x%x", sectionType);
+		}
+		}
+		sectionType = Datum(chunk, DatumType::UINT16_1).u.i;
+	}
 }
 
 ContextParameters::~ContextParameters() {
-    delete contextName;
-    contextName = nullptr;
+	delete contextName;
+	contextName = nullptr;
 
-    for (auto it = _functions.begin(); it != _functions.end(); ++it) {
-        delete it->_value;
-    }
-    _functions.clear();
+	for (auto it = _functions.begin(); it != _functions.end(); ++it) {
+		delete it->_value;
+	}
+	_functions.clear();
 }
 
 } // End of namespace MediaStation

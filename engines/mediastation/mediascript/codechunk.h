@@ -27,73 +27,73 @@
 
 #include "mediastation/mediascript/variable.h"
 #include "mediastation/mediascript/operand.h"
-#include "mediastation/mediascript/builtinfunctions.h"
+#include "mediastation/mediascript/builtins.h"
 
 namespace MediaStation {
 
 enum class InstructionType {
-    EMPTY = 0x0000,
-    FUNCTION_CALL = 0x0067,
-    OPERAND = 0x0066,
-    VARIABLE_REF = 0x0065
+	EMPTY = 0x0000,
+	FUNCTION_CALL = 0x0067,
+	OPERAND = 0x0066,
+	VARIABLE_REF = 0x0065
 };
 
 enum class Opcode {
-    IfElse = 202,
-    AssignVariable = 203,
-    Or = 204,
-    And = 206,
-    Equals = 207,
-    NotEquals = 208,
-    LessThan = 209,
-    GreaterThan = 210,
-    LessThanOrEqualTo = 211,
-    GreaterThanOrEqualTo = 212,
-    Add = 213,
-    Subtract = 214,
-    Multiply = 215,
-    Divide = 216,
-    Modulo = 217,
-    Unk2 = 218, // TODO: Likely something with ## constants like ##DOWN?
-    CallRoutine = 219,
-    // Method calls are like routine calls, but they have an implicit "self"
-    // parameter that is always the first. For example:
-    //  @self . mouseActivate ( TRUE ) ;
-    CallMethod = 220,
-    // This seems to appear at the start of a function to declare the number of
-    // local variables used in the function. It seems to be the `Declare`
-    // keyword. In the observed examples, the number of variables to create is
-    // given, then the next instructions are variable assignments for that number
-    // of variables.
-    DeclareVariables = 221,
-    While = 224,
-    Return = 222,
-    Unk1 = 223
+	IfElse = 202,
+	AssignVariable = 203,
+	Or = 204,
+	And = 206,
+	Equals = 207,
+	NotEquals = 208,
+	LessThan = 209,
+	GreaterThan = 210,
+	LessThanOrEqualTo = 211,
+	GreaterThanOrEqualTo = 212,
+	Add = 213,
+	Subtract = 214,
+	Multiply = 215,
+	Divide = 216,
+	Modulo = 217,
+	Unk2 = 218, // TODO: Likely something with ## constants like ##DOWN?
+	CallRoutine = 219,
+	// Method calls are like routine calls, but they have an implicit "self"
+	// parameter that is always the first. For example:
+	//  @self . mouseActivate ( TRUE ) ;
+	CallMethod = 220,
+	// This seems to appear at the start of a function to declare the number of
+	// local variables used in the function. It seems to be the `Declare`
+	// keyword. In the observed examples, the number of variables to create is
+	// given, then the next instructions are variable assignments for that number
+	// of variables.
+	DeclareVariables = 221,
+	While = 224,
+	Return = 222,
+	Unk1 = 223
 };
 
 enum class VariableScope {
-    Local = 1,
-    Parameter = 2,
-    Global = 4
+	Local = 1,
+	Parameter = 2,
+	Global = 4
 };
 
 class CodeChunk {
 public:
-    CodeChunk(Common::SeekableReadStream &chunk);
-    ~CodeChunk();
+	CodeChunk(Common::SeekableReadStream &chunk);
+	~CodeChunk();
 
-    Operand execute(Common::Array<Operand> *args = nullptr);
+	Operand execute(Common::Array<Operand> *args = nullptr);
 
 private:
-    Operand executeNextStatement();
-    Operand callBuiltInFunction(uint32 id, Common::Array<Operand> &args);
-    Operand callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> &args);
-    Operand getVariable(uint32 id, VariableScope scope);
-    void putVariable(uint32 id, VariableScope scope, Operand value);
+	Operand executeNextStatement();
+	Operand callBuiltInFunction(uint32 id, Common::Array<Operand> &args);
+	Operand callBuiltInMethod(uint32 id, Operand self, Common::Array<Operand> &args);
+	Operand getVariable(uint32 id, VariableScope scope);
+	void putVariable(uint32 id, VariableScope scope, Operand value);
 
-    Common::Array<Operand> _locals;
-    Common::Array<Operand> *_args;
-    Common::SeekableReadStream *_bytecode;
+	Common::Array<Operand> _locals;
+	Common::Array<Operand> *_args;
+	Common::SeekableReadStream *_bytecode;
 };
 
 } // End of namespace MediaStation

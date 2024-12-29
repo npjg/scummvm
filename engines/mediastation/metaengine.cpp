@@ -48,11 +48,11 @@ Common::Error MediaStationMetaEngine::createInstance(OSystem *syst, Engine **eng
 
 bool MediaStationMetaEngine::hasFeature(MetaEngineFeature f) const {
 	return checkExtendedSaves(f) ||
-		(f == kSupportsLoadingDuringStartup);
+	       (f == kSupportsLoadingDuringStartup);
 }
 
 #if PLUGIN_ENABLED_DYNAMIC(MEDIASTATION)
-REGISTER_PLUGIN_DYNAMIC(MEDIASTATION, PLUGIN_TYPE_ENGINE, MediaStationMetaEngine);
+	REGISTER_PLUGIN_DYNAMIC(MEDIASTATION, PLUGIN_TYPE_ENGINE, MediaStationMetaEngine);
 #else
-REGISTER_PLUGIN_STATIC(MEDIASTATION, PLUGIN_TYPE_ENGINE, MediaStationMetaEngine);
+	REGISTER_PLUGIN_STATIC(MEDIASTATION, PLUGIN_TYPE_ENGINE, MediaStationMetaEngine);
 #endif

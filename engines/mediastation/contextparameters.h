@@ -30,24 +30,24 @@ namespace MediaStation {
 
 class ContextParameters {
 private:
-    enum class SectionType {
-        EMPTY = 0x0000,
-        VARIABLE = 0x0014,
-        NAME = 0x0bb9,
-        FILE_NUMBER = 0x0011,
-        BYTECODE = 0x0017
-    };
+	enum class SectionType {
+		EMPTY = 0x0000,
+		VARIABLE = 0x0014,
+		NAME = 0x0bb9,
+		FILE_NUMBER = 0x0011,
+		BYTECODE = 0x0017
+	};
 
 public:
-    ContextParameters(Chunk &chunk);
-    ~ContextParameters();
+	ContextParameters(Chunk &chunk);
+	~ContextParameters();
 
-    // This is not an internal file ID, but the number of the file
-    // as it appears in the filename. For instance, the context in
-    // "100.cxt" would have file number 100.
-    uint fileNumber;
-    Common::String *contextName;
-    Common::HashMap<uint32, Function *> _functions;
+	// This is not an internal file ID, but the number of the file
+	// as it appears in the filename. For instance, the context in
+	// "100.cxt" would have file number 100.
+	uint fileNumber;
+	Common::String *contextName;
+	Common::HashMap<uint32, Function *> _functions;
 };
 
 } // End of namespace MediaStation

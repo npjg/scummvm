@@ -25,24 +25,24 @@
 namespace MediaStation {
 
 Asset::~Asset() {
-    delete _header;
-    _header = nullptr;
+	delete _header;
+	_header = nullptr;
 }
 
 void Asset::readChunk(Chunk &chunk) {
-    error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
+	error("Asset::readChunk(): Chunk reading for asset type 0x%x is not implemented", _header->_type);
 }
 
 void Asset::readSubfile(Subfile &subfile, Chunk &chunk) {
-    error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
+	error("Asset::readSubfile(): Subfile reading for asset type 0x%x is not implemented", _header->_type);
 }
 
 AssetType Asset::type() const {
-    return _header->_type;
+	return _header->_type;
 }
 
 uint Asset::zIndex() const {
-    return _header->_zIndex;
+	return _header->_zIndex;
 }
 
 } // End of namespace MediaStation

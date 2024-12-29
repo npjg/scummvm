@@ -22,13 +22,14 @@
 #ifndef MEDIASTATION_DEBUG_CHANNELS_H
 #define MEDIASTATION_DEBUG_CHANNELS_H
 
-// This is a convenience so we don't have to include 
+// This is a convenience so we don't have to include
 // two files in every translation unit where we want
 // debugging support.
 #include "common/debug.h"
 
 namespace MediaStation {
 
+// TODO: Finish comments that describe the various debug levels
 enum DebugChannels {
 	kDebugGraphics = 1,
 	kDebugPath,
@@ -38,7 +39,7 @@ enum DebugChannels {
 	// Level 7: Instruction Types & Opcodes
 	kDebugScript,
 	kDebugEvents,
-	
+
 	// Level 9: Individual Datums
 	kDebugLoading
 };

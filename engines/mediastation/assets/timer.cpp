@@ -26,103 +26,103 @@
 
 namespace MediaStation {
 
-Operand Timer::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
-    switch (methodId) {
-        case BuiltInFunction::timePlay: {
-            assert(args.size() == 0);
-            timePlay();
-            return Operand();
-        }
+Operand Timer::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) {
+	switch (methodId) {
+	case BuiltInMethod::timePlay: {
+		assert(args.size() == 0);
+		timePlay();
+		return Operand();
+	}
 
-        case BuiltInFunction::timeStop: {
-            assert(args.size() == 0);
-            timeStop();
-            return Operand();
-        }
+	case BuiltInMethod::timeStop: {
+		assert(args.size() == 0);
+		timeStop();
+		return Operand();
+	}
 
-        default: {
-            error("Got unimplemented method ID %d", methodId);
-        }
-    }
+	default: {
+		error("Got unimplemented method ID %d", methodId);
+	}
+	}
 }
 
 void Timer::timePlay() {
-    if (_isPlaying) {
-        warning("Timer::timePlay(): Attempted to play a timer that is already playing");
-        //return;
-    }
+	if (_isPlaying) {
+		warning("Timer::timePlay(): Attempted to play a timer that is already playing");
+		//return;
+	}
 
-    // SET TIMER VARIABLES.
-    _isPlaying = true;
-    _startTime = g_system->getMillis();
-    _lastProcessedTime = 0;
-    g_engine->addPlayingAsset(this);
+	// SET TIMER VARIABLES.
+	_isPlaying = true;
+	_startTime = g_system->getMillis();
+	_lastProcessedTime = 0;
+	g_engine->addPlayingAsset(this);
 
-    // GET THE DURATION OF THE TIMER.
-    // TODO: Is there a better way to find out what the max time is? Do we have to look
-    // through each of the timer event handlers to figure it out?
-    _duration = 0;
-    for (EventHandler *timeEvent : _header->_timeHandlers) {
-        // TODO: Centralize this converstion to milliseconds, as the same logic
-        // is being used in several places.
-        double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
-        uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
-        if (timeEventInMilliseconds > _duration) {
-            _duration = timeEventInMilliseconds;
-        }
-    }
+	// GET THE DURATION OF THE TIMER.
+	// TODO: Is there a better way to find out what the max time is? Do we have to look
+	// through each of the timer event handlers to figure it out?
+	_duration = 0;
+	for (EventHandler *timeEvent : _header->_timeHandlers) {
+		// TODO: Centralize this converstion to milliseconds, as the same logic
+		// is being used in several places.
+		double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
+		uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
+		if (timeEventInMilliseconds > _duration) {
+			_duration = timeEventInMilliseconds;
+		}
+	}
 
-    debugC(5, kDebugScript, "Timer::timePlay(): Now playing for %d ms", _duration);
+	debugC(5, kDebugScript, "Timer::timePlay(): Now playing for %d ms", _duration);
 }
 
 void Timer::timeStop() {
-    if (!_isPlaying) {
-        warning("Timer::stop(): Attempted to stop a timer that is not playing");
-        return;
-    }
+	if (!_isPlaying) {
+		warning("Timer::stop(): Attempted to stop a timer that is not playing");
+		return;
+	}
 
-    _isPlaying = false;
-    _startTime = 0;
-    _lastProcessedTime = 0;
+	_isPlaying = false;
+	_startTime = 0;
+	_lastProcessedTime = 0;
 }
 
 void Timer::process() {
-    if (!_isPlaying) {
-        error("Timer::processTimeEventHandlers(): Attempted to process time event handlers while not playing");
-        return;
-    }
+	if (!_isPlaying) {
+		error("Timer::processTimeEventHandlers(): Attempted to process time event handlers while not playing");
+		return;
+	}
 
-    uint currentTime = g_system->getMillis();
-    uint movieTime = currentTime - _startTime;
-    //if (movieTime > _duration) {
-        // We are done processing the timer.
-    //    _isPlaying = false;
-    //}
-    debugC(7, kDebugScript, "** Timer %d: ON TIME Event Handlers **", _header->_id);
-    for (EventHandler *timeEvent : _header->_timeHandlers) {
-        double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
-        uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
-        bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
-        bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
-        if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
-            // TODO: What happens when we try re-run the timer when itʻs already
-            // running? Seems like this would cause re-entrancy issues.
-            timeEvent->execute(_header->_id);
-        }
-    }
-    debugC(7, kDebugScript, "** Timer %d: End ON TIME Event Handlers **", _header->_id);
-    _lastProcessedTime = currentTime - _startTime;
+	uint currentTime = g_system->getMillis();
+	uint movieTime = currentTime - _startTime;
+	//if (movieTime > _duration) {
+	// We are done processing the timer.
+	//    _isPlaying = false;
+	//}
+	debugC(7, kDebugScript, "** Timer %d: ON TIME Event Handlers **", _header->_id);
+	for (EventHandler *timeEvent : _header->_timeHandlers) {
+		double timeEventInFractionalSeconds = timeEvent->_argumentValue.u.f;
+		uint timeEventInMilliseconds = timeEventInFractionalSeconds * 1000;
+		bool timeEventAlreadyProcessed = timeEventInMilliseconds < _lastProcessedTime;
+		bool timeEventNeedsToBeProcessed = timeEventInMilliseconds <= currentTime - _startTime;
+		if (!timeEventAlreadyProcessed && timeEventNeedsToBeProcessed) {
+			// TODO: What happens when we try re-run the timer when itʻs already
+			// running? Seems like this would cause re-entrancy issues.
+			timeEvent->execute(_header->_id);
+		}
+	}
+	debugC(7, kDebugScript, "** Timer %d: End ON TIME Event Handlers **", _header->_id);
+	_lastProcessedTime = currentTime - _startTime;
 
-    // This has to be at the end becuase the duration of the timer is the
-    // longest time event there is in the timer. And of course it will be called
-    // some amount of time after this time value.
-    // if (movieTime > _duration) {
-    //     // We are done processing the timer.
-    //     _isPlaying = false;
-    //     _startTime = 0;
-    //     _lastProcessedTime = 0;
-    //     debugC(5, kDebugScript, "Timer::timePlay(): Reached end of timer");
-    // }
+	// This has to be at the end becuase the duration of the timer is the
+	// longest time event there is in the timer. And of course it will be called
+	// some amount of time after this time value.
+	// if (movieTime > _duration) {
+	//     // We are done processing the timer.
+	//     _isPlaying = false;
+	//     _startTime = 0;
+	//     _lastProcessedTime = 0;
+	//     debugC(5, kDebugScript, "Timer::timePlay(): Reached end of timer");
+	// }
 }
 
 } // End of namespace MediaStation

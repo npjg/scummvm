@@ -30,20 +30,20 @@ namespace MediaStation {
 
 class Path : public Asset {
 public:
-    Path(AssetHeader *header) : Asset(header) {};
-    virtual ~Path() override;
+	Path(AssetHeader *header) : Asset(header) {};
+	virtual ~Path() override;
 
-    virtual void process() override;
+	virtual void process() override;
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
 
 private:
-    double _percentComplete = 0.0;
+	double _percentComplete = 0.0;
 
-    // Method implementations.
-    void timePlay();
-    void setDuration(uint durationInMilliseconds);
-    double percentComplete();
+	// Method implementations.
+	void timePlay();
+	void setDuration(uint durationInMilliseconds);
+	double percentComplete();
 };
 
 } // End of namespace MediaStation

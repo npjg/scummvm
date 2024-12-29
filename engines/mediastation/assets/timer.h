@@ -29,16 +29,16 @@ namespace MediaStation {
 
 class Timer : public Asset {
 public:
-    Timer(AssetHeader *header) : Asset(header) {};
-    virtual ~Timer() override = default;
+	Timer(AssetHeader *header) : Asset(header) {};
+	virtual ~Timer() override = default;
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
-    virtual void process() override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
+	virtual void process() override;
 
 private:
-    // Method implementations.
-    void timePlay();
-    void timeStop();
+	// Method implementations.
+	void timePlay();
+	void timeStop();
 };
 
 } // End of namespace MediaStation

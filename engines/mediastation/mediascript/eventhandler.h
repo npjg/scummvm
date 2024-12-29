@@ -34,75 +34,75 @@ namespace MediaStation {
 
 class EventHandler {
 public:
-    enum class Type {
-        // TIMER EVENTS.
-        Time = 5,
+	enum class Type {
+		// TIMER EVENTS.
+		Time = 5,
 
-        // HOTSPOT EVENTS.
-        MouseDown = 6,
-        MouseUp = 7,
-        MouseMoved = 8,
-        MouseEntered = 9,
-        MouseExited = 10,
-        KeyDown = 13, // PARAMS: 1 - ASCII code.
+		// HOTSPOT EVENTS.
+		MouseDown = 6,
+		MouseUp = 7,
+		MouseMoved = 8,
+		MouseEntered = 9,
+		MouseExited = 10,
+		KeyDown = 13, // PARAMS: 1 - ASCII code.
 
-        // SOUND EVENTS.
-        SoundEnd = 14,
-        SoundAbort = 19,
-        SoundFailure = 20,
-        SoundStopped = 29,
-        SoundBegin = 30,
+		// SOUND EVENTS.
+		SoundEnd = 14,
+		SoundAbort = 19,
+		SoundFailure = 20,
+		SoundStopped = 29,
+		SoundBegin = 30,
 
-        // MOVIE EVENTS.
-        MovieEnd = 15,
-        MovieAbort = 21,
-        MovieFailure = 22,
-        MovieStopped = 31,
-        MovieBegin = 32,
+		// MOVIE EVENTS.
+		MovieEnd = 15,
+		MovieAbort = 21,
+		MovieFailure = 22,
+		MovieStopped = 31,
+		MovieBegin = 32,
 
-        //SPRITE EVENTS.
-        // Just "MovieEnd" in source.
-        SpriteMovieEnd = 23,
+		//SPRITE EVENTS.
+		// Just "MovieEnd" in source.
+		SpriteMovieEnd = 23,
 
-        // SCREEN EVENTS.
-        Entry = 17,
-        Exit = 27,
+		// SCREEN EVENTS.
+		Entry = 17,
+		Exit = 27,
 
-        // CONTEXT EVENTS. 
-        LoadComplete = 44, // PARAMS: 1 - Context ID
+		// CONTEXT EVENTS.
+		LoadComplete = 44, // PARAMS: 1 - Context ID
 
-        // TEXT EVENTS.
-        Input = 37,
-        Error = 38,
+		// TEXT EVENTS.
+		Input = 37,
+		Error = 38,
 
-        // CAMERA EVENTS.
-        PanAbort = 43,
-        PanEnd = 42,
+		// CAMERA EVENTS.
+		PanAbort = 43,
+		PanEnd = 42,
 
-        // PATH EVENTS.
-        Step = 28,
-        PathStopped = 33,
-        PathEnd = 16
-    };
+		// PATH EVENTS.
+		Step = 28,
+		PathStopped = 33,
+		PathEnd = 16
+	};
 
-    enum class ArgumentType {
-        Null = 0,
-        AsciiCode = 1, // TODO: Why is this datum type a float?
-        Time = 3,
-        Unk1 = 4, // Appars to happen with MovieStart?
-        Context = 5
-    };
+	enum class ArgumentType {
+		Null = 0,
+		AsciiCode = 1, // TODO: Why is this datum type a float?
+		Time = 3,
+		Unk1 = 4, // Appars to happen with MovieStart?
+		Context = 5
+	};
 
-    EventHandler(Chunk &chunk);
-    ~EventHandler();
+	EventHandler(Chunk &chunk);
+	~EventHandler();
 
-    Operand execute(uint assetId);
-    EventHandler::Type _type;
-    EventHandler::ArgumentType _argumentType;
-    Datum _argumentValue;
+	Operand execute(uint assetId);
+	EventHandler::Type _type;
+	EventHandler::ArgumentType _argumentType;
+	Datum _argumentValue;
 
 private:
-    CodeChunk *_code;
+	CodeChunk *_code = nullptr;
 };
 
 } // End of namespace MediaStation

@@ -22,7 +22,7 @@
 #include "graphics/framelimiter.h"
 #include "common/scummsys.h"
 #include "common/config-manager.h"
-#include "common/debug-channels.h"	
+#include "common/debug-channels.h"
 #include "common/events.h"
 #include "common/system.h"
 #include "engines/util.h"
@@ -41,7 +41,7 @@ namespace MediaStation {
 MediaStationEngine *g_engine;
 
 MediaStationEngine::MediaStationEngine(OSystem *syst, const ADGameDescription *gameDesc) : Engine(syst),
-	_gameDescription(gameDesc), 
+	_gameDescription(gameDesc),
 	_randomSource("MediaStation"),
 	_boot(nullptr) {
 	g_engine = this;
@@ -57,10 +57,10 @@ MediaStationEngine::~MediaStationEngine() {
 	delete _boot;
 	_boot = nullptr;
 
-    for (auto it = _assets.begin(); it != _assets.end(); ++it) {
-        delete it->_value;
-    }
-    _assets.clear();
+	for (auto it = _assets.begin(); it != _assets.end(); ++it) {
+		delete it->_value;
+	}
+	_assets.clear();
 	_assetsByChunkReference.clear();
 
 	for (auto it = _functions.begin(); it != _functions.end(); ++it) {
@@ -85,7 +85,7 @@ Common::String MediaStationEngine::getGameId() const {
 bool MediaStationEngine::isFirstGenerationEngine() {
 	if (_boot == nullptr) {
 		error("Attempted to get engine version before BOOT.STM was read");
-	} else { 
+	} else {
 		return (_boot->_versionInfo == nullptr);
 	}
 }
@@ -103,7 +103,7 @@ Common::Error MediaStationEngine::run() {
 
 	// LOAD THE ROOT CONTEXT.
 	// This is because we might have assets that always need to be loaded.
-	Context *root = nullptr; 
+	Context *root = nullptr;
 	uint32 rootContextId = _boot->getRootContextId();
 	if (rootContextId != 0) {
 		root = loadContext(rootContextId);
@@ -115,7 +115,7 @@ Common::Error MediaStationEngine::run() {
 	if (activeScreen->_screenAsset != nullptr) {
 		// GET THE PALETTE.
 		setPaletteFromHeader(activeScreen->_screenAsset);
-		
+
 		// PROCESS THE OPENING EVENT HANDLER.
 		EventHandler *entryEvent = activeScreen->_screenAsset->_eventHandlers.getValOrDefault(EventHandler::Type::Entry);
 		if (entryEvent != nullptr) {
@@ -126,7 +126,7 @@ Common::Error MediaStationEngine::run() {
 		}
 	}
 
-    uint32 currentTime = g_system->getMillis();
+	uint32 currentTime = g_system->getMillis();
 	while (true) {
 		// PROCESS EVENTS.
 		Common::ErrorCode status = processEvents();
@@ -136,11 +136,10 @@ Common::Error MediaStationEngine::run() {
 
 		// PROCESS ANY ASSETS CURRENTLY PLAYING.
 		// First, they all need to be sorted by z-coordinate.
-		Common::sort(_assetsPlaying.begin(), _assetsPlaying.end(), [](Asset *a, Asset *b) {
+		Common::sort(_assetsPlaying.begin(), _assetsPlaying.end(), [](Asset * a, Asset * b) {
 			return a->zIndex() > b->zIndex();
 		});
-		//warning("START RENDER CYCLE");
-		for (auto it = _assetsPlaying.begin(); it != _assetsPlaying.end(); ) {
+		for (auto it = _assetsPlaying.begin(); it != _assetsPlaying.end();) {
 			(*it)->process();
 			if (!(*it)->isPlaying()) {
 				it = _assetsPlaying.erase(it);
@@ -148,9 +147,8 @@ Common::Error MediaStationEngine::run() {
 				++it;
 			}
 		}
-		//warning("END RENDER CYCLE");
 
-    	g_engine->_screen->update();
+		g_engine->_screen->update();
 		g_system->delayMillis(10);
 	}
 
@@ -164,21 +162,21 @@ Common::ErrorCode MediaStationEngine::processEvents() {
 		debugC(9, kDebugEvents, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 
 		switch (e.type) {
-			case Common::EVENT_QUIT: {
-				error("Quitting");
-			}
+		case Common::EVENT_QUIT: {
+			error("Quitting");
+		}
 
-			case Common::EVENT_KEYDOWN: {
-				error("Quitting");
-			}
+		case Common::EVENT_KEYDOWN: {
+			error("Quitting");
+		}
 
-			case Common::EVENT_LBUTTONDOWN: {
-				error("Quitting");
-			}
+		case Common::EVENT_LBUTTONDOWN: {
+			error("Quitting");
+		}
 
-			default: {
-				break;
-			}
+		default: {
+			break;
+		}
 		}
 	}
 	return Common::kUserCanceled; //Common::kNoError;
@@ -189,26 +187,26 @@ Context *MediaStationEngine::loadContext(uint32 contextId) {
 		error("Cannot load contexts before BOOT.STM is read");
 	}
 
-    // GET THE FILE ID.
-    SubfileDeclaration *subfileDeclaration = _boot->_subfileDeclarations.getValOrDefault(contextId);
-    if (subfileDeclaration == nullptr) {
+	// GET THE FILE ID.
+	SubfileDeclaration *subfileDeclaration = _boot->_subfileDeclarations.getValOrDefault(contextId);
+	if (subfileDeclaration == nullptr) {
 		warning("MediaStationEngine::loadContext(): Couldn't find subfile declaration with ID 0x%x", contextId);
-        return nullptr;
-    }
-	// The subfile declarations have other assets too, so we need to make sure 
+		return nullptr;
+	}
+	// The subfile declarations have other assets too, so we need to make sure
 	if (subfileDeclaration->_startOffsetInFile != 16) {
 		warning("MediaStationEngine::loadContext(): Requested ID wasn't for a context.");
 		return nullptr;
 	}
-    uint32 fileId = subfileDeclaration->_fileId;
+	uint32 fileId = subfileDeclaration->_fileId;
 
-    // GET THE FILENAME.
-    FileDeclaration *fileDeclaration = _boot->_fileDeclarations.getValOrDefault(fileId);
-    if (fileDeclaration == nullptr) {
+	// GET THE FILENAME.
+	FileDeclaration *fileDeclaration = _boot->_fileDeclarations.getValOrDefault(fileId);
+	if (fileDeclaration == nullptr) {
 		warning("MediaStationEngine::loadContext(): Couldn't find file declaration with ID 0x%x", fileId);
-        return nullptr;
-    }
-    Common::String *fileName = fileDeclaration->_name;
+		return nullptr;
+	}
+	Common::String *fileName = fileDeclaration->_name;
 
 	// LOAD THE CONTEXT.
 	Common::Path entryCxtFilepath = Common::Path(*fileName);
@@ -231,7 +229,6 @@ void MediaStationEngine::setPaletteFromHeader(AssetHeader *header) {
 		warning("MediaStationEngine::setPaletteFromHeader(): Asset %d does not have a palette. Current palette will be unchanged.", header->_id);
 	}
 }
-
 
 void MediaStationEngine::addPlayingAsset(Asset *assetToAdd) {
 	// If we're already marking the asset as played, we don't need to mark it

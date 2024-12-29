@@ -26,7 +26,7 @@
 
 #include "mediastation/subfile.h"
 #include "mediastation/chunk.h"
-#include "mediastation/mediascript/builtinfunctions.h"
+#include "mediastation/mediascript/builtins.h"
 #include "mediastation/mediascript/operand.h"
 
 namespace MediaStation {
@@ -37,29 +37,39 @@ class AssetHeader;
 class Asset {
 public:
 	Asset(AssetHeader *header) : _header(header) {};
-    virtual ~Asset();
+	virtual ~Asset();
 
-    virtual void process() { return; };
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) = 0;
-    // Called to have the asset do any processing, like drawing new frames,
-    // handling time-based event handlers, and such. Some assets don't have any 
-    // processing to do.
-    virtual bool isPlaying() const { return _isPlaying; }
+	// Does any needed frame drawing, audio playing, event handlers, etc.
+	virtual void process() {
+		return;
+	}
+	// Runs built-in bytecode methods.
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) = 0;
+	// Called to have the asset do any processing, like drawing new frames,
+	// handling time-based event handlers, and such. Some assets don't have any
+	// processing to do.
+	virtual bool isPlaying() const {
+		return _isPlaying;
+	}
 
-    virtual void readChunk(Chunk &chunk);
-    virtual void readSubfile(Subfile &subfile, Chunk &chunk);
-    AssetType type() const;
-    uint zIndex() const;
+	// These are not pure virtual so if an asset doesnʻt read any chunks or
+	// subfiles it doesnʻt need to just implement these with an error message.
+	virtual void readChunk(Chunk &chunk);
+	virtual void readSubfile(Subfile &subfile, Chunk &chunk);
 
-    AssetHeader *getHeader() const { return _header; }
+	AssetType type() const;
+	uint zIndex() const;
+	AssetHeader *getHeader() const {
+		return _header;
+	}
 
 protected:
 	AssetHeader *_header = nullptr;
-    bool _isPlaying = false;
-    uint _startTime = 0;
-    uint _lastProcessedTime = 0;
-    // TODO: Rename this to indicate the time is in milliseconds.
-    uint _duration = 0;
+	bool _isPlaying = false;
+	uint _startTime = 0;
+	uint _lastProcessedTime = 0;
+	// TODO: Rename this to indicate the time is in milliseconds.
+	uint _duration = 0;
 };
 
 } // End of namespace MediaStation

@@ -30,10 +30,10 @@ namespace MediaStation {
 
 class Canvas : public Asset {
 public:
-    Canvas(AssetHeader *header) : Asset(header) {};
-    virtual ~Canvas() override = default;
+	Canvas(AssetHeader *header) : Asset(header) {};
+	virtual ~Canvas() override = default;
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
 };
 
 } // End of namespace MediaStation

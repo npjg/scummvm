@@ -31,36 +31,36 @@ namespace MediaStation {
 
 class BitmapHeader {
 public:
-    enum class CompressionType {
-        UNCOMPRESSED = 0,
-        RLE_COMPRESSED = 1,
-        UNK1 = 6,
-        UNCOMPRESSED_2 = 7,
-    };
+	enum class CompressionType {
+		UNCOMPRESSED = 0,
+		RLE_COMPRESSED = 1,
+		UNK1 = 6,
+		UNCOMPRESSED_2 = 7,
+	};
 
-    BitmapHeader(Chunk &chunk);
-    ~BitmapHeader();
+	BitmapHeader(Chunk &chunk);
+	~BitmapHeader();
 
-    bool isCompressed();
+	bool isCompressed();
 
-    Common::Point *dimensions = nullptr;
-    CompressionType compression_type;
-    uint unk2;
+	Common::Point *dimensions = nullptr;
+	CompressionType compression_type;
+	uint unk2;
 };
 
 class Bitmap {
 public:
-    BitmapHeader *_bitmapHeader;
+	BitmapHeader *_bitmapHeader = nullptr;
 
-    Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader);
-    ~Bitmap();
+	Bitmap(Chunk &chunk, BitmapHeader *bitmapHeader);
+	~Bitmap();
 
-    uint16 width();
-    uint16 height();
-    Graphics::ManagedSurface surface;
+	uint16 width();
+	uint16 height();
+	Graphics::ManagedSurface surface;
 
 private:
-    void decompress(Chunk &chunk);
+	void decompress(Chunk &chunk);
 };
 
 }

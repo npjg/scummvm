@@ -25,104 +25,104 @@
 namespace MediaStation {
 
 Path::~Path() {
-    _percentComplete = 0;
+	_percentComplete = 0;
 }
 
-Operand Path::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
-    switch (methodId) {
-        case BuiltInFunction::timePlay: {
-            assert(args.size() == 0);
-            timePlay();
-            return Operand();
-        }
+Operand Path::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) {
+	switch (methodId) {
+	case BuiltInMethod::timePlay: {
+		assert(args.size() == 0);
+		timePlay();
+		return Operand();
+	}
 
-        case BuiltInFunction::setDuration: {
-            assert(args.size() == 1);
-            uint durationInMilliseconds = (uint)(args[0].getDouble() * 1000);
-            setDuration(durationInMilliseconds);
-            return Operand();
-        }
+	case BuiltInMethod::setDuration: {
+		assert(args.size() == 1);
+		uint durationInMilliseconds = (uint)(args[0].getDouble() * 1000);
+		setDuration(durationInMilliseconds);
+		return Operand();
+	}
 
-        case BuiltInFunction::percentComplete: {
-            assert(args.size() == 0);
-            Operand returnValue(Operand::Type::Float1);
-            returnValue.putDouble(percentComplete());
-            return returnValue;
-        }
+	case BuiltInMethod::percentComplete: {
+		assert(args.size() == 0);
+		Operand returnValue(Operand::Type::Float1);
+		returnValue.putDouble(percentComplete());
+		return returnValue;
+	}
 
-        default: {
-            error("Got unimplemented method ID %d", methodId);
-        }
-    }
+	default: {
+		error("Got unimplemented method ID %d", methodId);
+	}
+	}
 }
 
 void Path::timePlay() {
-    // TODO: Check that itʻs zero before we reset it, since this function isn't re-entrant!
-    _percentComplete = 0.0;
+	// TODO: Check that itʻs zero before we reset it, since this function isn't re-entrant!
+	_percentComplete = 0.0;
 
-    if (_header->_duration == 0) {
-        warning("Path::timePlay(): Got zero duration");
-    } else if (_header->_stepRate == 0) {
-        error("Path::timePlay(): Got zero step rate");
-    }
-    debugC(5, kDebugScript, "Path::timePlay(): Path playback started");
-    uint totalSteps = (_header->_duration * _header->_stepRate) / 1000;
-    uint stepDurationInMilliseconds = 1000 / _header->_stepRate;
+	if (_header->_duration == 0) {
+		warning("Path::timePlay(): Got zero duration");
+	} else if (_header->_stepRate == 0) {
+		error("Path::timePlay(): Got zero step rate");
+	}
+	debugC(5, kDebugScript, "Path::timePlay(): Path playback started");
+	uint totalSteps = (_header->_duration * _header->_stepRate) / 1000;
+	uint stepDurationInMilliseconds = 1000 / _header->_stepRate;
 
-    // RUN THE START EVENT HANDLER.
-    EventHandler *startEventHandler = nullptr; // TODO: Haven't seen a path start event in the wild yet, don't know its ID.
-    if (startEventHandler != nullptr) {
-        debugC(5, kDebugScript, "Path::timePlay(): Running PathStart event handler");
-        startEventHandler->execute(_header->_id);
-    } else {
-        debugC(5, kDebugScript, "Path::timePlay(): No PathStart event handler");
-    }
+	// RUN THE START EVENT HANDLER.
+	EventHandler *startEventHandler = nullptr; // TODO: Haven't seen a path start event in the wild yet, don't know its ID.
+	if (startEventHandler != nullptr) {
+		debugC(5, kDebugScript, "Path::timePlay(): Running PathStart event handler");
+		startEventHandler->execute(_header->_id);
+	} else {
+		debugC(5, kDebugScript, "Path::timePlay(): No PathStart event handler");
+	}
 
-    // STEP THE PATH.
-    EventHandler *pathStepHandler = _header->_eventHandlers[EventHandler::Type::Step];
-    for (uint i = 0; i < totalSteps; i++) {
-        _percentComplete = (double)(i + 1) / totalSteps;
-        debugC(5, kDebugScript, "Path::timePlay(): Step %d of %d", i, totalSteps);
-        // TODO: Actually step the path. It seems they mostly just use this for
-        // palette animation in the On Step event handler, so nothing is actually drawn on the screen now.
+	// STEP THE PATH.
+	EventHandler *pathStepHandler = _header->_eventHandlers[EventHandler::Type::Step];
+	for (uint i = 0; i < totalSteps; i++) {
+		_percentComplete = (double)(i + 1) / totalSteps;
+		debugC(5, kDebugScript, "Path::timePlay(): Step %d of %d", i, totalSteps);
+		// TODO: Actually step the path. It seems they mostly just use this for
+		// palette animation in the On Step event handler, so nothing is actually drawn on the screen now.
 
-        // RUN THE ON STEP EVENT HANDLER.
-        // TODO: Is this supposed to come after or before we step the path?
-        if (pathStepHandler != nullptr) {
-            debugC(5, kDebugScript, "Path::timePlay(): Running PathStep event handler");
-            pathStepHandler->execute(_header->_id);
-        } else {
-            debugC(5, kDebugScript, "Path::timePlay(): No PathStep event handler");
-        }
-    }
+		// RUN THE ON STEP EVENT HANDLER.
+		// TODO: Is this supposed to come after or before we step the path?
+		if (pathStepHandler != nullptr) {
+			debugC(5, kDebugScript, "Path::timePlay(): Running PathStep event handler");
+			pathStepHandler->execute(_header->_id);
+		} else {
+			debugC(5, kDebugScript, "Path::timePlay(): No PathStep event handler");
+		}
+	}
 
-    // RUN THE END EVENT HANDLER.
-    EventHandler *endEventHandler = _header->_eventHandlers[EventHandler::Type::PathEnd];
-    if (endEventHandler != nullptr) {
-        debugC(5, kDebugScript, "Path::timePlay(): Running PathEnd event handler");
-        endEventHandler->execute(_header->_id);
-    } else {
-        debugC(5, kDebugScript, "Path::timePlay(): No PathEnd event handler");
-    }
+	// RUN THE END EVENT HANDLER.
+	EventHandler *endEventHandler = _header->_eventHandlers[EventHandler::Type::PathEnd];
+	if (endEventHandler != nullptr) {
+		debugC(5, kDebugScript, "Path::timePlay(): Running PathEnd event handler");
+		endEventHandler->execute(_header->_id);
+	} else {
+		debugC(5, kDebugScript, "Path::timePlay(): No PathEnd event handler");
+	}
 
-    // CLEAN UP.
-    _percentComplete = 0;
+	// CLEAN UP.
+	_percentComplete = 0;
 }
 
 void Path::process() {
-    // TODO: Handle this case.
+	// TODO: Handle this case.
 }
 
 void Path::setDuration(uint durationInMilliseconds) {
-    // TODO: Do we need to save the original duration?
-    debugC(5, kDebugScript, "Path::setDuration(): Setting duration to %d ms", durationInMilliseconds);
-    _header->_duration = durationInMilliseconds;
+	// TODO: Do we need to save the original duration?
+	debugC(5, kDebugScript, "Path::setDuration(): Setting duration to %d ms", durationInMilliseconds);
+	_header->_duration = durationInMilliseconds;
 }
 
 
 double Path::percentComplete() {
-    debugC(5, kDebugScript, "Path::percentComplete(): Returning percent complete %f%%", _percentComplete * 100);
-    return _percentComplete;
+	debugC(5, kDebugScript, "Path::percentComplete(): Returning percent complete %f%%", _percentComplete * 100);
+	return _percentComplete;
 }
 
 } // End of namespace MediaStation

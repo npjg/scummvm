@@ -63,10 +63,10 @@ public:
 	void setPalette(Asset *palette);
 	void addPlayingAsset(Asset *assetToAdd);
 
-    Common::HashMap<uint, Asset *> _assets;
-    Common::HashMap<uint, Function *> _functions;
+	Common::HashMap<uint, Asset *> _assets;
+	Common::HashMap<uint, Function *> _functions;
 	Common::HashMap<uint32, Variable *> _variables;
-    Common::HashMap<uint, Asset *> _assetsByChunkReference;
+	Common::HashMap<uint, Asset *> _assetsByChunkReference;
 	Graphics::Screen *_screen = nullptr;
 	Audio::Mixer *_mixer = nullptr;
 

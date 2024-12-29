@@ -28,15 +28,15 @@ namespace MediaStation {
 
 class Datafile {
 public:
-    Datafile(const Common::Path &path);
-    virtual ~Datafile();
+	Datafile(const Common::Path &path);
+	virtual ~Datafile();
 
-    virtual bool openFile(const Common::Path &path);
-    virtual void close();
+	virtual bool openFile(const Common::Path &path);
+	virtual void close();
 
 protected:
-    Common::Path _path;
-    Common::SeekableReadStream *_stream;
+	Common::Path _path;
+	Common::SeekableReadStream *_stream = nullptr;
 };
 
 } // End of namespace MediaStation

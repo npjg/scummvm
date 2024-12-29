@@ -31,37 +31,37 @@ namespace MediaStation {
 
 class Context : Datafile {
 public:
-    Context(const Common::Path &path);
-    ~Context();
+	Context(const Common::Path &path);
+	~Context();
 
-    bool readPreamble();
+	bool readPreamble();
 
-    uint32 unk1;
-    uint32 subfile_count;
-    uint32 file_size;
-    Graphics::Palette *_palette = nullptr;
-    ContextParameters *_parameters = nullptr;
-    AssetHeader *_screenAsset = nullptr;
+	uint32 unk1;
+	uint32 subfile_count;
+	uint32 file_size;
+	Graphics::Palette *_palette = nullptr;
+	ContextParameters *_parameters = nullptr;
+	AssetHeader *_screenAsset = nullptr;
 
 private:
-    enum class SectionType {
-        EMPTY = 0x0000,
-        OLD_STYLE = 0x000d,
-        PARAMETERS = 0x000e,
-        PALETTE = 0x05aa,
-        END = 0x0010,
-        ASSET_HEADER = 0x0011,
-        POOH = 0x057a,
-        ASSET_LINK = 0x0013,
-        FUNCTION = 0x0031
-    };
-    void readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    void readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk);
-    bool readHeaderSection(Subfile &subfile, Chunk &chunk);
+	enum class SectionType {
+		EMPTY = 0x0000,
+		OLD_STYLE = 0x000d,
+		PARAMETERS = 0x000e,
+		PALETTE = 0x05aa,
+		END = 0x0010,
+		ASSET_HEADER = 0x0011,
+		POOH = 0x057a,
+		ASSET_LINK = 0x0013,
+		FUNCTION = 0x0031
+	};
+	void readOldStyleHeaderSections(Subfile &subfile, Chunk &chunk);
+	void readNewStyleHeaderSections(Subfile &subfile, Chunk &chunk);
+	bool readHeaderSection(Subfile &subfile, Chunk &chunk);
 
-    void readAssetInFirstSubfile(Chunk &chunk);
-    void readAssetFromLaterSubfile(Subfile &subfile);
-    void play();
+	void readAssetInFirstSubfile(Chunk &chunk);
+	void readAssetFromLaterSubfile(Subfile &subfile);
+	void play();
 };
 
 } // End of namespace MediaStation

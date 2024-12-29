@@ -25,12 +25,12 @@
 
 namespace MediaStation {
 
-Operand Palette::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
-    switch (methodId) {
-        default: {
-            error("Got unimplemented method ID %d", methodId);
-        }
-    }
+Operand Palette::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) {
+	switch (methodId) {
+	default: {
+		error("Got unimplemented method ID %d", methodId);
+	}
+	}
 }
 
 } // End of namespace MediaStation

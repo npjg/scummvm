@@ -28,87 +28,87 @@
 namespace MediaStation {
 
 Variable::Variable(Chunk &chunk) {
-    id = Datum(chunk, DatumType::UINT16_1).u.i;
-    type = Variable::Type(Datum(chunk, DatumType::UINT8).u.i);
-    debugC(5, kDebugLoading, "Variable::Variable(): id = 0x%x, type 0x%x (@0x%lx)", id, type, chunk.pos());
-    switch ((Type)type) {
-        case Type::COLLECTION: {
-            uint totalItems = Datum(chunk).u.i;
-            value.collection = new Common::Array<Variable *>;
-            for (uint i = 0; i < totalItems; i++) {
-                debugC(7, kDebugLoading, "Variable::Variable(): COLLECTION: Value %d of %d", i, totalItems);
-                Variable *variableDeclaration = new Variable(chunk);
-                value.collection->push_back(variableDeclaration);
-            }
-            break;
-        }
+	id = Datum(chunk, DatumType::UINT16_1).u.i;
+	type = Variable::Type(Datum(chunk, DatumType::UINT8).u.i);
+	debugC(5, kDebugLoading, "Variable::Variable(): id = 0x%x, type 0x%x (@0x%lx)", id, type, chunk.pos());
+	switch ((Type)type) {
+	case Type::COLLECTION: {
+		uint totalItems = Datum(chunk).u.i;
+		value.collection = new Common::Array<Variable *>;
+		for (uint i = 0; i < totalItems; i++) {
+			debugC(7, kDebugLoading, "Variable::Variable(): COLLECTION: Value %d of %d", i, totalItems);
+			Variable *variableDeclaration = new Variable(chunk);
+			value.collection->push_back(variableDeclaration);
+		}
+		break;
+	}
 
-        case Type::STRING: {
-            // TODO: This copies the string. Can we read it directly from the chunk?
-            int size = Datum(chunk).u.i;
-            char* buffer = new char[size + 1];
-            chunk.read(buffer, size);
-            buffer[size] = '\0';
-            value.string = new Common::String(buffer);
-            delete[] buffer;
-            debugC(7, kDebugLoading, "Variable::Variable(): STRING: %s", value.string->c_str());
-            break;
-        }
+	case Type::STRING: {
+		// TODO: This copies the string. Can we read it directly from the chunk?
+		int size = Datum(chunk).u.i;
+		char *buffer = new char[size + 1];
+		chunk.read(buffer, size);
+		buffer[size] = '\0';
+		value.string = new Common::String(buffer);
+		delete[] buffer;
+		debugC(7, kDebugLoading, "Variable::Variable(): STRING: %s", value.string->c_str());
+		break;
+	}
 
-        case Type::ASSET_ID: {
-            value.assetId = Datum(chunk, DatumType::UINT16_1).u.i;
-            debugC(7, kDebugLoading, "Variable::Variable(): ASSET ID: %d", value.assetId);
-            break;
-        }
+	case Type::ASSET_ID: {
+		value.assetId = Datum(chunk, DatumType::UINT16_1).u.i;
+		debugC(7, kDebugLoading, "Variable::Variable(): ASSET ID: %d", value.assetId);
+		break;
+	}
 
-        case Type::BOOLEAN: {
-            uint rawValue = Datum(chunk, DatumType::UINT8).u.i;
-            debugC(7, kDebugLoading, " Variable::Variable(): BOOL: %d", rawValue);
-            value.b = (rawValue == 1);
-            break;
-        }
+	case Type::BOOLEAN: {
+		uint rawValue = Datum(chunk, DatumType::UINT8).u.i;
+		debugC(7, kDebugLoading, " Variable::Variable(): BOOL: %d", rawValue);
+		value.b = (rawValue == 1);
+		break;
+	}
 
-        case Type::LITERAL: {
-            // Client code can worry about extracting the value.
-            value.datum = new Datum(chunk);
-            debugC(7, kDebugLoading, "Variable::Variable(): LITERAL");
-            break;
-        }
+	case Type::LITERAL: {
+		// Client code can worry about extracting the value.
+		value.datum = new Datum(chunk);
+		debugC(7, kDebugLoading, "Variable::Variable(): LITERAL");
+		break;
+	}
 
-        default: {
-            warning("Variable::Variable(): Got unknown variable value type 0x%x", type);
-            value.datum = new Datum(chunk);
-        }
-    }
+	default: {
+		warning("Variable::Variable(): Got unknown variable value type 0x%x", type);
+		value.datum = new Datum(chunk);
+	}
+	}
 }
 
 Variable::~Variable() {
-    switch ((Type)type) {
-        case Type::ASSET_ID: 
-        case Type::BOOLEAN: {
-            break;
-        }
+	switch ((Type)type) {
+	case Type::ASSET_ID:
+	case Type::BOOLEAN: {
+		break;
+	}
 
-        case Type::COLLECTION: {
-            delete value.collection;
-            break;
-        }
+	case Type::COLLECTION: {
+		delete value.collection;
+		break;
+	}
 
-        case Type::STRING: {
-            delete value.string;
-            break;
-        }
+	case Type::STRING: {
+		delete value.string;
+		break;
+	}
 
-        case Type::LITERAL: {
-            delete value.datum;
-            break;
-        }
+	case Type::LITERAL: {
+		delete value.datum;
+		break;
+	}
 
-        default: {
-            delete value.datum;
-            break;
-        }
-    }
+	default: {
+		delete value.datum;
+		break;
+	}
+	}
 }
 
 } // End of namespace MediaStation

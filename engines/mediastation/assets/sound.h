@@ -36,28 +36,28 @@ namespace MediaStation {
 
 class Sound : public Asset {
 public:
-    // For standalone Sound assets.
-    Sound(AssetHeader *header);
+	// For standalone Sound assets.
+	Sound(AssetHeader *header);
 
-    // For sounds that are part of a movie.
-    // TODO: Since these aren't Assets they should be handled elsewhere.
-    //Sound(AssetHeader::SoundEncoding encoding);
-    ~Sound();
+	// For sounds that are part of a movie.
+	// TODO: Since these aren't Assets they should be handled elsewhere.
+	//Sound(AssetHeader::SoundEncoding encoding);
+	~Sound();
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
-    virtual void process() override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
+	virtual void process() override;
 
-    virtual void readChunk(Chunk& chunk) override;
-    virtual void readSubfile(Subfile &subFile, Chunk &chunk) override;
+	virtual void readChunk(Chunk& chunk) override;
+	virtual void readSubfile(Subfile &subFile, Chunk &chunk) override;
 
-    // All Media Station audio is signed 16-bit little-endian mono at 22050 Hz.
-    // Some defaults must be overridden in the flags.
-    static const uint RATE = 22050;
-    static const byte FLAGS = Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN;
+	// All Media Station audio is signed 16-bit little-endian mono at 22050 Hz.
+	// Some defaults must be overridden in the flags.
+	static const uint RATE = 22050;
+	static const byte FLAGS = Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN;
 
 private:
-    AssetHeader::SoundEncoding _encoding;
-    byte *_samples = nullptr;
+	AssetHeader::SoundEncoding _encoding;
+	byte *_samples = nullptr;
 };
 
 } // End of namespace MediaStation

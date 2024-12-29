@@ -35,15 +35,15 @@ namespace MediaStation {
 
 class Image : public Asset {
 public:
-    Image(AssetHeader *header) : Asset(header) {};
-    virtual ~Image() override;
+	Image(AssetHeader *header) : Asset(header) {};
+	virtual ~Image() override;
 
-    virtual void readChunk(Chunk &chunk) override;
+	virtual void readChunk(Chunk &chunk) override;
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
 
 private:
-    Bitmap *_bitmap = nullptr;
+	Bitmap *_bitmap = nullptr;
 };
 
 } // End of namespace MediaStation

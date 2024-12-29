@@ -27,75 +27,75 @@
 namespace MediaStation {
 
 Sound::Sound(AssetHeader *header) : Asset(header) {
-    if (_header != nullptr) {
-        _encoding = _header->_soundEncoding;
-    }
+	if (_header != nullptr) {
+		_encoding = _header->_soundEncoding;
+	}
 }
 
 Sound::~Sound() {
-    delete _samples;
-    _samples = nullptr;
-    //for (Audio::SeekableAudioStream *stream : _streams) {
-    //    delete stream;
-    //}
+	delete _samples;
+	_samples = nullptr;
+	//for (Audio::SeekableAudioStream *stream : _streams) {
+	//    delete stream;
+	//}
 }
 
-Operand Sound::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
-    switch (methodId) {
-        default: {
-            error("Got unimplemented method ID %d", methodId);
-        }
-    }
+Operand Sound::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) {
+	switch (methodId) {
+	default: {
+		error("Got unimplemented method ID %d", methodId);
+	}
+	}
 }
 
 void Sound::process() {
-    // TODO: Process more playing.
+	// TODO: Process more playing.
 }
 
 void Sound::readChunk(Chunk &chunk) {
-    // TODO: Can we read the chunk directly into the audio stream?
-    debugC(5, kDebugLoading, "Sound::readChunk(): (encoding = 0x%x) Reading audio chunk (@0x%lx)", (uint)_encoding, chunk.pos());
-    byte *buffer = (byte *)malloc(chunk.length);
-    chunk.read((void *)buffer, chunk.length);
+	// TODO: Can we read the chunk directly into the audio stream?
+	debugC(5, kDebugLoading, "Sound::readChunk(): (encoding = 0x%x) Reading audio chunk (@0x%lx)", (uint)_encoding, chunk.pos());
+	byte *buffer = (byte *)malloc(chunk.length);
+	chunk.read((void *)buffer, chunk.length);
 
-    switch(_encoding) {
-        case AssetHeader::SoundEncoding::PCM_S16LE_MONO_22050: {
-            // Audio::SeekableAudioStream *stream = Audio::makeRawStream(buffer, chunk.length, Sound::RATE, Sound::FLAGS, DisposeAfterUse::NO);
-            //_streams.push_back(stream);
-            break;
-        }
+	switch (_encoding) {
+	case AssetHeader::SoundEncoding::PCM_S16LE_MONO_22050: {
+		// Audio::SeekableAudioStream *stream = Audio::makeRawStream(buffer, chunk.length, Sound::RATE, Sound::FLAGS, DisposeAfterUse::NO);
+		//_streams.push_back(stream);
+		break;
+	}
 
-        case AssetHeader::SoundEncoding::IMA_ADPCM_S16LE_MONO_22050: {
-            // TODO: Support ADPCM decoding.
-            // Audio::SeekableAudioStream *stream = nullptr; // Audio::makeADPCMStream(buffer, chunk.length, DisposeAfterUse::NO, Audio::ADPCMType::kADPCMMSIma, Sound::RATE, 1, 4);
-            //_streams.push_back(stream);
-            break;
-        }
+	case AssetHeader::SoundEncoding::IMA_ADPCM_S16LE_MONO_22050: {
+		// TODO: Support ADPCM decoding.
+		// Audio::SeekableAudioStream *stream = nullptr; // Audio::makeADPCMStream(buffer, chunk.length, DisposeAfterUse::NO, Audio::ADPCMType::kADPCMMSIma, Sound::RATE, 1, 4);
+		//_streams.push_back(stream);
+		break;
+	}
 
-        default: {
-            error("Sound::readChunk(): Unknown audio encoding 0x%x", (uint)_encoding);
-            break;
-        }
-    }
-    debugC(5, kDebugLoading, "Sound::readChunk(): Finished reading audio chunk (@0x%lx)", chunk.pos());
+	default: {
+		error("Sound::readChunk(): Unknown audio encoding 0x%x", (uint)_encoding);
+		break;
+	}
+	}
+	debugC(5, kDebugLoading, "Sound::readChunk(): Finished reading audio chunk (@0x%lx)", chunk.pos());
 }
 
 void Sound::readSubfile(Subfile &subfile, Chunk &chunk) {
-    //if (_streams.size() != 0) {
-    //    warning("Sound::readSubfile(): Some audio has already been read.");
-    //}
-    uint32 totalChunks = _header->_chunkCount;
-    uint32 expectedChunkId = chunk.id;
+	//if (_streams.size() != 0) {
+	//    warning("Sound::readSubfile(): Some audio has already been read.");
+	//}
+	uint32 totalChunks = _header->_chunkCount;
+	uint32 expectedChunkId = chunk.id;
 
-    readChunk(chunk);
-    for (uint i = 0; i < totalChunks; i++) {
-        chunk = subfile.nextChunk();
-        if (chunk.id != expectedChunkId) {
-            // TODO: Make this show the chunk IDs as strings, not numbers.
-            error("Sound::readSubfile(): Expected chunk %s, got %s", tag2str(expectedChunkId), tag2str(chunk.id));
-        }
-        readChunk(chunk);
-    }
+	readChunk(chunk);
+	for (uint i = 0; i < totalChunks; i++) {
+		chunk = subfile.nextChunk();
+		if (chunk.id != expectedChunkId) {
+			// TODO: Make this show the chunk IDs as strings, not numbers.
+			error("Sound::readSubfile(): Expected chunk %s, got %s", tag2str(expectedChunkId), tag2str(chunk.id));
+		}
+		readChunk(chunk);
+	}
 }
 
 }

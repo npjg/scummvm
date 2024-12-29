@@ -27,12 +27,11 @@
 namespace MediaStation {
 
 Datafile::Datafile(const Common::Path &path) {
-    _stream = nullptr;
-    openFile(path);
+	openFile(path);
 }
 
 Datafile::~Datafile() {
-    close();
+	close();
 }
 
 bool Datafile::openFile(const Common::Path &path) {
@@ -43,16 +42,14 @@ bool Datafile::openFile(const Common::Path &path) {
 		return false;
 	}
 
-    _path = path;
-    _stream = file;
+	_path = path;
+	_stream = file;
 	return true;
 }
 
 void Datafile::close() {
-	if (_stream) {
-		delete _stream;
-	    _stream = nullptr;
-    }
+	delete _stream;
+	_stream = nullptr;
 }
 
 } // End of namespace MediaStation

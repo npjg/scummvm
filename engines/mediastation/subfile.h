@@ -30,19 +30,19 @@ namespace MediaStation {
 
 class Subfile {
 public:
-    Chunk rootChunk;
-    Chunk currentChunk;
+	Chunk rootChunk;
+	Chunk currentChunk;
 
-    Subfile();
-    Subfile(Common::SeekableReadStream *stream);
+	Subfile();
+	Subfile(Common::SeekableReadStream *stream);
 
-    Chunk nextChunk();
-    bool atEnd();
+	Chunk nextChunk();
+	bool atEnd();
 
-    uint32 rate;
+	uint32 rate;
 
 private:
-    Common::SeekableReadStream *_stream;
+	Common::SeekableReadStream *_stream;
 
 };
 

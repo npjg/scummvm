@@ -28,23 +28,23 @@
 namespace MediaStation {
 
 Function::Function(Chunk &chunk) {
-    _fileId = Datum(chunk).u.i;
-    _id = Datum(chunk).u.i; // + 19900;
-    uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
-    debugC(5, kDebugLoading, "Function::Function(): id = 0x%x, size = 0x%x bytes", _id, lengthInBytes);
-    _code = new CodeChunk(chunk);
+	_fileId = Datum(chunk).u.i;
+	_id = Datum(chunk).u.i; // + 19900;
+	uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
+	debugC(5, kDebugLoading, "Function::Function(): id = 0x%x, size = 0x%x bytes", _id, lengthInBytes);
+	_code = new CodeChunk(chunk);
 }
 
 Function::~Function() {
-    delete _code;
-    _code = nullptr;
+	delete _code;
+	_code = nullptr;
 }
 
 Operand Function::execute(Common::Array<Operand> args) {
-    debugC(5, kDebugScript, "\n********** FUNCTION %d **********", _id);
-    Operand returnValue = _code->execute(&args);
-    debugC(5, kDebugScript, "********** END FUNCTION **********");
-    return returnValue;
+	debugC(5, kDebugScript, "\n********** FUNCTION %d **********", _id);
+	Operand returnValue = _code->execute(&args);
+	debugC(5, kDebugScript, "********** END FUNCTION **********");
+	return returnValue;
 }
 
 } // End of namespace MediaStation

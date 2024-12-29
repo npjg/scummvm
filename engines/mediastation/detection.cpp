@@ -44,7 +44,7 @@ const DebugChannelDef MediaStationMetaEngineDetection::debugFlagList[] = {
 };
 
 MediaStationMetaEngineDetection::MediaStationMetaEngineDetection() : AdvancedMetaEngineDetection(
-	MediaStation::gameDescriptions, MediaStation::mediastationGames) {
+	    MediaStation::gameDescriptions, MediaStation::mediastationGames) {
 }
 
 REGISTER_PLUGIN_STATIC(MEDIASTATION_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, MediaStationMetaEngineDetection);

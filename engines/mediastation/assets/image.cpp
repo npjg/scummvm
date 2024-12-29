@@ -24,21 +24,23 @@
 namespace MediaStation {
 
 Image::~Image() {
-    delete _bitmap;
-    _bitmap = nullptr;
+	delete _bitmap;
+	_bitmap = nullptr;
 }
 
-Operand Image::callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) {
-    switch (methodId) {
-        default: {
-            error("Got unimplemented method ID %d", methodId);
-        }
-    }
+Operand Image::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) {
+	switch (methodId) {
+	// TODO: Add methods here.
+
+	default: {
+		error("Got unimplemented method ID %d", methodId);
+	}
+	}
 }
 
 void Image::readChunk(Chunk &chunk) {
-    BitmapHeader *bitmapHeader = new BitmapHeader(chunk);
-    _bitmap = new Bitmap(chunk, bitmapHeader);
+	BitmapHeader *bitmapHeader = new BitmapHeader(chunk);
+	_bitmap = new Bitmap(chunk, bitmapHeader);
 }
 
 } // End of namespace MediaStation

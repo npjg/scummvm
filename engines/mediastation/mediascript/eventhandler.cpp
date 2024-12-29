@@ -24,55 +24,57 @@
 
 namespace MediaStation {
 
-EventHandler::EventHandler(Chunk &chunk): _code(nullptr) {
-    _type = (EventHandler::Type)(Datum(chunk).u.i);
-    debugC(5, kDebugLoading, "EventHandler::EventHandler(): Type 0x%x (@0x%lx)", _type, chunk.pos());
-    _argumentType = (EventHandler::ArgumentType)(Datum(chunk).u.i);
-    debugC(5, kDebugLoading, "EventHandler::EventHandler(): Argument type 0x%x (@0x%lx)", _argumentType, chunk.pos());
-    _argumentValue = Datum(chunk);
+EventHandler::EventHandler(Chunk &chunk) {
+	_type = (EventHandler::Type)(Datum(chunk).u.i);
+	debugC(5, kDebugLoading, "EventHandler::EventHandler(): Type 0x%x (@0x%lx)", _type, chunk.pos());
+	_argumentType = (EventHandler::ArgumentType)(Datum(chunk).u.i);
+	debugC(5, kDebugLoading, "EventHandler::EventHandler(): Argument type 0x%x (@0x%lx)", _argumentType, chunk.pos());
+	_argumentValue = Datum(chunk);
 
-    if (_argumentType != EventHandler::ArgumentType::Null) {
-        uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
-        debugC(5, kDebugLoading, "EventHandler::EventHandler(): Null argument type, length = 0x%x (@0x%lx)", lengthInBytes, chunk.pos());
-    }
+	if (_argumentType != EventHandler::ArgumentType::Null) {
+		uint lengthInBytes = Datum(chunk, DatumType::UINT32_1).u.i;
+		debugC(5, kDebugLoading, "EventHandler::EventHandler(): Null argument type, length = 0x%x (@0x%lx)", lengthInBytes, chunk.pos());
+	}
 
-    _code = new CodeChunk(chunk);
+	_code = new CodeChunk(chunk);
 }
 
 Operand EventHandler::execute(uint assetId) {
-    switch (_argumentType) {
-        case EventHandler::ArgumentType::Null: {
-            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (no argument) **********", assetId, (uint)_type);
-            break;
-        }
+	// TODO: The assetId is only passed in for debug visibility, there should be
+	// a better way to handle that.
+	switch (_argumentType) {
+	case EventHandler::ArgumentType::Null: {
+		debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (no argument) **********", assetId, (uint)_type);
+		break;
+	}
 
-        case EventHandler::ArgumentType::AsciiCode: {
-            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (ASCII code = %d) **********", assetId, (uint)_type, _argumentValue.u.i);
-            break;
-        }
+	case EventHandler::ArgumentType::AsciiCode: {
+		debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (ASCII code = %d) **********", assetId, (uint)_type, _argumentValue.u.i);
+		break;
+	}
 
-        case EventHandler::ArgumentType::Context: {
-            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (context = %d) **********", assetId, (uint)_type, _argumentValue.u.i);
-            break;
-        }
+	case EventHandler::ArgumentType::Context: {
+		debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (context = %d) **********", assetId, (uint)_type, _argumentValue.u.i);
+		break;
+	}
 
-        case EventHandler::ArgumentType::Time: 
-        case EventHandler::ArgumentType::Unk1: {
-            debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (time = %f) **********", assetId, (uint)_type, _argumentValue.u.f);
-            break;
-        }
-    }
+	case EventHandler::ArgumentType::Time:
+	case EventHandler::ArgumentType::Unk1: {
+		debugC(5, kDebugScript, "\n********** EVENT HANDLER (asset %d) (type = %d) (time = %f) **********", assetId, (uint)_type, _argumentValue.u.f);
+		break;
+	}
+	}
 
-    // The only argument that can be provided to an event handler is the
-    // _argumentValue.
-    // So if we are here, we can execute it directly.
-    Operand returnValue = _code->execute();
-    debugC(5, kDebugScript, "********** END EVENT HANDLER **********");
-    return returnValue;
+	// The only argument that can be provided to an event handler is the
+	// _argumentValue.
+	Operand returnValue = _code->execute();
+	debugC(5, kDebugScript, "********** END EVENT HANDLER **********");
+	return returnValue;
 }
 
 EventHandler::~EventHandler() {
-    delete _code;
+	delete _code;
+	_code = nullptr;
 }
 
 } // End of namespace MediaStation

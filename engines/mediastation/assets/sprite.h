@@ -31,49 +31,49 @@ namespace MediaStation {
 
 class SpriteFrameHeader : public BitmapHeader {
 public:
-    SpriteFrameHeader(Chunk &chunk);
-    ~SpriteFrameHeader();
+	SpriteFrameHeader(Chunk &chunk);
+	~SpriteFrameHeader();
 
-    uint _index;
-    Common::Point *_boundingBox;
+	uint _index;
+	Common::Point *_boundingBox;
 };
 
 class SpriteFrame : public Bitmap {
 public:
-    SpriteFrame(Chunk &chunk, SpriteFrameHeader *header);
-    ~SpriteFrame();
+	SpriteFrame(Chunk &chunk, SpriteFrameHeader *header);
+	~SpriteFrame();
 
-    uint32 left();
-    uint32 top();
-    Common::Point topLeft();
-    Common::Rect boundingBox();
-    uint32 index();
+	uint32 left();
+	uint32 top();
+	Common::Point topLeft();
+	Common::Rect boundingBox();
+	uint32 index();
 
 private:
-    SpriteFrameHeader *_bitmapHeader = nullptr;
+	SpriteFrameHeader *_bitmapHeader = nullptr;
 };
 
 class Sprite : public Asset {
 public:
-    Sprite(AssetHeader *header) : Asset(header) {};
-    ~Sprite();
+	Sprite(AssetHeader *header) : Asset(header) {};
+	~Sprite();
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
-    virtual void process() override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
+	virtual void process() override;
 
-    virtual void readChunk(Chunk &chunk) override;
+	virtual void readChunk(Chunk &chunk) override;
 
 private:
-    Common::Array<SpriteFrame *> _frames;
-    bool _isSpatialShowOnly = false;
+	Common::Array<SpriteFrame *> _frames;
+	bool _isSpatialShowOnly = false;
 
-    // Method implementations.
-    void spatialShow();
-    void timePlay();
+	// Method implementations.
+	void spatialShow();
+	void timePlay();
 
-    // Helper functions.
-    bool drawNextFrame();
-    void drawFirstFrame();
+	// Helper functions.
+	bool drawNextFrame();
+	void drawFirstFrame();
 };
 
 } // End of namespace MediaStation

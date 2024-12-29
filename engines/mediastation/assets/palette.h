@@ -30,10 +30,10 @@ namespace MediaStation {
 
 class Palette : public Asset {
 public:
-    Palette(AssetHeader *header) : Asset(header) {};
-    ~Palette() = default;
+	Palette(AssetHeader *header) : Asset(header) {};
+	~Palette() = default;
 
-    virtual Operand callMethod(BuiltInFunction methodId, Common::Array<Operand> &args) override;
+	virtual Operand callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) override;
 };
 
 } // End of namespace MediaStation
