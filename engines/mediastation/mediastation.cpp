@@ -92,9 +92,10 @@ bool MediaStationEngine::isFirstGenerationEngine() {
 Common::Error MediaStationEngine::run() {
 	// INITIALIZE SUBSYSTEMS.
 	// All Media Station games run at 640x480.
-	initGraphics(640, 480);
+	initGraphics(SCREEN_WIDTH, SCREEN_HEIGHT);
 	_screen = new Graphics::Screen();
-	_screen->fillRect(Common::Rect(640, 480), 255);
+	// TODO: Determine if all titles blank the screen to 0xff.
+	_screen->fillRect(Common::Rect(SCREEN_WIDTH, SCREEN_HEIGHT), 0xff);
 
 	// LOAD BOOT.STM.
 	Common::Path bootStmFilepath = Common::Path("BOOT.STM");

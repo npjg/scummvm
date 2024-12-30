@@ -70,6 +70,10 @@ public:
 	Graphics::Screen *_screen = nullptr;
 	Audio::Mixer *_mixer = nullptr;
 
+	// All Media Station titles run at 640x480.
+	const uint16 SCREEN_WIDTH = 640;
+	const uint16 SCREEN_HEIGHT = 480;
+
 protected:
 	Common::Error run() override;
 
