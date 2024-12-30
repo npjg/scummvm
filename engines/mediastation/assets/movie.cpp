@@ -161,10 +161,7 @@ Movie::~Movie() {
 		delete frame;
 	}
 	_frames.clear();
-	//for (Sound *sound : _sounds) {
-	//    delete sound;
-	//}
-	//_sounds.clear();
+	_audioStreams.clear();
 	for (MovieFrameFooter *footer : _footers) {
 		delete footer;
 	}
@@ -243,7 +240,6 @@ void Movie::timeStop() {
 }
 
 void Movie::process() {
-	debugC(5, kDebugGraphics, "Movie %d: Redrawing", _header->_id);
 	processTimeEventHandlers();
 	drawNextFrame();
 }
