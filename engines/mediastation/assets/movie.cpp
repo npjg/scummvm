@@ -19,6 +19,9 @@
  *
  */
 
+#include "audio/decoders/raw.h"
+#include "audio/decoders/adpcm.h"
+
 #include "mediastation/mediastation.h"
 #include "mediastation/assets/movie.h"
 #include "mediastation/datum.h"
@@ -199,6 +202,18 @@ void Movie::timePlay() {
 		if (frame->endInMilliseconds() > _duration) {
 			_duration = frame->endInMilliseconds();
 		}
+	}
+
+	// START PLAYING SOUND.
+	// TODO: This won't work when we have some chunks that don't have audio.
+	if (!_audioStreams.empty()) {
+		Audio::QueuingAudioStream *audio = Audio::makeQueuingAudioStream(22050, false);
+		for (Audio::SeekableAudioStream *stream : _audioStreams) {
+			audio->queueAudioStream(stream);
+		}
+		// Then play the audio!
+		Audio::SoundHandle handle;
+		g_engine->_mixer->playStream(Audio::Mixer::kPlainSoundType, &handle, audio, -1, Audio::Mixer::kMaxChannelVolume);
 	}
 
 	// RUN THE MOVIE START EVENT HANDLER.
@@ -392,11 +407,27 @@ void Movie::readSubfile(Subfile &subfile, Chunk &chunk) {
 		debugC(5, kDebugLoading, "Movie::readSubfile(): (Frameset %d of %d) Reading audio chunk... (@0x%llx)", i, chunkCount, chunk.pos());
 		bool isAudioChunk = (chunk.id = _header->_audioChunkReference);
 		if (isAudioChunk) {
-			// TODO: Actually read the audio chunk.
-			//Sound *sound = new Sound(_header->_soundEncoding);
-			//sound->readChunk(chunk);
-			//_sounds.push_back(sound);
-			chunk.skip(chunk.length);
+			byte *buffer = (byte *)malloc(chunk.length);
+			chunk.read((void *)buffer, chunk.length);
+			Audio::SeekableAudioStream *stream = nullptr;
+			switch (_header->_soundEncoding) {
+			case AssetHeader::SoundEncoding::PCM_S16LE_MONO_22050:
+				stream = Audio::makeRawStream(buffer, chunk.length, 22050, Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN, DisposeAfterUse::YES);
+				break;
+
+			case AssetHeader::SoundEncoding::IMA_ADPCM_S16LE_MONO_22050:
+				// TODO: The interface here is different. We can't pass in the
+				// buffers directly. We have to make a stream first.
+				// stream = Audio::makeADPCMStream(buffer, chunk.length,
+				// DisposeAfterUse::NO, Audio::ADPCMType::kADPCMMSIma, 22050, 1,
+				// 4);
+				error("Movie::readSubfile(): ADPCM decoding not implemented yet");
+				break;
+
+			default:
+				error("Sound::readChunk(): Unknown audio encoding 0x%x", (uint)_header->_soundEncoding);
+			}
+			_audioStreams.push_back(stream);
 			chunk = subfile.nextChunk();
 		} else {
 			debugC(5, kDebugLoading, "Movie::readSubfile(): (Frameset %d of %d) No audio chunk to read. (@0x%llx)", i, chunkCount, chunk.pos());

@@ -19,6 +19,8 @@
  *
  */
 
+#include "audio/audiostream.h"
+
 #include "mediastation/assetheader.h"
 #include "mediastation/bitmap.h"
 #include "mediastation/mediascript/builtins.h"
@@ -103,8 +105,7 @@ private:
 	Common::Array<MovieFrame *> _frames;
 	Common::Array<MovieFrame *> _stills;
 	Common::Array<MovieFrameFooter *> _footers;
-	byte *_audioSamples = nullptr;
-	AssetHeader::SoundEncoding _soundEncoding;
+	Common::Array<Audio::SeekableAudioStream *> _audioStreams;
 
 	// Method implementations. These should be called from callMethod.
 	void timePlay();
