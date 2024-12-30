@@ -21,7 +21,6 @@
 
 #include "mediastation/assetheader.h"
 #include "mediastation/bitmap.h"
-#include "mediastation/assets/sound.h"
 #include "mediastation/mediascript/builtins.h"
 
 #ifndef MEDIASTATION_MOVIE_H

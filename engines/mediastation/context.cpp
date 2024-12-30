@@ -29,6 +29,7 @@
 #include "mediastation/assets/palette.h"
 #include "mediastation/assets/image.h"
 #include "mediastation/assets/path.h"
+#include "mediastation/assets/sound.h"
 #include "mediastation/assets/movie.h"
 #include "mediastation/assets/sprite.h"
 #include "mediastation/assets/hotspot.h"
