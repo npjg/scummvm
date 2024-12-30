@@ -72,9 +72,10 @@ private:
 	// Method implementations.
 	void spatialShow();
 	void timePlay();
+	void movieReset();
 
 	// Helper functions.
-	bool drawNextFrame();
+	void drawNextFrame();
 	void drawFrame(SpriteFrame *frame);
 };
 

@@ -67,9 +67,7 @@ uint32 SpriteFrame::index() {
 }
 
 Sprite::~Sprite() {
-	for (SpriteFrame *frame : _frames) {
-		delete frame;
-	}
+	_frames.clear();
 }
 
 Operand Sprite::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) {
@@ -88,24 +86,18 @@ Operand Sprite::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args)
 
 	case BuiltInMethod::movieReset: {
 		assert(args.size() == 0);
-		debugC(5, kDebugScript, "Sprite::movieReset(): Sprite reset");
-		_isPlaying = true;
-		_startTime = 0;
-		_currentFrameIndex = 0;
-		_nextFrameTime = 0;
-		_lastProcessedTime = 0;
-		// TODO: This won't add back to the playing assets array!
+		movieReset();
 		return Operand();
 	}
 
 	default: {
-		error("Got unimplemented method ID %d", methodId);
+		error("Sprite::callMethod(): Got unimplemented method ID %d", methodId);
 	}
 	}
 }
 
 void Sprite::spatialShow() {
-	debugC(5, kDebugScript, "Sprite::spatialShow(): Sprite now showing");
+	debugC(5, kDebugScript, "Called Sprite::spatialShow");
 	_isPlaying = true;
 	g_engine->addPlayingAsset(this);
 
@@ -121,8 +113,7 @@ void Sprite::spatialShow() {
 }
 
 void Sprite::timePlay() {
-	// SET ANIMATION VARIABLES.
-	debugC(5, kDebugScript, "Sprite::timePlay(): Sprite playback started");
+	debugC(5, kDebugScript, "Called Sprite::timePlay");
 	_isPlaying = true;
 	_persistFrame = nullptr;
 	_startTime = g_system->getMillis();
@@ -144,8 +135,17 @@ void Sprite::timePlay() {
 	}
 }
 
+void Sprite::movieReset() {
+	debugC(5, kDebugScript, "Called Sprite::movieReset");
+	_isPlaying = true;
+	// We do NOT reset the persisting frame, because it should keep showing!
+	_startTime = 0;
+	_currentFrameIndex = 0;
+	_nextFrameTime = 0;
+	_lastProcessedTime = 0;
+}
+
 void Sprite::process() {
-	debugC(5, kDebugGraphics, "Sprite %d: Redrawing", _header->_id);
 	drawNextFrame();
 
 	// TODO: I don't think sprites support time-based event handlers. Because we
@@ -159,35 +159,49 @@ void Sprite::readChunk(Chunk &chunk) {
 	SpriteFrame *frame = new SpriteFrame(chunk, header);
 	_frames.push_back(frame);
 
+	// TODO: Are these in exactly reverse order? If we can just reverse the
+	// whole thing once.
 	Common::sort(_frames.begin(), _frames.end(), [](SpriteFrame * a, SpriteFrame * b) {
 		return a->index() < b->index();
 	});
 }
 
-bool Sprite::drawNextFrame() {
-	if (_persistFrame != nullptr) {
+void Sprite::drawNextFrame() {
+	// TODO: With a dirty rect-based system, we would only need to redraw the frame
+	// when it NEEDS to be redrawn. But since the whole screen is currently redrawn
+	// every time, the persisting frame needs to be redrawn too.
+	bool redrawPersistentFrame = _persistFrame != nullptr;
+	if (redrawPersistentFrame) {
+		debugC(5, kDebugGraphics, "GRAPHICS (Sprite %d): Drawing persistent frame %d", _header->_id, _persistFrame->index());
 		drawFrame(_persistFrame);
-		return true;
+		return;
 	}
 
 	uint currentTime = g_system->getMillis() - _startTime;
-	if (currentTime <= _nextFrameTime) {
+	bool redrawCurrentFrame = currentTime <= _nextFrameTime;
+	if (redrawCurrentFrame) {
 		// Just redraw the current frame in case it was covered over.
-		// This will change when the rendering is reworked.
-		drawFrame(_frames[_currentFrameIndex]);
-		return true;
+		// See TODO above.
+		SpriteFrame *currentFrame = _frames[_currentFrameIndex];
+		debugC(5, kDebugGraphics, "GRAPHICS (Sprite %d): Re-drawing current frame %d", _header->_id, currentFrame->index());
+		drawFrame(currentFrame);
+		return;
 	}
 
-	_nextFrameTime = _currentFrameIndex * (1000 / _header->_frameRate);
-	warning("Next frame (%d * (1000 / %d)) : %d ms", _currentFrameIndex, _header->_frameRate, _nextFrameTime);
-	drawFrame(_frames[_currentFrameIndex]);
+	SpriteFrame *nextFrame = _frames[_currentFrameIndex];
+	debugC(5, kDebugGraphics, "GRAPHICS (Sprite %d): Drawing next frame %d (@%d)", _header->_id, nextFrame->index(), _nextFrameTime);
+	uint frameDuration = 1000 / _header->_frameRate;
+	_nextFrameTime = _currentFrameIndex * frameDuration;
+	drawFrame(nextFrame);
 
 	bool spriteFinishedPlaying = (++_currentFrameIndex == _frames.size());
 	if (spriteFinishedPlaying) {
-		// RESET ANIMATION VARIABLES.
-		// Sprites always keep their last frame showing until they are hidden again.
-		_isPlaying = true;
+		// Sprites always keep their last frame showing until they are hidden
+		// with spatialHide.
 		_persistFrame = _frames[_currentFrameIndex - 1];
+		_isPlaying = true;
+
+		// But otherwise, the sprite's params should be reset.
 		_startTime = 0;
 		_lastProcessedTime = 0;
 		_currentFrameIndex = 0;
@@ -199,18 +213,15 @@ bool Sprite::drawNextFrame() {
 			debugC(5, kDebugScript, "Sprite::drawNextFrame(): Executing end event handler");
 			endEvent->execute(_header->_id);
 		} else {
-			debugC(5, kDebugScript, "Sprite::drawNextFrame(): No stopped event handler");
+			debugC(5, kDebugScript, "Sprite::drawNextFrame(): No end event handler");
 		}
-		return false;
 	}
-
-	return true;
 }
 
 void Sprite::drawFrame(SpriteFrame *frame) {
 	uint frameLeft = frame->left() + _header->_boundingBox->left;
 	uint frameTop = frame->top() + _header->_boundingBox->top;
-	//debugC(7, kDebugGraphics, "SPRITE: (time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d)", movieTime, frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
+	debugC(7, kDebugGraphics, "    Drawing frame %d (%d x %d) @ (%d, %d)", frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
 	g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frameLeft, frameTop), 0, false);
 }
 
