@@ -65,7 +65,9 @@ public:
 
 private:
 	Common::Array<SpriteFrame *> _frames;
-	bool _isSpatialShowOnly = false;
+	SpriteFrame *_persistFrame = nullptr;
+	uint _currentFrameIndex = 0;
+	uint _nextFrameTime = 0;
 
 	// Method implementations.
 	void spatialShow();
@@ -73,7 +75,7 @@ private:
 
 	// Helper functions.
 	bool drawNextFrame();
-	void drawFirstFrame();
+	void drawFrame(SpriteFrame *frame);
 };
 
 } // End of namespace MediaStation

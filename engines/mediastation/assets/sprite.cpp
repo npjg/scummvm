@@ -90,10 +90,11 @@ Operand Sprite::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args)
 	case BuiltInMethod::movieReset: {
 		assert(args.size() == 0);
 		debugC(5, kDebugScript, "Sprite::movieReset(): Sprite reset");
-		_isPlaying = false;
+		_isPlaying = true;
 		_startTime = 0;
+		_currentFrameIndex = 0;
+		_nextFrameTime = 0;
 		_lastProcessedTime = 0;
-		spatialShow();
 		// TODO: This won't add back to the playing assets array!
 		return Operand();
 	}
@@ -107,29 +108,32 @@ Operand Sprite::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args)
 void Sprite::spatialShow() {
 	debugC(5, kDebugScript, "Sprite::spatialShow(): Sprite now showing");
 	_isPlaying = true;
-	_isSpatialShowOnly = true;
 	g_engine->addPlayingAsset(this);
+
+	// Persist the first frame.
+	// TODO: Is there anything that says what the persisted frame should be?
+	SpriteFrame *firstFrame = _frames[0];
+	for (SpriteFrame *frame : _frames) {
+		if (frame->index() < firstFrame->index()) {
+			firstFrame = frame;
+		}
+	}
+	_persistFrame = firstFrame;
 }
 
 void Sprite::timePlay() {
-	//if (_isPlaying) {
-	//    error("Sprite::timePlay(): Attempted to play a sprite that is already playing");
-	//    return;
-	//}
-
 	// SET ANIMATION VARIABLES.
 	debugC(5, kDebugScript, "Sprite::timePlay(): Sprite playback started");
 	_isPlaying = true;
-	_isSpatialShowOnly = false;
+	_persistFrame = nullptr;
 	_startTime = g_system->getMillis();
 	_lastProcessedTime = 0;
+	_nextFrameTime = 0;
 	g_engine->addPlayingAsset(this);
 
-	// GET THE DURATION OF THE SPRITE.
 	if (_header->_frameRate == 0) {
 		_header->_frameRate = 10;
 	}
-	_duration = ((double)_frames.size() / _header->_frameRate) * 1000;
 
 	// RUN THE MOVIE START EVENT HANDLER.
 	EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
@@ -143,13 +147,7 @@ void Sprite::timePlay() {
 
 void Sprite::process() {
 	debugC(5, kDebugGraphics, "Sprite %d: Redrawing", _header->_id);
-	if (_isSpatialShowOnly) { // This is really isSpatialShow
-		drawFirstFrame();
-	} else {
-		drawNextFrame();
-	}
-	// Sprites arenʻt showing because weʻre not respecting z-indices, and the movie is being rendered AFTER the
-	// sprite, so it isnʻt being shown!
+	drawNextFrame();
 
 	// TODO: I don't think sprites support time-based event handlers. Because we
 	// have a separate timer for restarting the sprite when it expires.
@@ -167,32 +165,34 @@ void Sprite::readChunk(Chunk &chunk) {
 	});
 }
 
-void Sprite::drawFirstFrame() {
-	// GET THE FIRST FRAME.
-	SpriteFrame *firstFrame = _frames[0];
-	for (SpriteFrame *frame : _frames) {
-		if (frame->index() < firstFrame->index()) {
-			firstFrame = frame;
-		}
+bool Sprite::drawNextFrame() {
+	if (_persistFrame != nullptr) {
+		drawFrame(_persistFrame);
+		return true;
 	}
 
-	SpriteFrame *frame = firstFrame;
-	uint frameLeft = frame->left() + _header->_boundingBox->left;
-	uint frameTop = frame->top() + _header->_boundingBox->top;
-	debugC(7, kDebugGraphics, "SPRITE: Drawing still frame %d (%d x %d) @ (%d, %d)", frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
-	g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frameLeft, frameTop), 0, false);
-}
+	uint currentTime = g_system->getMillis() - _startTime;
+	if (currentTime <= _nextFrameTime) {
+		// Just redraw the current frame in case it was covered over.
+		// This will change when the rendering is reworked.
+		drawFrame(_frames[_currentFrameIndex]);
+		return true;
+	}
 
-bool Sprite::drawNextFrame() {
-	// DETERMINE WHICH FRAMES NEED TO BE DRAWN.
-	uint currentTime = g_system->getMillis();
-	uint movieTime = currentTime - _startTime;
-	debugC(8, kDebugGraphics, "Sprite::drawNextFrame(): Starting frame blitting (sprite time: %d)", movieTime);
-	if (movieTime > _duration) {
+	_nextFrameTime = _currentFrameIndex * (1000 / _header->_frameRate);
+	warning("Next frame (%d * (1000 / %d)) : %d ms", _currentFrameIndex, _header->_frameRate, _nextFrameTime);
+	drawFrame(_frames[_currentFrameIndex]);
+
+	bool spriteFinishedPlaying = (++_currentFrameIndex == _frames.size());
+	if (spriteFinishedPlaying) {
 		// RESET ANIMATION VARIABLES.
-		_isPlaying = false;
+		// Sprites always keep their last frame showing until they are hidden again.
+		_isPlaying = true;
+		_persistFrame = _frames[_currentFrameIndex - 1];
 		_startTime = 0;
 		_lastProcessedTime = 0;
+		_currentFrameIndex = 0;
+		_nextFrameTime = 0;
 
 		// RUN THE SPRITE END EVENT HANDLER.
 		EventHandler *endEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieEnd);
@@ -200,47 +200,19 @@ bool Sprite::drawNextFrame() {
 			debugC(5, kDebugScript, "Sprite::drawNextFrame(): Executing end event handler");
 			endEvent->execute(_header->_id);
 		} else {
-			debugC(5, kDebugScript, "Sprite::drawNextFrame: No end event handler");
+			debugC(5, kDebugScript, "Sprite::drawNextFrame(): No stopped event handler");
 		}
 		return false;
 	}
 
-	uint frameIndex = 0;
-	Common::Array<SpriteFrame *> framesToDraw;
-	for (SpriteFrame *frame : _frames) {
-		// Unlike movies, sprite frames don't have individual durations. They
-		// are guaranteed to be multiples of the given frame rate.
-		uint frameStartInMilliseconds = frameIndex * _header->_frameRate * 10;
-		uint frameEndInMilliseconds = (frameIndex + 1) * _header->_frameRate * 10;
-		// Unlike movies, sprite frame coordinates are relative to the sprite
-		// bounding box.
-		uint frameLeft = frame->left() + _header->_boundingBox->left;
-		uint frameTop = frame->top() + _header->_boundingBox->top;
-
-		bool isAfterStart = (_startTime + frameStartInMilliseconds) <= currentTime;
-		bool isBeforeEnd = (_startTime + frameEndInMilliseconds) >= currentTime;
-		if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
-			frameIndex++;
-			continue;
-		}
-		debugC(7, kDebugGraphics, "SPRITE: (time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms", movieTime, frame->index(), frame->width(), frame->height(), frameLeft, frameTop, frameStartInMilliseconds, frameEndInMilliseconds);
-		framesToDraw.push_back(frame);
-		frameIndex++;
-	}
-
-	// BLIT THE FRAMES.
-	for (SpriteFrame *frame : framesToDraw) {
-		uint frameLeft = frame->left() + _header->_boundingBox->left;
-		uint frameTop = frame->top() + _header->_boundingBox->top;
-		debugC(7, kDebugGraphics, "SPRITE: (time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d)", movieTime, frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
-		g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frameLeft, frameTop), 0, false);
-	}
-	// The main game loop takes care of updating the screen.
-
-	uint frameBlitEnd = g_system->getMillis() - _startTime;
-	uint elapsedTime = frameBlitEnd - movieTime;
-	debugC(8, kDebugGraphics, "Sprite::drawNextFrame(): Finished frame blitting in %d ms (current sprite time: %d ms)", elapsedTime, frameBlitEnd);
 	return true;
+}
+
+void Sprite::drawFrame(SpriteFrame *frame) {
+	uint frameLeft = frame->left() + _header->_boundingBox->left;
+	uint frameTop = frame->top() + _header->_boundingBox->top;
+	//debugC(7, kDebugGraphics, "SPRITE: (time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d)", movieTime, frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
+	g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frameLeft, frameTop), 0, false);
 }
 
 } // End of namespace MediaStation
