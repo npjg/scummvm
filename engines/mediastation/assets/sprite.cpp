@@ -43,8 +43,7 @@ SpriteFrame::SpriteFrame(Chunk &chunk, SpriteFrameHeader *header) : Bitmap(chunk
 }
 
 SpriteFrame::~SpriteFrame() {
-	delete _bitmapHeader;
-	_bitmapHeader = nullptr;
+	// The base class destructor takes care of deleting the bitmap header.
 }
 
 uint32 SpriteFrame::left() {

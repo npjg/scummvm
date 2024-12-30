@@ -146,6 +146,8 @@ uint32 MovieFrame::keyframeEndInMilliseconds() {
 }
 
 MovieFrame::~MovieFrame() {
+	// The base class destructor takes care of deleting the bitmap header, so 
+	// we don't need to delete that here.
 	delete _footer;
 	_footer = nullptr;
 }
@@ -184,6 +186,8 @@ Operand Movie::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) 
 }
 
 void Movie::timePlay() {
+	// TODO: Play movies one chunk at a time, which more directly approximates
+	// the original's reading from the CD one chunk at a time.
 	if (_isPlaying) {
 		error("Movie::play(): Attempted to play a movie that is already playing");
 		return;

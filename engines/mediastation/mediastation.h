@@ -58,7 +58,7 @@ public:
 		    (f == kSupportsReturnToLauncher);
 	};
 	bool isFirstGenerationEngine();
-	Common::ErrorCode processEvents();
+	void processEvents();
 
 	void setPalette(Asset *palette);
 	void addPlayingAsset(Asset *assetToAdd);

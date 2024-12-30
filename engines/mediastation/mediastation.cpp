@@ -126,15 +126,18 @@ Common::Error MediaStationEngine::run() {
 		}
 	}
 
-	uint32 currentTime = g_system->getMillis();
 	while (true) {
-		// PROCESS EVENTS.
-		Common::ErrorCode status = processEvents();
-		if (status == Common::kNoError) {
-			return status;
+		processEvents();
+		if (shouldQuit()) {
+			break;
 		}
 
 		// PROCESS ANY ASSETS CURRENTLY PLAYING.
+		// TODO: Implement a dirty-rect based rendering system rather than
+		// redrawing the screen each time. This will require keeping track of
+		// all the images on screen at any given time, rather than just letting
+		// the movies handle their own drawing.
+		//
 		// First, they all need to be sorted by z-coordinate.
 		Common::sort(_assetsPlaying.begin(), _assetsPlaying.end(), [](Asset * a, Asset * b) {
 			return a->zIndex() > b->zIndex();
@@ -148,14 +151,16 @@ Common::Error MediaStationEngine::run() {
 			}
 		}
 
+		// UPDATE THE SCREEN.
 		g_engine->_screen->update();
 		g_system->delayMillis(10);
 	}
 
+	// CLEAN UP.
 	return Common::kNoError;
 }
 
-Common::ErrorCode MediaStationEngine::processEvents() {
+void MediaStationEngine::processEvents() {
 	while (g_system->getEventManager()->pollEvent(e)) {
 		debugC(9, kDebugEvents, "\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 		debugC(9, kDebugEvents, "@@@@   Processing events");
@@ -163,15 +168,23 @@ Common::ErrorCode MediaStationEngine::processEvents() {
 
 		switch (e.type) {
 		case Common::EVENT_QUIT: {
-			error("Quitting");
+			// TODO: Do any necessary clean-up.
+			return;
 		}
 
 		case Common::EVENT_KEYDOWN: {
-			error("Quitting");
+			break;
 		}
 
 		case Common::EVENT_LBUTTONDOWN: {
-			error("Quitting");
+			break;
+		}
+
+		case Common::EVENT_RBUTTONDOWN: {
+			// We are using the right button as a quick exit since the Media
+			// Station engine doesn't seem to use the right button itself.
+			warning("EVENT_RBUTTONDOWN: Quitting for development purposes");
+			quitGame();
 		}
 
 		default: {
@@ -179,7 +192,6 @@ Common::ErrorCode MediaStationEngine::processEvents() {
 		}
 		}
 	}
-	return Common::kUserCanceled; //Common::kNoError;
 }
 
 Context *MediaStationEngine::loadContext(uint32 contextId) {
