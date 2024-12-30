@@ -42,8 +42,7 @@ MediaStationEngine *g_engine;
 
 MediaStationEngine::MediaStationEngine(OSystem *syst, const ADGameDescription *gameDesc) : Engine(syst),
 	_gameDescription(gameDesc),
-	_randomSource("MediaStation"),
-	_boot(nullptr) {
+	_randomSource("MediaStation") {
 	g_engine = this;
 	_mixer = g_system->getMixer();
 }
