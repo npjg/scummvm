@@ -221,7 +221,7 @@ void Sprite::drawNextFrame() {
 void Sprite::drawFrame(SpriteFrame *frame) {
 	uint frameLeft = frame->left() + _header->_boundingBox->left;
 	uint frameTop = frame->top() + _header->_boundingBox->top;
-	debugC(7, kDebugGraphics, "    Drawing frame %d (%d x %d) @ (%d, %d)", frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
+	debugC(5, kDebugGraphics, "    Sprite frame %d (%d x %d) @ (%d, %d)", frame->index(), frame->width(), frame->height(), frameLeft, frameTop);
 	g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frameLeft, frameTop), 0, false);
 }
 

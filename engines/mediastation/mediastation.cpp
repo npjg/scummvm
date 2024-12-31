@@ -139,6 +139,7 @@ Common::Error MediaStationEngine::run() {
 		// the movies handle their own drawing.
 		//
 		// First, they all need to be sorted by z-coordinate.
+		debugC(5, kDebugGraphics, "***** START RENDERING ***");
 		Common::sort(_assetsPlaying.begin(), _assetsPlaying.end(), [](Asset * a, Asset * b) {
 			return a->zIndex() > b->zIndex();
 		});
@@ -150,6 +151,7 @@ Common::Error MediaStationEngine::run() {
 				++it;
 			}
 		}
+		debugC(5, kDebugGraphics, "***** END RENDERING ***");
 
 		// UPDATE THE SCREEN.
 		g_engine->_screen->update();

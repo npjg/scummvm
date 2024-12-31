@@ -183,6 +183,7 @@ Operand Movie::callMethod(BuiltInMethod methodId, Common::Array<Operand> &args) 
 }
 
 void Movie::timePlay() {
+	debugC(5, kDebugScript, "Called Movie::timePlay()");
 	// TODO: Play movies one chunk at a time, which more directly approximates
 	// the original's reading from the CD one chunk at a time.
 	if (_isPlaying) {
@@ -191,7 +192,6 @@ void Movie::timePlay() {
 	}
 
 	// SET ANIMATION VARIABLES.
-	debugC(5, kDebugScript, "Movie::timePlay(): Movie playback started");
 	_isPlaying = true;
 	_startTime = g_system->getMillis();
 	_lastProcessedTime = 0;
@@ -220,8 +220,10 @@ void Movie::timePlay() {
 	// RUN THE MOVIE START EVENT HANDLER.
 	EventHandler *startEvent = _header->_eventHandlers.getValOrDefault(EventHandler::Type::MovieBegin);
 	if (startEvent != nullptr) {
-		debugC(5, kDebugScript, "Movie::play(): Executing movie start event handler");
+		debugC(5, kDebugScript, "Movie::timePlay(): Executing movie start event handler");
 		startEvent->execute(_header->_id);
+	} else {
+		debugC(5, kDebugScript, "Movie::timePlay(): No movie start event handler");
 	}
 }
 
@@ -236,6 +238,8 @@ void Movie::timeStop() {
 	if (endEvent != nullptr) {
 		debugC(5, kDebugScript, "Movie::play(): Executing movie stopped event handler");
 		endEvent->execute(_header->_id);
+	} else {
+		debugC(5, kDebugScript, "Movie::timePlay(): No movie stopped event handler");
 	}
 }
 
@@ -265,10 +269,15 @@ void Movie::processTimeEventHandlers() {
 }
 
 bool Movie::drawNextFrame() {
+	// TODO: We'll need to support persistent frames in movies too. Do movies
+	// have the same distinction between spatialShow and timePlay that sprites
+	// do?
+	
 	uint currentTime = g_system->getMillis();
 	uint movieTime = currentTime - _startTime;
-	debugC(8, kDebugGraphics, "Movie::drawNextFrame(): Starting frame blitting (movie time: %d)", movieTime);
-	if (movieTime > _duration) {
+	debugC(5, kDebugGraphics, "GRAPHICS (Movie %d): Starting blitting (movie time: %d)", _header->_id, movieTime);
+	bool donePlaying = movieTime > _duration;
+	if (donePlaying) {
 		_isPlaying = false;
 		_startTime = 0;
 		_lastProcessedTime = 0;
@@ -278,6 +287,8 @@ bool Movie::drawNextFrame() {
 		if (endEvent != nullptr) {
 			debugC(5, kDebugScript, "Movie::drawNextFrame(): Executing movie end event handler");
 			endEvent->execute(_header->_id);
+		} else {
+			debugC(5, kDebugScript, "Movie::drawNextFrame(): No movie end event handler");
 		}
 		return false;
 	}
@@ -289,7 +300,7 @@ bool Movie::drawNextFrame() {
 		if (!isAfterStart || (isAfterStart && !isBeforeEnd)) {
 			continue;
 		}
-		debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", movieTime, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
+		debugC(5, kDebugGraphics, "    (time: %d ms) Must re-draw frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, zIndex = %d", movieTime, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
 		framesToDraw.push_back(frame);
 	}
 
@@ -297,13 +308,12 @@ bool Movie::drawNextFrame() {
 		return a->zCoordinate() > b->zCoordinate();
 	});
 	for (MovieFrame *frame : framesToDraw) {
-		debugC(7, kDebugGraphics, "(time: %d ms) Drawing frame %d (%d x %d) @ (%d, %d); start: %d ms, end: %d ms, keyframeEnd: %d ms, _unk5 = %d", movieTime, frame->index(), frame->width(), frame->height(), frame->left(), frame->top(), frame->startInMilliseconds(), frame->endInMilliseconds(), frame->keyframeEndInMilliseconds(), frame->zCoordinate());
 		g_engine->_screen->transBlitFrom(frame->surface, Common::Point(frame->left(), frame->top()), 0, false);
 	}
 
-	uint frameBlitEnd = g_system->getMillis() - _startTime;
-	uint elapsedTime = frameBlitEnd - movieTime;
-	debugC(8, kDebugGraphics, "Movie::drawNextFrame(): Finished frame blitting in %d ms (current movie time: %d ms)", elapsedTime, frameBlitEnd);
+	uint blitEnd = g_system->getMillis() - _startTime;
+	uint elapsedTime = blitEnd - movieTime;
+	debugC(5, kDebugGraphics, "GRAPHICS (Movie %d): Finished blitting in %d ms (movie time: %d ms)", _header->_id, elapsedTime, blitEnd);
 	return true;
 }
 
