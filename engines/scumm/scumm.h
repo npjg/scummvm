@@ -511,6 +511,7 @@ class ScummEngine : public Engine, public Common::Serializable {
 	friend class MacIndy3Gui;
 	friend class MacLoomGui;
 	friend class MacV5Gui;
+	friend class MacV6Gui;
 	friend class LogicHEBasketball;
 
 public:
@@ -1520,6 +1521,7 @@ public:
 	byte *_shadowPalette = nullptr;
 	bool _skipDrawObject = 0;
 	int _voiceMode = 0;
+	int _soundEnabled = 0;
 
 	// HE specific
 	byte _HEV7ActorPalette[256];

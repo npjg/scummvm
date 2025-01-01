@@ -35,6 +35,7 @@
 #include "scumm/scumm.h"
 #include "scumm/scumm_v7.h"
 #include "scumm/sound.h"
+#include "scumm/macgui/macgui.h"
 #include "scumm/smush/codec37.h"
 #include "scumm/smush/codec47.h"
 #include "scumm/smush/smush_font.h"
@@ -1238,86 +1239,94 @@ void SmushPlayer::play(const char *filename, int32 speed, int32 offset, int32 st
 	int skipped = 0;
 
 	for (;;) {
-		uint32 now, elapsed;
 		bool skipFrame = false;
 
-		if (_insanity) {
-			// Seeking makes a mess of trying to sync the audio to
-			// the sound. Sync to time instead.
-			now = _vm->_system->getMillis() - _pauseTime;
-			elapsed = now - _startTime;
-		} else if (_vm->_mixer->isSoundHandleActive(*_compressedFileSoundHandle)) {
-			// Compressed SMUSH files.
-			elapsed = _vm->_mixer->getSoundElapsedTime(*_compressedFileSoundHandle);
-		} else if (_vm->_mixer->isSoundHandleActive(*_IACTchannel)) {
-			// Curse of Monkey Island SMUSH files.
-			elapsed = _vm->_mixer->getSoundElapsedTime(*_IACTchannel);
-		} else {
-			// For other SMUSH files, we don't necessarily have any
-			// one channel to sync against, so we have to use
-			// elapsed real time.
-			now = _vm->_system->getMillis() - _pauseTime;
-			elapsed = now - _startTime;
+		if (!_paused) {
+			uint32 now, elapsed;
+
+			if (_insanity) {
+				// Seeking makes a mess of trying to sync the audio to
+				// the sound. Sync to time instead.
+				now = _vm->_system->getMillis() - _pauseTime;
+				elapsed = now - _startTime;
+			} else if (_vm->_mixer->isSoundHandleActive(*_compressedFileSoundHandle)) {
+				// Compressed SMUSH files.
+				elapsed = _vm->_mixer->getSoundElapsedTime(*_compressedFileSoundHandle);
+			} else if (_vm->_mixer->isSoundHandleActive(*_IACTchannel)) {
+				// Curse of Monkey Island SMUSH files.
+				elapsed = _vm->_mixer->getSoundElapsedTime(*_IACTchannel);
+			} else {
+				// For other SMUSH files, we don't necessarily have any
+				// one channel to sync against, so we have to use
+				// elapsed real time.
+				now = _vm->_system->getMillis() - _pauseTime;
+				elapsed = now - _startTime;
+			}
+
+			if (elapsed >= ((_frame - _startFrame) * 1000) / _speed) {
+				if (elapsed >= ((_frame + 1) * 1000) / _speed)
+					skipFrame = true;
+				else
+					skipFrame = false;
+				timerCallback();
+			}
+
+			_vm->scummLoop_handleSound();
+
+			if (_warpNeeded) {
+				_vm->_system->warpMouse(_vm->_macScreen ? _warpX * 2 : _warpX, _vm->_macScreen ? (_warpY * 2 + 2 * _vm->_macScreenDrawOffset) : _warpY);
+				_warpNeeded = false;
+			}
 		}
 
-		if (elapsed >= ((_frame - _startFrame) * 1000) / _speed) {
-			if (elapsed >= ((_frame + 1) * 1000) / _speed)
-				skipFrame = true;
-			else
-				skipFrame = false;
-			timerCallback();
-		}
-
-		_vm->scummLoop_handleSound();
-
-		if (_warpNeeded) {
-			_vm->_system->warpMouse(_vm->_macScreen ? _warpX * 2 : _warpX, _vm->_macScreen ? (_warpY * 2 + 2 * _vm->_macScreenDrawOffset) : _warpY);
-			_warpNeeded = false;
-		}
 		_vm->parseEvents();
 		_vm->processInput();
-		if (_palDirtyMax >= _palDirtyMin) {
-			// Apply gamma correction for Mac versions
-			if (_vm->_macScreen) {
-				byte palette[768];
-				memcpy(palette, _pal, 768);
-				for (int i = 0; i < ARRAYSIZE(palette); i++) {
-					palette[i] = _vm->_macGammaCorrectionLookUp[_pal[i]];
-				}
 
-				_vm->_system->getPaletteManager()->setPalette(palette + _palDirtyMin * 3, _palDirtyMin, _palDirtyMax - _palDirtyMin + 1);
-			} else {
-				_vm->_system->getPaletteManager()->setPalette(_pal + _palDirtyMin * 3, _palDirtyMin, _palDirtyMax - _palDirtyMin + 1);
-			}
-
-			_palDirtyMax = -1;
-			_palDirtyMin = 256;
-			skipFrame = false;
-		}
-		if (skipFrame) {
-			if (++skipped > 10) {
-				skipFrame = false;
-				skipped = 0;
-			}
-		} else
-			skipped = 0;
-		if (_updateNeeded) {
-			if (!skipFrame) {
-				// WORKAROUND for bug #2415: "FT DEMO: assertion triggered
-				// when playing movie". Some frames there are 384 x 224
-				int frameWidth = MIN(_width, _vm->_screenWidth);
-				int frameHeight = MIN(_height, _vm->_screenHeight);
-
+		if (!_paused) {
+			if (_palDirtyMax >= _palDirtyMin) {
+				// Apply gamma correction for Mac versions
 				if (_vm->_macScreen) {
-					_vm->mac_drawBufferToScreen(_dst, frameWidth, 0, 0, frameWidth, frameHeight);
+					byte palette[768];
+					memcpy(palette, _pal, 768);
+					for (int i = 0; i < ARRAYSIZE(palette); i++) {
+						palette[i] = _vm->_macGammaCorrectionLookUp[_pal[i]];
+					}
+
+					_vm->_system->getPaletteManager()->setPalette(palette + _palDirtyMin * 3, _palDirtyMin, _palDirtyMax - _palDirtyMin + 1);
 				} else {
-					_vm->_system->copyRectToScreen(_dst, _width, 0, 0, frameWidth, frameHeight);
+					_vm->_system->getPaletteManager()->setPalette(_pal + _palDirtyMin * 3, _palDirtyMin, _palDirtyMax - _palDirtyMin + 1);
 				}
 
-				_vm->_system->updateScreen();
-				_updateNeeded = false;
+				_palDirtyMax = -1;
+				_palDirtyMin = 256;
+				skipFrame = false;
+			}
+			if (skipFrame) {
+				if (++skipped > 10) {
+					skipFrame = false;
+					skipped = 0;
+				}
+			} else
+				skipped = 0;
+			if (_updateNeeded) {
+				if (!skipFrame) {
+					// WORKAROUND for bug #2415: "FT DEMO: assertion triggered
+					// when playing movie". Some frames there are 384 x 224
+					int frameWidth = MIN(_width, _vm->_screenWidth);
+					int frameHeight = MIN(_height, _vm->_screenHeight);
+
+					if (_vm->_macScreen) {
+						_vm->mac_drawBufferToScreen(_dst, frameWidth, 0, 0, frameWidth, frameHeight);
+					} else {
+						_vm->_system->copyRectToScreen(_dst, _width, 0, 0, frameWidth, frameHeight);
+					}
+
+					_vm->_system->updateScreen();
+					_updateNeeded = false;
+				}
 			}
 		}
+
 		if (_endOfFile)
 			break;
 		if (_vm->shouldQuit() || _vm->_saveLoadFlag || _vm->_smushVideoShouldFinish) {
@@ -1329,6 +1338,12 @@ void SmushPlayer::play(const char *filename, int32 speed, int32 offset, int32 st
 			_imuseDigital->stopSMUSHAudio(); // For DIG & COMI
 			break;
 		}
+
+		if (_vm->_macGui) {
+			_vm->_macGui->updateWindowManager();
+			_vm->_system->updateScreen();
+		}
+
 		_vm->_system->delayMillis(10);
 	}
 

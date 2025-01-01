@@ -24,6 +24,8 @@
 #include "common/file.h"
 #include "common/rect.h"
 
+#include "audio/mixer.h"
+
 #include "graphics/surface.h"
 
 #include "dgds/dgds.h"
@@ -69,6 +71,7 @@ static const byte ChinaSliderColors[] = {
 
 static const byte WillyBackgroundColor = 16;
 static const byte WillyButtonColor = 20;
+static const byte WillyHeaderTxtColor = 0;
 
 static const byte MenuBackgroundColors[] {
 	0x71, 0x71, 0x71, 0x71, 0x71, 0x7B, 0x71, 0x7B, 0x7B, 0x7B, 0x7B, 0x7B,
@@ -545,12 +548,16 @@ void ButtonGadget::drawWillyBmpButtons(Graphics::ManagedSurface *dst) const {
 	case 114: // HELP (questionmark icon)
 		drawCenteredBmpIcon(dst, kWillyQuestionMark);
 		break;
-	case 115: // SFX (bam icon)
-		drawCenteredBmpIcon(dst, kWillyBam);
+	case 115: { // SFX (bam icon)
+		bool sfxOff = DgdsEngine::getInstance()->_mixer->isSoundTypeMuted(Audio::Mixer::kSFXSoundType);
+		drawCenteredBmpIcon(dst, sfxOff ? kWillyNoBam : kWillyBam);
 		break;
-	case 116: // MUSIC (musical note icon)
-		drawCenteredBmpIcon(dst, kWillyMusicNote);
+	}
+	case 116: { // MUSIC (musical note icon)
+		bool musicOff = DgdsEngine::getInstance()->_mixer->isSoundTypeMuted(Audio::Mixer::kMusicSoundType);
+		drawCenteredBmpIcon(dst, musicOff ? kWillyNoMusicNote : kWillyMusicNote);
 		break;
+	}
 	case 120: // HELP (questionmark and text icon)
 		drawCenteredBmpIcon(dst, kWillyHelpText);
 		break;
@@ -1050,8 +1057,11 @@ void RequestData::drawBackgroundNoSliders(Graphics::ManagedSurface *dst, const C
 	drawCorners(dst, cornerOffset, _rect.x, _rect.y, _rect.width, _rect.height);
 	if (gameId == GID_DRAGON)
 		drawHeader(dst, _rect.x, _rect.y, _rect.width, 4, header, DragonHeaderTxtColor, true, DragonHeaderTopColor, DragonHeaderBottomColor);
-	else
+	else if (gameId == GID_HOC)
 		drawHeader(dst, _rect.x, _rect.y + 4, _rect.width, 4, header, ChinaHeaderTxtColor, true, ChinaHeaderTopColor, ChinaHeaderBottomColor);
+	else { // WILLY
+		drawHeader(dst, _rect.x, _rect.y + 4, _rect.width, 4, header, WillyHeaderTxtColor, false, 0, 0);
+	}
 }
 
 /*static*/

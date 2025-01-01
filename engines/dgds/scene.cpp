@@ -481,7 +481,7 @@ bool Scene::runOps(const Common::Array<SceneOp> ops, int16 addMinuites /* = 0 */
 	bool sceneChanged = false;
 	int16 startSceneNum = engine->getScene()->getNum();
 	for (const SceneOp &op : ops) {
-		if (!checkConditions(op._conditionList))
+		if (!SceneConditions::check(op._conditionList))
 			continue;
 		debug(10, "Exec %s", op.dump("").c_str());
 		if (addMinuites) {
@@ -505,74 +505,12 @@ bool Scene::runOps(const Common::Array<SceneOp> ops, int16 addMinuites /* = 0 */
 	return startSceneNum == endSceneNum;
 }
 
-/*static*/
-bool Scene::checkConditions(const Common::Array<SceneConditions> &conds) {
-	DgdsEngine *engine = DgdsEngine::getInstance();
-
-	uint cnum = 0;
-	while (cnum < conds.size()) {
-		const SceneConditions &c = conds[cnum];
-		int16 refval = c.getVal();
-		int16 checkval = -1;
-		SceneCondition cflag = c.getCond();
-		// Hit an "or" here means the last result was true.
-		if (cflag & kSceneCondOr)
-			return true;
-
-		if (cflag & kSceneCondSceneState) {
-			refval = 1;
-			checkval = engine->adsInterpreter()->getStateForSceneOp(c.getNum());
-			SceneCondition equalOrNegate = static_cast<SceneCondition>(cflag & (kSceneCondEqual | kSceneCondNegate));
-			if (equalOrNegate != kSceneCondEqual && equalOrNegate != kSceneCondNegate)
-				refval = 0;
-			cflag = kSceneCondEqual;
-		} else if (cflag & kSceneCondNeedItemQuality || cflag & kSceneCondNeedItemSceneNum) {
-			const Common::Array<GameItem> &items = engine->getGDSScene()->getGameItems();
-			for (const auto &item : items) {
-				if (item._num == c.getNum()) {
-					if (cflag & kSceneCondNeedItemSceneNum)
-						checkval = item._inSceneNum;
-					else // cflag & kSceneCondNeedItemQuality
-						checkval = item._quality;
-					break;
-				}
-			}
-		} else {
-			checkval = engine->getGDSScene()->getGlobal(c.getNum());
-			if (!(cflag & kSceneCondAbsVal))
-				refval = engine->getGDSScene()->getGlobal((uint16)refval);
-		}
-
-		bool result = false;
-		cflag = static_cast<SceneCondition>(cflag & ~(kSceneCondSceneState | kSceneCondNeedItemSceneNum | kSceneCondNeedItemQuality));
-		if (cflag == kSceneCondNone)
-			cflag = static_cast<SceneCondition>(kSceneCondEqual | kSceneCondNegate);
-		if ((cflag & kSceneCondLessThan) && checkval < refval)
-			result = true;
-		if ((cflag & kSceneCondEqual) && checkval == refval)
-			result = true;
-		if (cflag & kSceneCondNegate)
-			result = !result;
-
-		debug(11, "Cond: %s -> %s", c.dump("").c_str(), result ? "true": "false");
-
-		if (!result) {
-			// Skip just past the next or, or to the end.
-			while (cnum < conds.size() && !(conds[cnum].getCond() & kSceneCondOr))
-				cnum++;
-			if (cnum >= conds.size())
-				return false;
-		}
-		cnum++;
-	}
-	return true;
-}
-
 
 bool SDSScene::_dlgWithFlagLo8IsClosing = false;
 DialogFlags SDSScene::_sceneDialogFlags = kDlgFlagNone;
 
-SDSScene::SDSScene() : _num(-1), _dragItem(nullptr), _shouldClearDlg(false), _ignoreMouseUp(false), _field6_0x14(0), _rbuttonDown(false), _lbuttonDown(false) {
+SDSScene::SDSScene() : _num(-1), _dragItem(nullptr), _shouldClearDlg(false), _ignoreMouseUp(false),
+_field6_0x14(0), _rbuttonDown(false), _lbuttonDown(false), _isLookMode(false) {
 }
 
 bool SDSScene::load(const Common::String &filename, ResourceManager *resourceManager, Decompressor *decompressor) {
@@ -715,7 +653,7 @@ void SDSScene::checkTriggers() {
 			continue;
 		}
 
-		if (!checkConditions(trigger.conditionList))
+		if (!SceneConditions::check(trigger.conditionList))
 			continue;
 
 		trigger._enabled = false;
@@ -755,6 +693,8 @@ Dialog *SDSScene::loadDialogData(uint16 num) {
 
 	bool result = false;
 
+	uint prevSize = _dialogs.size();
+
 	while (chunk.readNextHeader(EX_DDS, filename)) {
 		if (chunk.isContainer()) {
 			continue;
@@ -778,6 +718,12 @@ Dialog *SDSScene::loadDialogData(uint16 num) {
 	}
 
 	delete dlgFile;
+
+	if (_dialogs.size() != prevSize) {
+		debug(10, "Read %d dialogs from DDS %s:", _dialogs.size() - prevSize, filename.c_str());
+		for (uint i = prevSize; i < _dialogs.size(); i++)
+			debug(10, "%s", _dialogs[i].dump("").c_str());
+	}
 
 	if (!result)
 		return nullptr;
@@ -1232,7 +1178,12 @@ void SDSScene::mouseMoved(const Common::Point &pt) {
 	const HotArea *area = findAreaUnderMouse(pt);
 	DgdsEngine *engine = DgdsEngine::getInstance();
 
-	int16 cursorNum = (!dlg && area) ? area->_cursorNum : 0;
+	int16 cursorNum = _isLookMode ? kDgdsMouseLook : kDgdsMouseGameDefault;
+	if (!dlg) {
+		if (area)
+			cursorNum = _isLookMode ? area->_cursorNum2 : area->_cursorNum;
+	}
+
 	if (_dragItem) {
 		if (area && area->_objInteractionRectNum == 1) {
 			// drag over Willy Beamish
@@ -1283,7 +1234,7 @@ static bool _isInRect(const Common::Point &pt, const DgdsRect rect) {
 			&& rect.y <= pt.y && (rect.y + rect.height) > pt.y;
 }
 
-static const ObjectInteraction * _findInteraction(const Common::Array<ObjectInteraction> &interList, int16 droppedNum, uint16 targetNum) {
+static const ObjectInteraction *_findInteraction(const Common::Array<ObjectInteraction> &interList, int16 droppedNum, uint16 targetNum) {
 	for (const auto &i : interList) {
 		if (i.matches(droppedNum, targetNum)) {
 			return &i;
@@ -1294,6 +1245,7 @@ static const ObjectInteraction * _findInteraction(const Common::Array<ObjectInte
 
 void SDSScene::mouseLUp(const Common::Point &pt) {
 	_lbuttonDown = false;
+
 	if (_ignoreMouseUp) {
 		debug(9, "Ignoring mouseup at %d,%d as it was used to clear a dialog", pt.x, pt.y);
 		_ignoreMouseUp = false;
@@ -1302,6 +1254,11 @@ void SDSScene::mouseLUp(const Common::Point &pt) {
 
 	if (_dragItem) {
 		onDragFinish(pt);
+		return;
+	}
+
+	if (_isLookMode) {
+		rightButtonAction(pt);
 		return;
 	}
 
@@ -1394,7 +1351,7 @@ void SDSScene::onDragFinish(const Common::Point &pt) {
 		}
 	}
 
-	SDSScene *scene = engine->getScene();
+	const SDSScene *scene = engine->getScene();
 	for (const auto &area : _hotAreaList) {
 		if (!_isInRect(pt, area._rect))
 			continue;
@@ -1434,7 +1391,7 @@ void SDSScene::onDragFinish(const Common::Point &pt) {
 		}
 	}
 
-	engine->setMouseCursor(gdsScene->getDefaultMouseCursor());
+	engine->setMouseCursor(kDgdsMouseGameDefault);
 	_dragItem = nullptr;
 }
 
@@ -1452,9 +1409,18 @@ void SDSScene::mouseRUp(const Common::Point &pt) {
 		return;
 	}
 
-	// Update the cursor..
-	mouseMoved(pt);
+	if (DgdsEngine::getInstance()->getGameId() == GID_WILLY) {
+		// Willy toggles between look/act mode on right click
+		_isLookMode = !_isLookMode;
+		mouseMoved(pt);
+	} else {
+		// Other games do right-button action straight away.
+		mouseMoved(pt);
+		rightButtonAction(pt);
+	}
+}
 
+void SDSScene::rightButtonAction(const Common::Point &pt) {
 	const HotArea *area = findAreaUnderMouse(pt);
 	if (!area)
 		return;
@@ -1532,13 +1498,13 @@ void SDSScene::updateHotAreasFromDynamicRects() {
 HotArea *SDSScene::findAreaUnderMouse(const Common::Point &pt) {
 	for (auto &item : DgdsEngine::getInstance()->getGDSScene()->getGameItems()) {
 		if (item._inSceneNum == _num && _isInRect(pt, item._rect)
-			&& checkConditions(item.enableConditions)) {
+			&& SceneConditions::check(item.enableConditions)) {
 			return &item;
 		}
 	}
 
 	for (auto &area : _hotAreaList) {
-		if (_isInRect(pt, area._rect) && checkConditions(area.enableConditions)) {
+		if (_isInRect(pt, area._rect) && SceneConditions::check(area.enableConditions)) {
 			return &area;
 		}
 	}
@@ -1661,7 +1627,7 @@ void SDSScene::drawDebugHotAreas(Graphics::ManagedSurface *dst) const {
 	byte greenish = pal.findBestColor(0, 0xff, 0);
 
 	for (const auto &area : _hotAreaList) {
-		bool enabled = checkConditions(area.enableConditions);
+		bool enabled = SceneConditions::check(area.enableConditions);
 		uint32 color = enabled ? greenish : redish;
 		g_system->getPaletteManager();
 		const Common::Rect &r = area._rect.toCommonRect();
@@ -1720,7 +1686,7 @@ bool GDSScene::loadRestart(const Common::String &filename, ResourceManager *reso
 
 	uint16 num = file->readUint16LE();
 	// Find matching game item and load its values
-	while (num) {
+	while (num && !file->eos()) {
 		bool found = false;
 		for (GameItem &item : _gameItems) {
 			if (item._num == num) {
@@ -1741,57 +1707,111 @@ bool GDSScene::loadRestart(const Common::String &filename, ResourceManager *reso
 	}
 	initIconSizes();
 
-	num = file->readUint16LE();
-	while (num) {
-		uint16 scene = file->readUint16LE();
-		int16 val = file->readSint16LE();
-		bool found = false;
-		for (PerSceneGlobal &glob : _perSceneGlobals) {
-			if (glob.matches(num, scene)) {
-				glob._val = val;
-				found = true;
-				break;
-			}
-		}
-		if (!found)
-			error("Reset file references unknown global %d", num);
-		num = file->readUint16LE();
-	}
-
-	/*uint32 unk = */ file->readUint32LE();
-
 	DgdsEngine *engine = DgdsEngine::getInstance();
 	Common::Array<Global *> &globs = engine->getGameGlobals()->getAllGlobals();
 
-	if (globs.size() > 50)
-		error("Too many globals to load from RST file");
+	if (engine->getGameId() == GID_DRAGON || engine->getGameId() == GID_HOC) {
+		num = file->readUint16LE();
+		while (num && !file->eos()) {
+			uint16 scene = file->readUint16LE();
+			int16 val = file->readSint16LE();
+			bool found = false;
+			for (PerSceneGlobal &glob : _perSceneGlobals) {
+				if (glob.matches(num, scene)) {
+					glob._val = val;
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				error("Reset file references unknown scene global %d", num);
+			num = file->readUint16LE();
+		}
 
-	int g = 0;
-	for (Global *glob : globs) {
-		int16 val = file->readUint16LE();
-		glob->setRaw(val);
-		g++;
-	}
+		/*uint32 unk = */ file->readUint32LE();
 
-	// Always 50 int16s worth of globals in the file, skip any unused.
-	if (g < 50)
-		file->skip(2 * (50 - g));
+		if (globs.size() > 50)
+			error("Too many globals to load from RST file");
 
-	uint16 triggers[100];
-	for (int i = 0; i < ARRAYSIZE(triggers); i++) {
-		triggers[i] = file->readUint16LE();
-	}
+		int g = 0;
+		for (Global *glob : globs) {
+			int16 val = file->readUint16LE();
+			glob->setRaw(val);
+			g++;
+		}
+		// Always 50 int16s worth of globals in the file, skip any unused.
+		if (g < 50)
+			file->skip(2 * (50 - g));
 
-	engine->_compositionBuffer.fillRect(Common::Rect(SCREEN_WIDTH, SCREEN_HEIGHT), 0);
-	// TODO: FIXME: What should this scene num be? For now hacked to work with Dragon.
-	engine->changeScene(3);
-	SDSScene *scene = engine->getScene();
-	int t = 0;
-	num = triggers[t++];
-	while (num) {
-		uint16 val = triggers[t++];
-		scene->enableTrigger(0, num, (bool)val);
+		uint16 triggers[100];
+		for (int i = 0; i < ARRAYSIZE(triggers); i++) {
+			triggers[i] = file->readUint16LE();
+		}
+
+		engine->_compositionBuffer.fillRect(Common::Rect(SCREEN_WIDTH, SCREEN_HEIGHT), 0);
+		// TODO: FIXME: What should this scene num be? For now hacked to work with Dragon.
+		engine->changeScene(3);
+		SDSScene *scene = engine->getScene();
+		int t = 0;
 		num = triggers[t++];
+		while (num) {
+			uint16 val = triggers[t++];
+			scene->enableTrigger(0, num, (bool)val);
+			num = triggers[t++];
+		}
+	} else {
+		// Willy Beamish stores the globals differently
+		num = file->readUint16LE();
+		while (num && !file->eos()) {
+			int16 val = file->readSint16LE();
+			bool found = false;
+			for (PerSceneGlobal &glob : _perSceneGlobals) {
+				if (glob.numMatches(num)) {
+					glob._val = val;
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				error("Reset file references unknown scene global %d", num);
+			num = file->readUint16LE();
+		}
+
+		/*uint32 unk = */ file->readUint32LE();
+
+		num = file->readUint16LE();
+		while (num && !file->eos()) {
+			bool found = false;
+			int16 val = file->readUint16LE();
+			for (Global *glob : globs) {
+				if (glob->getNum() == num) {
+					glob->setRaw(val);
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				error("Reset file references unknown game global %d", num);
+			num = file->readUint16LE();
+		}
+
+		//
+		// TODO: What is this block of data?  In practice there is only one of them
+		//
+		while (!file->eos()) {
+			num = file->readUint16LE();
+			if (!num)
+				break;
+			/*int16 val1 = */ file->readUint16LE();
+			/*int16 val2 = */ file->readUint16LE();
+			/*int16 val3 = */ file->readUint16LE();
+		}
+
+		/*uint16 soundBankNum = */ file->readUint16LE();
+
+		engine->_compositionBuffer.fillRect(Common::Rect(SCREEN_WIDTH, SCREEN_HEIGHT), 0);
+		// TODO: FIXME: What should this scene num be?
+		engine->changeScene(3);
 	}
 
 	return true;

@@ -191,12 +191,14 @@ void SoundSE::indexXWBFile(const Common::String &filename, AudioIndex *audioInde
 
 		if (!_audioNameToOriginalOffsetMap.contains(name)) {
 			// warning("indexXWBFile: name %s not found in speech.info", name.c_str());
+			_nameToIndex[name] = i;
 			continue;
 		}
-
+		
 		const uint32 origOffset = _audioNameToOriginalOffsetMap[name];
 		_offsetToIndex[origOffset] = i;
 		// debug("indexXWBFile: %s -> offset %d, index %d", name.c_str(), origOffset, i);
+		_nameToIndex[name] = i;
 	}
 
 	f->close();
@@ -321,7 +323,7 @@ void SoundSE::indexFSBFile(const Common::String &filename, AudioIndex *audioInde
 			continue;
 		}
 
-		const uint32 origOffset = _audioNameToOriginalOffsetMap[name] & 0xFFFFFF00;
+		const uint32 origOffset = _audioNameToOriginalOffsetMap[name];
 		_offsetToIndex[origOffset] = i;
 		//debug("indexFSBFile: %s -> offset %d, index %d", name.c_str(), origOffset, i);
 	}
@@ -374,7 +376,7 @@ static int32 calculate4CharStringHash(const char *str) {
 
 		if ((current >= 'A' && current <= 'Z') || (current >= 'a' && current <= 'z')) {
 			// Take the lower nibble of the char and incorporate it into the hash...
-			hash = (16 * hash) | current & 0xF;
+			hash = (16 * hash) | (current & 0xF);
 			++charCount;
 		}
 	}
@@ -468,7 +470,7 @@ void SoundSE::initAudioMappingMI() {
 		entry.textSpanish = f->readString(0, 256);
 
 		entry.speechFile  = f->readString(0, 32);
-		//entry.speechFile.toLowercase();
+		entry.speechFile.toLowercase();
 
 		entry.hashFourCharString = calculate4CharStringHash(entry.textEnglish.c_str()); // From disasm
 
@@ -506,7 +508,7 @@ void SoundSE::initAudioMapping() {
 		if (_vm->_game.id == GID_FT)
 			f->skip(4); // unknown flag
 
-		_audioNameToOriginalOffsetMap[name] = origOffset + 10;
+		_audioNameToOriginalOffsetMap[name] = origOffset;
 	} while (!f->eos());
 
 	f->close();
@@ -568,31 +570,16 @@ Audio::SeekableAudioStream *SoundSE::createSoundStream(Common::SeekableSubReadSt
 }
 
 int32 SoundSE::getSoundIndexFromOffset(uint32 offset) {
-	uint32 offsetToCheck = offset;
-
-	switch (_vm->_game.id) {
-	case GID_MONKEY:
-		if (_vm->_currentScriptSavedForSpeechMI < 0)
+	if (_vm->_game.id == GID_MONKEY || _vm->_game.id == GID_MONKEY2) {
+		return offset;
+	} else if (_vm->_game.id == GID_TENTACLE) {
+		if (_offsetToIndex.contains(offset))
+			return _offsetToIndex[offset];
+		else
 			return -1;
-
-		offsetToCheck = getAudioOffsetForMI(
-			_vm->_currentRoom,
-			_vm->_currentScriptSavedForSpeechMI,
-			offset,
-			_vm->_currentSpeechIndexMI
-		);
-		break;
-	case GID_TENTACLE:
-		// Some of the remastered sound offsets are off compared to the
-		// ones from the classic version, so we chop off the last 2 digits
-		offsetToCheck = offset & 0xFFFFFF00;
-		break;
 	}
 
-	if (_offsetToIndex.contains(offsetToCheck))
-		return _offsetToIndex[offsetToCheck];
-	else
-		return -1;
+	return -1;
 }
 
 SoundSE::AudioEntryMI *SoundSE::getAppropriateSpeechCue(const char *msgString, const char *speechFilenameSubstitution,
@@ -806,15 +793,19 @@ Common::String calculateCurrentString(const char *msgString) {
 	return result;
 }
 
-void SoundSE::handleRemasteredSpeech(const char *msgString, const char *speechFilenameSubstitution,
+int32 SoundSE::handleRemasteredSpeech(const char *msgString, const char *speechFilenameSubstitution,
 								     uint16 roomNumber, uint16 actorTalking, uint16 scriptNum, uint16 scriptOffset, uint16 numWaits) {
 
 	// Get the string without the various control codes and special characters...
 	Common::String currentString = calculateCurrentString(msgString);
 	AudioEntryMI *entry = getAppropriateSpeechCue(currentString.c_str(), speechFilenameSubstitution, roomNumber, actorTalking, scriptNum, scriptOffset, numWaits);
-	if (entry)
+	if (entry) {
 		debug("Selected entry: %s (%s)", entry->textEnglish.c_str(), entry->speechFile.c_str());
 
+		return _nameToIndex[entry->speechFile];
+	}
+
+	return -1;
 }
 
 } // End of namespace Scumm

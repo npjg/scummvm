@@ -49,10 +49,12 @@ void Inventory::open() {
 	_isOpen = true;
 	DgdsEngine *engine = DgdsEngine::getInstance();
 
-	if (engine->getGameId() == GID_WILLY)
-		return;
-
 	int curScene = engine->getScene()->getNum();
+	if (engine->getGameId() == GID_WILLY) {
+		_openedFromSceneNum = curScene;
+		return;
+	}
+
 	if (curScene != 2) {
 		_openedFromSceneNum = curScene;
 		engine->changeScene(2);
@@ -275,7 +277,7 @@ void Inventory::drawItems(Graphics::ManagedSurface &surf) {
 	const Common::Rect drawMask(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	int offset = _itemOffset;
 	Common::Array<GameItem> &items = engine->getGDSScene()->getGameItems();
-	for (auto & item: items) {
+	for (auto &item: items) {
 		if (!isItemInInventory(item))
 			continue;
 
@@ -300,7 +302,7 @@ void Inventory::drawItems(Graphics::ManagedSurface &surf) {
 
 		// calculate draw offset for the image
 		int drawX = imgAreaX + x + (xstep - item._rect.width) / 2;
-		int drawY = imgAreaY + y +  (ystep - item._rect.height) / 2;
+		int drawY = imgAreaY + y + (ystep - item._rect.height) / 2;
 
 		icons->drawBitmap(item._iconNum, drawX, drawY, drawMask, surf);
 
@@ -308,7 +310,9 @@ void Inventory::drawItems(Graphics::ManagedSurface &surf) {
 		item._rect.y = drawY;
 
 		x += xstep;
-		if (x >= _itemArea->_width) {
+
+		// Willy Beamish area is 270 and step is 54, so hack the width slightly.
+		if (x >= _itemArea->_width - 2) {
 			x = 0;
 			y += ystep;
 		}
@@ -330,7 +334,7 @@ void Inventory::mouseMoved(const Common::Point &pt) {
 			close();
 		}
 	} else {
-		engine->setMouseCursor(engine->getGDSScene()->getDefaultMouseCursor());
+		engine->setMouseCursor(kDgdsMouseGameDefault);
 	}
 }
 
@@ -362,7 +366,7 @@ GameItem *Inventory::itemUnderMouse(const Common::Point &pt) {
 	return nullptr;
 }
 
-bool Inventory::isItemInInventory(GameItem &item) {
+bool Inventory::isItemInInventory(const GameItem &item) {
 	DgdsEngine *engine = DgdsEngine::getInstance();
 	DgdsGameId gameId = engine->getGameId();
 	bool result = item._inSceneNum == 2; // && (item._flags & 4)
@@ -403,20 +407,22 @@ void Inventory::mouseLUp(const Common::Point &pt) {
 	GameItem *dragItem = engine->getScene()->getDragItem();
 
 	if (dragItem) {
+		if (engine->getGameId() == GID_WILLY)
+			dragItem->_inSceneNum = 2;
 		engine->getScene()->onDragFinish(pt);
 		return;
 	}
 
 	GDSScene *gds = engine->getGDSScene();
 
-	engine->setMouseCursor(gds->getDefaultMouseCursor());
+	engine->setMouseCursor(kDgdsMouseGameDefault);
 
 	int itemsPerPage = (_itemArea->_width / _itemArea->_xStep) * (_itemArea->_height / _itemArea->_yStep);
 	if (_exitButton->containsPoint(pt)) {
 		close();
 	} else if (_nextPageBtn->containsPoint(pt) && _nextPageBtn->isVisible()) {
 		int numInvItems = 0;
-		Common::Array<GameItem> &items = engine->getGDSScene()->getGameItems();
+		const Common::Array<GameItem> &items = engine->getGDSScene()->getGameItems();
 		for (auto &item: items) {
 			if (isItemInInventory(item))
 				numInvItems++;

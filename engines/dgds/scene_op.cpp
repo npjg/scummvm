@@ -173,6 +173,15 @@ bool SceneOp::runCommonOp() const {
 			return true;
 		break;
 	case kSceneOpNoop:
+		//
+		// This is run when the "quit willy beamish help" dialog item is called.
+		// There may be a nicer way to do this?
+		//
+		if (engine->getScene()->getNum() == 80 && engine->getGameId() == GID_WILLY) {
+			int16 sceneNo = engine->getGameGlobals()->getGlobal(0x61);
+			if (engine->changeScene(sceneNo))
+				return true;
+		}
 		break;
 	case kSceneOpGlobal:
 		// The globals are held by the GDS scene
@@ -381,7 +390,7 @@ bool SceneOp::runBeamishOp() const {
 	if (_opCode & kSceneOpHasConditionalOpsFlag) {
 		uint16 opcode = _opCode & ~kSceneOpHasConditionalOpsFlag;
 		for (const ConditionalSceneOp &cop : engine->getScene()->getConditionalOps()) {
-			if (cop._opCode == opcode && engine->getScene()->checkConditions(cop._conditionList)) {
+			if (cop._opCode == opcode && SceneConditions::check(cop._conditionList)) {
 				if (!Scene::runOps(cop._opList))
 					return true;
 			}
